@@ -89,7 +89,8 @@ export function ps(command) {
 }
 export function psJson(command) {
   const out = ps(`${command} | ConvertTo-Json -Depth 4 -Compress`);
-  return out ? JSON.parse(out) : null;
+  // Windows PowerShell 5 leaves control characters (found in some apps' names) unescaped: not valid JSON
+  return out ? JSON.parse(out.replace(/[\u0000-\u001f]+/g, ' ')) : null;
 }
 export function run(file, args) {
   try {
