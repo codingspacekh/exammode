@@ -408,8 +408,8 @@ Each milestone lists: **goal · build order (TDD slices) · tests written first 
 | Milestone | Status | Tag | Notes |
 |---|---|---|---|
 | Prototype | ✅ approved 2026-11-10 | — | 21 screens (*"all good"*) |
-| Requirements, architecture, milestones | 📝 Rev 3, for comments | — | Q12–Q15 answered; reviewed before M0 |
-| M0 Foundations + Windows spike | ⏳ waiting for the plan to be agreed | | |
+| Requirements, architecture, milestones | ✅ agreed 2026-11-10 | — | every question answered; reviewed before M0 |
+| M0 Foundations + Windows spike | 🔨 in progress | | Steps 1–4 done (shell, test layers, boundaries, smoke tests, CI green on macOS and Windows); step 5: the spike on GitHub's Windows Server 2022/2025, then the lab run |
 | M1 The rules | | | |
 | M2 The classroom network | | | |
 | M3 Walking skeleton | | | |

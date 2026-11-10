@@ -29,7 +29,10 @@ const probes = [
 function runProbe(p) {
   return new Promise((resolve) => {
     const t0 = Date.now();
-    const child = spawn(p.cmd[0], p.cmd.slice(1), { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ELECTRON_RUN_AS_NODE: '' } });
+    // Electron runs as plain Node when ELECTRON_RUN_AS_NODE is set at all, even empty: remove it
+    const env = { ...process.env };
+    delete env.ELECTRON_RUN_AS_NODE;
+    const child = spawn(p.cmd[0], p.cmd.slice(1), { stdio: ['ignore', 'pipe', 'pipe'], env });
     let out = '', err = '';
     child.stdout.on('data', (d) => (out += d));
     child.stderr.on('data', (d) => (err += d));

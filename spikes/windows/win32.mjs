@@ -84,7 +84,8 @@ export function terminate(pid) {
 
 /** PowerShell, returning its output (trimmed). */
 export function ps(command) {
-  return execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command], { encoding: 'utf8', windowsHide: true }).trim();
+  // a computer's installed apps can be several MB of JSON: well past Node's 1 MB default
+  return execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 2 ** 20 }).trim();
 }
 export function psJson(command) {
   const out = ps(`${command} | ConvertTo-Json -Depth 4 -Compress`);
@@ -92,7 +93,7 @@ export function psJson(command) {
 }
 export function run(file, args) {
   try {
-    return { ok: true, out: execFileSync(file, args, { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }).trim() };
+    return { ok: true, out: execFileSync(file, args, { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 2 ** 20 }).trim() };
   } catch (e) {
     return { ok: false, out: String(e.stdout ?? '').trim(), err: String(e.stderr ?? e.message).trim() };
   }
