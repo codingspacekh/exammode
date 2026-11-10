@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>07b A page that isn't part of the exam</title>
+{{include:head}}
+</head>
+<body>
+<!--@TQ: on-->
+<!--@RW: -->
+<p class="frame-label"><b>07b · A page that isn't part of the exam</b> (F-10, F-13) — a link to a site the teacher didn't allow doesn't open; the exam browser says why and offers the way back. The teacher's log shows it as a small note, not a warning — students click links by mistake. Outside the exam browser the same list holds: no app on the computer reaches the internet during the exam, apart from the exam's own websites.</p>
+<div class="frame">
+  {{include:exambar}}
+  <div class="desk">
+    <div class="web win">
+      <div class="webtabs"><span class="webtab">{{i:questions:s12}} Term 1 practical — questions</span><span class="webtab on">{{i:globe:s12}} Not part of the exam</span></div>
+      <div class="webbar">
+        <button class="btn sm ghost icon">{{i:back:s14}}</button><button class="btn sm ghost icon">{{i:fwd:s14}}</button><button class="btn sm ghost icon">{{i:refresh:s14}}</button>
+        <div class="url" style="color:var(--danger-ink)">{{i:xc:s12}} stackoverflow.com<em>/questions/…/read-csv-python</em></div>
+        <span class="allowed">{{i:shield:s14}} Only the exam's websites open here</span>
+      </div>
+      <div class="page" style="background:#fff">
+        <div class="blocked">
+          <div class="bi">{{i:globe:s32}}</div>
+          <h2>This page isn't part of the exam</h2>
+          <p>The exam browser only opens the exam's own pages and the sites Ms Leak allowed.</p>
+          <div class="url">stackoverflow.com</div>
+          <div class="row" style="justify-content:center"><button class="btn primary">{{i:back:s14}} Back to the questions</button><button class="btn">Allowed sites</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

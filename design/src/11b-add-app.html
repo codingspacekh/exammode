@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>11b Add an app to the exam</title>
+{{include:head}}
+</head>
+<body>
+<!--@NE: on-->
+<!--@OVERLAY: {{include:addapp}}-->
+<!--@TBAR_R: <button class="btn ghost">Cancel</button><button class="btn">Save</button><button class="btn primary">{{i:play:s12}} Open for students…</button>-->
+<p class="frame-label"><b>11b · Add an app to the exam</b> (F-31, F-31a) — <b>Add an app…</b> lists what is installed on the lab computers (each one reports its apps when ExamMode starts), and on how many — an app missing from some computers would leave those students without it. Nothing is hard-coded: next term a teacher can add OneEditor for a video exam or MicroLab for a circuits exam. An app ExamMode knows has an <b>exam profile</b> that also closes its own ways out (sign-in, add-ons, a browser opened from a link); any other app is <b>only allowed to run</b>, which still keeps it off the internet. <b>Choose a program file…</b> adds an app by its .exe.</p>
+<div class="frame">
+  {{include:teacherbar}}
+  {{include:makeexam}}
+  {{OVERLAY}}
+</div>
+</body></html>

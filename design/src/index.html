@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>ExamMode — UI prototype</title>
+{{include:head}}
+<style>
+  body { padding: 48px; max-width: 1000px; background: var(--bg); }
+  h1 { font-size: 24px; margin-bottom: 6px; display: flex; align-items: center; gap: 10px; }
+  h1 .logo { width: 30px; height: 30px; }
+  .sub { color: var(--tx-2); margin-bottom: 10px; line-height: 1.6; font-size: 13.5px; }
+  .list { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .list a { display: block; padding: 14px 16px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); color: var(--tx-1); }
+  .list a:hover { border-color: var(--accent); }
+  .list a b { display: block; margin-bottom: 4px; }
+  .list a span { color: var(--tx-3); font-size: 12px; }
+  h2 { font-size: 15px; margin: 30px 0 10px; }
+  ol, ul { color: var(--tx-2); padding-left: 20px; line-height: 1.8; }
+  code { font-family: var(--mono); font-size: 12px; background: var(--bg-2); padding: 1px 5px; border-radius: 4px; color: var(--tx-1); }
+</style></head>
+<body>
+<h1>{{include:logo}} ExamMode — UI prototype</h1>
+<p class="sub">Static screens for review before any code is written. Each one fills the browser window like the app on a lab computer's 1920 × 1080 screen; resize the window to see the layout follow (check 1280–1920 wide). Requirement IDs (F-12, Q4…) are those the requirements will use. The apps inside the exam (Word, VS Code) are drawn plainly, only to show where they sit under the exam bar.</p>
+<p class="sub"><b>The idea in one line:</b> on the lab computers, ExamMode keeps a student inside the exam's apps and websites until they hand in; leaving locks them out, and only the teacher can let them back in. The teacher runs the exam from their own computer over the classroom network, live.</p>
+
+<h2>The student, on a lab computer</h2>
+<div class="list">
+  <a href="01-join.html"><b>01 · Join an exam</b><span>Exams found on the classroom network; your name from the class list; the code on the board</span></a>
+  <a href="02-checks.html"><b>02 · Getting this computer ready</b><span>One screen, no remote control, not a virtual machine; the apps that will be closed; the clipboard emptied</span></a>
+  <a href="03-waiting.html"><b>03 · Waiting for the teacher</b><span>Locked, full screen; the apps you may use; leaving means you can't come back</span></a>
+  <a href="04-exam-questions.html"><b>04 · In the exam — the questions</b><span>The exam bar; the exam's own browser with the teacher's question page; allowed sites only</span></a>
+  <a href="05-exam-word.html"><b>05 · In the exam — Word</b><span>Allowed apps open under the bar, in the Exam folder; no shortcuts out</span></a>
+  <a href="06-exam-vscode.html"><b>06 · In the exam — VS Code</b><span>An exam profile: allowed extensions only, no Copilot, no internet</span></a>
+  <a href="07-app-closed.html"><b>07 · An app that isn't allowed</b><span>Chrome closed within a second; the student told; the teacher told</span></a>
+  <a href="07b-page-blocked.html"><b>07b · A page that isn't part of the exam</b><span>The exam browser says why; back to the questions</span></a>
+  <a href="08-leave.html"><b>08 · Leave the exam?</b><span>You can't come back; tick to confirm; work so far handed in</span></a>
+  <a href="09-hand-in.html"><b>09 · Hand in</b><span>The files that go; unsaved changes saved first; asks once</span></a>
+  <a href="09b-handed-in.html"><b>09b · Handed in</b><span>A receipt with a code; Finish puts the computer back to normal</span></a>
+  <a href="10-cant-rejoin.html"><b>10 · Can't join again</b><span>Refused on any computer; the teacher told; opens by itself if let back in</span></a>
+  <a href="10b-connection-lost.html"><b>10b · The teacher's computer can't be reached</b><span>Not leaving: still locked, keep working, the gap reported later</span></a>
+</div>
+
+<h2>The teacher, on their own computer</h2>
+<div class="list">
+  <a href="11-make-exam.html"><b>11 · Make an exam</b><span>Details, the apps for this exam, websites, files to give, rules; what students will see</span></a>
+  <a href="11b-add-app.html"><b>11b · Add an app to the exam</b><span>Any app on the lab computers — OneEditor, MicroLab, Access, Project…; with or without an exam profile</span></a>
+  <a href="12-lobby.html"><b>12 · Students joining</b><span>The code for the projector; who's ready; a computer that can't start says why; Start</span></a>
+  <a href="13-dashboard.html"><b>13 · The exam, live</b><span>A card per student by state; what's happening; add time; end</span></a>
+  <a href="13b-student.html"><b>13b · One student — let back in?</b><span>Their timeline; stopped suddenly; Let back in or Keep out, with a reason</span></a>
+  <a href="14-end.html"><b>14 · After the exam</b><span>Every hand-in, how and when; warnings; export the log</span></a>
+  <a href="15-design-system.html"><b>15 · Design system</b><span>Colours, the five states, buttons, form controls, icons</span></a>
+</div>
+
+<h2>Defaults used in this design (to confirm)</h2>
+<ul>
+  <li><b>Q1 / Q12 Windows lab computers</b>, open use: one shared account, no sign-in (10 and 11, 64-bit, 1920 × 1080), set up once by the teacher or IT with an administrator account. Every student has a school email, which a class list can carry (<i>agreed</i>).</li>
+  <li><b>Q13 Almost nothing to set up</b> (<i>agreed</i>) — no configuration files: an exam is made in screen 11 in a few minutes.</li>
+  <li><b>Q2 The allowed apps are chosen for each exam</b>, nothing built in (<i>agreed</i>). Exam profiles to start with: Word, Excel, PowerPoint, Access, Project, VS Code, Python IDLE, Thonny, OneEditor and MicroLab; any other app can be added and is only allowed to run.</li>
+  <li><b>Q3 / Q14 The questions are usually on paper</b> (<i>agreed</i>) — then there is no exam browser and no internet. If the teacher chooses <i>On a website</i>, the exam browser opens only the sites given (the example exam on these screens uses one).</li>
+  <li><b>Q4 The teacher's computer runs the exam</b> over the classroom network — no account, no internet service needed. Hosting it online could come later.</li>
+  <li><b>Q5 Closing ExamMode suddenly counts as leaving</b> (a crash looks the same); the teacher can let a student back in.</li>
+  <li><b>Q6 A lost network is not leaving</b> — the computer stays locked and the student keeps working.</li>
+  <li><b>Q7 Hand-ins go to the teacher's computer</b>, one folder per student; sending them on to the hand-in site could come later.</li>
+  <li><b>Q8 Teacher mode</b> is protected so a student's copy can't run an exam (as in MicroLab's teacher licence).</li>
+  <li><b>Q9 No webcam or screen recording</b> — the teacher in the room does that part.</li>
+  <li><b>Q10 MicroLab's own exam mode</b> (its <code>.mlexam</code> files) inside ExamMode: MicroLab opens normally under the exam bar, and its own full-screen exam mode isn't needed in an ExamMode exam.</li>
+  <li><b>Q11 The look is built with shadcn/ui</b> (new-york style, Tailwind v4, Phosphor icons), themed with these screens' tokens, as the gradebook is (<i>agreed</i>) — React in Electron.</li>
+</ul>
+
+<h2>Rebuild</h2>
+<ol><li>Edit <code>design/src/*.html</code> or <code>design/src/styles.css</code></li><li><code>python3 design/build.py</code></li><li>Open <code>design/screens/index.html</code></li></ol>
+</body></html>

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>13 The exam, live</title>
+{{include:head}}
+</head>
+<body>
+<!--@NE: on-->
+<!--@TBAR_R: {{include:livebar}}-->
+<!--@T1: on-->
+<p class="frame-label"><b>13 · The exam, live</b> (F-38, F-39, F-41) — the teacher's view while the exam is on. A card per student with one colour per state — <b>in the exam</b> (green, with the app in front), <b>warning</b> (amber: an app that isn't allowed was closed), <b>no contact</b> (grey, dashed: the network, see 10b), <b>left</b> (red: locked out), <b>handed in</b> (blue). The counts at the top filter the cards. On the right, <b>what's happening</b>, newest first, each with its action. <b>Add time</b> for everyone or one student; <b>End the exam</b> collects everyone's work.</p>
+<div class="frame">
+  {{include:teacherbar}}
+  <div class="tbody">
+    <div class="tmain">
+      {{include:tiles}}
+      {{include:students-grid}}
+    </div>
+    <div class="tside">
+      <div class="feed-h"><h2>What's happening</h2><span class="spacer"></span><span class="pill wait">{{i:bell:s12}} sound on</span></div>
+      <div class="feed">
+        <div class="ev new"><span class="evi danger">{{i:lock:s14}}</span><div><p><b>Vannak Sok</b> asks to come back in — on PC-02</p><time>09:59</time><div class="acts"><button class="btn sm primary">Look</button></div></div></div>
+        <div class="ev"><span class="evi danger">{{i:door:s14}}</span><div><p><b>Vannak Sok</b> left — ExamMode stopped suddenly on PC-07</p><time>09:58</time></div></div>
+        <div class="ev"><span class="evi lost">{{i:wifioff:s14}}</span><div><p><b>Mealea Chea</b> — no contact with PC-11 for 0:45</p><time>09:57</time></div></div>
+        <div class="ev"><span class="evi warn">{{i:warn:s14}}</span><div><p><b>Dara Kim</b> opened Google Chrome — closed. 2nd time.</p><time>09:52</time></div></div>
+        <div class="ev"><span class="evi done">{{i:check:s14}}</span><div><p><b>Rithy Heng</b> handed in 3 files</p><time>09:51</time></div></div>
+        <div class="ev"><span class="evi warn">{{i:warn:s14}}</span><div><p><b>Sophea Lim</b> opened Discord — closed</p><time>09:48</time></div></div>
+        <div class="ev"><span class="evi lost">{{i:globe:s14}}</span><div><p><b>Bopha Ouk</b> clicked a site that isn't allowed — stackoverflow.com</p><time>09:46</time></div></div>
+        <div class="ev"><span class="evi warn">{{i:warn:s14}}</span><div><p><b>Seyha Mao</b> opened Notepad — closed</p><time>09:41</time></div></div>
+        <div class="ev"><span class="evi warn">{{i:warn:s14}}</span><div><p><b>Dara Kim</b> opened Google Chrome — closed</p><time>09:38</time></div></div>
+        <div class="ev"><span class="evi ok">{{i:play:s12}}</span><div><p>Exam started on 26 computers</p><time>09:30</time></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

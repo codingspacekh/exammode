@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>15 Design system</title>
+{{include:head}}
+</head>
+<body>
+<p class="frame-label"><b>15 · Design system</b> (N-06, N-07) — built with <b>shadcn/ui</b> (new-york style, Tailwind v4, Phosphor icons) themed with these tokens, as the gradebook is. Below: the colours, the five student states (the same colour on the student's screen, the teacher's cards and the log), buttons, pills, our own form controls in every state (never the browser's default), the icons, and which shadcn/ui component each pattern is. The exam bar is the one dark surface in the app.</p>
+<div class="frame">
+  <div class="ds">
+    <div class="section"><h2>Colours</h2><div class="swatches">
+      <div class="sw"><i style="background:var(--accent)"></i><div>Accent<code>#3b4fd8</code></div></div>
+      <div class="sw"><i style="background:var(--xbar)"></i><div>Exam bar<code>#0f172a</code></div></div>
+      <div class="sw"><i style="background:var(--xtag)"></i><div>EXAM tag<code>#ef4444</code></div></div>
+      <div class="sw"><i style="background:var(--bg)"></i><div>Background<code>#f4f6f8</code></div></div>
+      <div class="sw"><i style="background:var(--tx-1)"></i><div>Text<code>#151a21</code></div></div>
+      <div class="sw"><i style="background:var(--tx-2)"></i><div>Text 2<code>#4b5563</code></div></div>
+      <div class="sw"><i style="background:var(--tx-3)"></i><div>Text 3<code>#646d7b</code></div></div>
+      <div class="sw"><i style="background:var(--line-strong)"></i><div>Line<code>#c9d0d8</code></div></div>
+    </div></div>
+    <div class="section"><h2>Student states</h2>
+      <div class="ds-row"><span class="pill wait">Not joined</span><span class="pill ok">In the exam</span><span class="pill warn">{{i:warn:s12}} Warning</span><span class="pill lost">{{i:wifioff:s12}} No contact</span><span class="pill danger">{{i:lock:s12}} Left</span><span class="pill done">{{i:check:s12}} Handed in</span></div>
+      <div class="sgrid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="scard"><div class="sh"><b>In the exam</b></div><div class="sl">green · the app in front</div></div>
+        <div class="scard warn"><div class="sh"><b>Warning</b></div><div class="sl">amber · an app was closed</div></div>
+        <div class="scard lost"><div class="sh"><b>No contact</b></div><div class="sl">grey, dashed · the network</div></div>
+        <div class="scard left"><div class="sh"><b>Left</b></div><div class="sl">red · locked out</div></div>
+        <div class="scard done"><div class="sh"><b>Handed in</b></div><div class="sl">blue · done</div></div>
+        <div class="scard wait"><div class="sh"><b>Not joined</b></div><div class="sl">grey</div></div>
+      </div></div>
+    <div class="section"><h2>Buttons</h2>
+      <div class="ds-row"><button class="btn primary">Primary</button><button class="btn">Normal</button><button class="btn ghost">Ghost</button><button class="btn ok">{{i:play:s12}} Start</button><button class="btn danger">{{i:door:s14}} Leave</button><button class="btn danger-ghost">End the exam…</button><button class="btn primary" disabled>Disabled</button></div>
+      <div class="ds-row"><button class="btn sm">Small</button><button class="btn lg primary">Large</button><button class="btn icon">{{i:more}}</button></div>
+      <div class="mini-bar" style="height:44px;padding:0 10px;gap:8px"><span class="xtag">{{i:lock:s12}} EXAM</span><span class="xbtn" style="height:30px">{{i:folder:s14}} Exam folder</span><span class="xbtn primary" style="height:30px">{{i:upload:s14}} Hand in…</span><span class="xconn"><i></i>Connected</span><span class="xconn bad"><i></i>Can't reach</span></div>
+    </div>
+    <div class="section"><h2>Form controls</h2>
+      <div class="fgrid">
+        <div class="field"><label>Field</label><div class="input"><span class="ph">Exam title</span></div></div>
+        <div class="field"><label>Field — focused</label><div class="input focus">Year 10 ICT</div></div>
+        <div class="field"><label>Dropdown</label><div class="input select">Year 10 A<span class="spacer"></span>{{i:down:s14}}</div></div>
+        <div class="field"><label>Stepper</label><div class="stepper"><button>{{i:minus:s14}}</button><b>1 h 30</b><button>{{i:plus:s14}}</button></div></div>
+      </div>
+      <div class="ds-row" style="margin-top:14px"><span class="check"></span><span class="check on">{{i:check}}</span><span class="radio"></span><span class="radio on"></span><span class="switch"></span><span class="switch on"></span><div class="seg"><span class="on">One</span><span>Two</span><span>Three</span></div><div class="code-boxes"><span>4</span><span class="on empty">·</span></div></div>
+    </div>
+    <div class="section" style="grid-column:1/3"><h2>shadcn/ui components</h2><div class="maps">
+      <div><span>Buttons</span><code>Button</code></div><div><span>Fields</span><code>Input</code></div><div><span>Dropdowns</span><code>Select</code></div>
+      <div><span>Ticks</span><code>Checkbox</code></div><div><span>One of many (01)</span><code>RadioGroup</code></div><div><span>Rules (11)</span><code>Switch</code></div>
+      <div><span>Exam code (01)</span><code>InputOTP</code></div><div><span>Leave, Hand in (08, 09)</span><code>AlertDialog</code></div><div><span>Add an app (11b)</span><code>Dialog + Command</code></div>
+      <div><span>States</span><code>Badge</code></div><div><span>Panels, student cards</span><code>Card</code></div><div><span>Lists (12, 14)</span><code>Table</code></div>
+      <div><span>Filters, views (13)</span><code>ToggleGroup</code></div><div><span>App closed (07)</span><code>Sonner toast</code></div><div><span>Connection lost (10b)</span><code>Alert</code></div>
+      <div><span>Exam bar tabs</span><code>Tabs</code></div><div><span>Feed, timeline</span><code>ScrollArea</code></div><div><span>Time (11)</span><code>stepper from Button + Input</code></div>
+    </div></div>
+    <div class="section" style="grid-column:1/3"><h2>Icons</h2><div class="icons">
+      <div>{{i:lock}}lock</div><div>{{i:unlock}}unlock</div><div>{{i:door}}leave</div><div>{{i:upload}}hand in</div><div>{{i:folder}}folder</div><div>{{i:questions}}questions</div><div>{{i:globe}}website</div><div>{{i:shield}}allowed</div><div>{{i:warn}}warning</div><div>{{i:wifioff}}no contact</div>
+      <div>{{i:clock}}time</div><div>{{i:hourglass}}waiting</div><div>{{i:monitor}}screen</div><div>{{i:remote}}remote</div><div>{{i:clipboard}}clipboard</div><div>{{i:users}}class</div><div>{{i:bell}}told</div><div>{{i:csv}}export</div><div>{{i:play}}start</div><div>{{i:stopfill}}end</div>
+    </div></div>
+  </div>
+</div>
+</body></html>

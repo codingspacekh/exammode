@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>08 Leave the exam?</title>
+{{include:head}}
+</head>
+<body>
+<!--@TW: on-->
+<!--@MOREC: on-->
+<p class="frame-label"><b>08 · Leave the exam?</b> (F-15) — <b>⋯ ▸ Leave the exam</b>. Leaving is the one thing that can't be undone, so it is said in full: the student can't come back, on this or any other computer, unless the teacher lets them. <b>Leave</b> stays greyed out until they tick that they understand; <b>Stay in the exam</b> is the button already chosen, so Enter is safe. What they've done so far is handed in as it is, so leaving never loses work.</p>
+<div class="frame">
+  {{include:exambar}}
+  <div class="desk">{{include:wordwin}}
+    <div class="overlay">
+      <div class="dialog">
+        <div class="dh"><span class="di danger">{{i:door:s20}}</span><div><h2>Leave the exam?</h2><p>If you leave now, <b>you can't come back into this exam</b> — not on this computer and not on another one. Only Ms Leak can let you back in.</p></div></div>
+        <div class="db">
+          <p class="small muted" style="margin-bottom:8px">Your work so far is handed in as it is:</p>
+          <div class="files">
+            <div class="fr"><span class="ai word">W</span>Report.docx<span class="sz">saved 09:57</span></div>
+            <div class="fr"><span class="ai excel">X</span>sales.xlsx<span class="sz">saved 09:49</span></div>
+            <div class="fr"><span class="ai vscode">{{i:code:s12}}</span>grades.py<span class="sz">saved 09:55</span></div>
+          </div>
+          <div class="row" style="margin-top:14px;gap:9px"><span class="check"></span><span>I understand I can't come back into this exam</span></div>
+        </div>
+        <div class="df"><button class="btn danger" disabled>{{i:door:s14}} Leave the exam</button><button class="btn primary">Stay in the exam</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

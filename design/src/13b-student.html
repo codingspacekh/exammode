@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>13b One student: let back in?</title>
+{{include:head}}
+</head>
+<body>
+<!--@NE: on-->
+<!--@TBAR_R: {{include:livebar}}-->
+<!--@T4: on-->
+<p class="frame-label"><b>13b · One student — let back in?</b> (F-18, F-20, F-40) — a student's card opens their own <b>timeline</b>: when they joined, every app closed, every gap in contact, how they left. ExamMode can't tell a crash from Task Manager, so it says <i>stopped suddenly</i> and gives the facts — here the computer didn't lose power (it asked to come back 1 minute later, from another PC). The teacher decides: <b>Let back in</b> (the exam opens on their computer by itself, the time they were out is shown) or <b>Keep out</b>. Both are written in the log.</p>
+<div class="frame">
+  {{include:teacherbar}}
+  <div class="tbody">
+    <div class="tmain">
+      {{include:tiles}}
+      {{include:students-grid-sel}}
+    </div>
+    <div class="tside">
+      <div class="sp-h">
+        <div class="row"><span class="avatar" style="background:var(--danger-soft);color:var(--danger-ink)">VS</span><div><b>Vannak Sok</b><div class="small muted">Year 10 A</div></div><span class="spacer"></span><span class="pill danger">{{i:lock:s12}} Left</span></div>
+        <div class="sp-facts">
+          <div><span>Computer</span><b>PC-07 → PC-02</b></div>
+          <div><span>In the exam</span><b>09:30 – 09:58</b></div>
+          <div><span>Warnings</span><b>1</b></div>
+          <div><span>Files collected</span><b>2 · at 09:58</b></div>
+        </div>
+      </div>
+      <div class="timeline">
+        <div class="tl"><span class="evi ok">{{i:check:s12}}</span><div><b>Joined on PC-07</b><time>09:26</time></div></div>
+        <div class="tl"><span class="evi ok">{{i:play:s12}}</span><div><b>Exam started</b><time>09:30</time></div></div>
+        <div class="tl"><span class="evi warn">{{i:warn:s12}}</span><div><b>Opened Notepad — closed</b><time>09:44</time></div></div>
+        <div class="tl"><span class="evi danger">{{i:door:s12}}</span><div><b>ExamMode stopped suddenly</b><p>No goodbye from PC-07 — closed from Task Manager or it crashed. The computer stayed switched on.</p><time>09:58:12</time></div></div>
+        <div class="tl"><span class="evi lost">{{i:folder:s12}}</span><div><b>Work collected as it was</b><p>Report.docx, sales.xlsx — from the last copy sent, 09:57</p><time>09:58</time></div></div>
+        <div class="tl"><span class="evi danger">{{i:lock:s12}}</span><div><b>Asked to come back in, on PC-02</b><p>Refused — waiting for you</p><time>09:59</time></div></div>
+      </div>
+      <div class="sp-f">
+        <div class="field"><label>Reason (for the log)</label><div class="input select">The computer crashed<span class="spacer"></span>{{i:down:s14}}</div></div>
+        <div class="row"><button class="btn" style="flex:1">Keep out</button><button class="btn primary" style="flex:1.4">{{i:unlock:s14}} Let back in</button></div>
+        <span class="tiny muted">The exam opens on PC-02 by itself, with Vannak's files. Time out of the exam: 1 min.</span>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

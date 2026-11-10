@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>06 In the exam — VS Code</title>
+{{include:head}}
+</head>
+<body>
+<!--@TV: on-->
+<!--@RX: <i class="run"></i>-->
+<!--@RV: <i class="run"></i>-->
+<p class="frame-label"><b>06 · In the exam — VS Code</b> (F-11, F-12) — VS Code opens on the <b>Exam folder</b>, with an exam profile of its own: only the extensions the teacher allowed (Python), and no Copilot, Settings Sync or Live Share. The student can run their program as usual. Nothing they run reaches the internet, and a browser or app that a program tries to open is closed like any other (07).</p>
+<div class="frame">
+  {{include:exambar}}
+  <div class="desk">
+    <div class="win vscode">
+      <div class="win-title"><span class="ai">{{i:code:s12}}</span>grades.py — Exam folder — Visual Studio Code</div>
+      <div class="vs-body">
+        <div class="vs-act"><span class="on">{{i:file}}</span>{{i:search}}{{i:play}}</div>
+        <div class="vs-side"><div class="hd">EXAM FOLDER</div>
+          <div class="it on">{{i:code}} grades.py</div>
+          <div class="it">{{i:sheet}} marks.csv</div>
+          <div class="it">{{i:sheet}} sales.xlsx</div>
+          <div class="it">{{i:doc}} Report.docx</div>
+        </div>
+        <div class="vs-main">
+          <div class="vs-tabs"><span class="on">grades.py</span><span>marks.csv</span></div>
+          <div class="vs-code">
+<div><span class="ln">1</span><span><span class="kw">import</span> csv</span></div>
+<div><span class="ln">2</span><span></span></div>
+<div><span class="ln">3</span><span><span class="kw">def</span> <span class="fn">grade</span>(mark):</span></div>
+<div><span class="ln">4</span><span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">if</span> mark &gt;= <span class="nu">80</span>: <span class="kw">return</span> <span class="st">"A"</span></span></div>
+<div><span class="ln">5</span><span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">if</span> mark &gt;= <span class="nu">65</span>: <span class="kw">return</span> <span class="st">"B"</span></span></div>
+<div><span class="ln">6</span><span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">if</span> mark &gt;= <span class="nu">50</span>: <span class="kw">return</span> <span class="st">"C"</span></span></div>
+<div><span class="ln">7</span><span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">return</span> <span class="st">"D"</span></span></div>
+<div><span class="ln">8</span><span></span></div>
+<div><span class="ln">9</span><span>total, count = <span class="nu">0</span>, <span class="nu">0</span></span></div>
+<div><span class="ln">10</span><span><span class="kw">with</span> <span class="fn">open</span>(<span class="st">"marks.csv"</span>) <span class="kw">as</span> f:</span></div>
+<div><span class="ln">11</span><span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">for</span> row <span class="kw">in</span> csv.<span class="fn">DictReader</span>(f):</span></div>
+<div><span class="ln">12</span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mark = <span class="fn">int</span>(row[<span class="st">"mark"</span>])</span></div>
+<div><span class="ln">13</span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="fn">print</span>(row[<span class="st">"name"</span>], <span class="fn">grade</span>(mark))</span></div>
+<div class="cur"><span class="ln">14</span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;total += mark</span></div>
+          </div>
+          <div class="vs-term"><div class="th"><span>PROBLEMS</span><span>OUTPUT</span><span class="on">TERMINAL</span></div>
+<pre>PS Exam folder&gt; python grades.py
+Bopha A
+Chenda B
+Dara C
+Kosal B</pre></div>
+        </div>
+      </div>
+      <div class="vs-status"><span>Python 3.13</span><span>Ln 14, Col 22</span><span style="margin-left:auto">{{i:lock:s12}} Exam profile — extensions: Python</span></div>
+    </div>
+  </div>
+</div>
+</body></html>

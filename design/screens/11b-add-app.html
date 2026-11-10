@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>11b Add an app to the exam</title>
+<meta name="viewport" content="width=device-width">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+
+</head>
+<body>
+<p class="frame-label"><b>11b · Add an app to the exam</b> (F-31, F-31a) — <b>Add an app…</b> lists what is installed on the lab computers (each one reports its apps when ExamMode starts), and on how many — an app missing from some computers would leave those students without it. Nothing is hard-coded: next term a teacher can add OneEditor for a video exam or MicroLab for a circuits exam. An app ExamMode knows has an <b>exam profile</b> that also closes its own ways out (sign-in, add-ons, a browser opened from a link); any other app is <b>only allowed to run</b>, which still keeps it off the internet. <b>Choose a program file…</b> adds an app by its .exe.</p>
+<div class="frame">
+  <div class="tbar">
+  <div class="brand"><svg class="logo" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="7" fill="#3b4fd8"/><path d="M14 5.5l7 2.6v5.2c0 4-3 7.3-7 8.2-4-.9-7-4.2-7-8.2V8.1z" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><rect x="10.6" y="12.2" width="6.8" height="5.3" rx="1.2" fill="#fff"/><path d="M12 12.2v-1.4a2 2 0 0 1 4 0v1.4" fill="none" stroke="#fff" stroke-width="1.5"/></svg>
+<b>Exam<span>Mode</span></b></div>
+  <span class="pill done">Teacher</span>
+  <nav class="tnav">
+    <a class="on"><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4.5 6v.01M4.5 12v.01M4.5 18v.01"/></svg> Exams</a>
+    <a class=""><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14a6.5 6.5 0 0 1 3.5 6"/></svg> Classes</a>
+    <a class=""><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg> Settings</a>
+  </nav>
+  <span class="spacer"></span>
+  <button class="btn ghost">Cancel</button><button class="btn">Save</button><button class="btn primary"><svg class="ico fill s12" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg> Open for students…</button>
+  <div class="vsep"></div>
+  <div class="tuser"><span class="avatar">SL</span>Ms Srey Leak</div>
+</div>
+
+    <div class="formwrap">
+    <div class="formcol">
+      <div class="section"><h2><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg> The exam</h2><p class="sub">Students see the title and your name.</p>
+        <div class="fgrid">
+          <div class="field" style="grid-column:1/3"><label>Title</label><div class="input focus">Year 10 ICT — Term 1 practical exam</div></div>
+          <div class="field"><label>Class</label><div class="input select"><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14a6.5 6.5 0 0 1 3.5 6"/></svg> Year 10 A · 26 students<span class="spacer"></span><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></div></div>
+          <div class="field"><label>Time — counted from Start</label><div class="stepper"><button><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button><b>1 h 30</b><button><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></div></div>
+        </div></div>
+      <div class="section"><h2><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 9h16"/></svg> Apps students can use</h2><p class="sub">Chosen for each exam — the apps you used last time are listed first. Every other app is closed.</p>
+        <div class="applist">
+          <div class="appopt on"><span class="ai word">W</span><div><b>Word</b><span>Microsoft Office</span></div><span class="check on"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></div>
+          <div class="appopt on"><span class="ai excel">X</span><div><b>Excel</b><span>Microsoft Office</span></div><span class="check on"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></div>
+          <div class="appopt on"><span class="ai vscode"><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 7L3.5 12l5 5M15.5 7l5 5-5 5M13.5 4.5l-3 15"/></svg></span><div><b>VS Code</b><span>extensions: Python</span></div><span class="check on"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></div>
+          <div class="appopt"><span class="ai ppt">P</span><div><b>PowerPoint</b><span>Microsoft Office</span></div><span class="check"></span></div>
+          <div class="appopt"><span class="ai access">A</span><div><b>Access</b><span>Microsoft Office</span></div><span class="check"></span></div>
+          <div class="appopt"><span class="ai project">P</span><div><b>Project</b><span>Microsoft Office</span></div><span class="check"></span></div>
+          <div class="appopt"><span class="ai oneeditor"><svg class="ico fill s12" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg></span><div><b>OneEditor</b><span>CodingSpaceKH</span></div><span class="check"></span></div>
+          <div class="appopt"><span class="ai microlab">M</span><div><b>MicroLab</b><span>CodingSpaceKH</span></div><span class="check"></span></div>
+          <div class="appopt"><span class="ai idle">Py</span><div><b>Python IDLE</b><span>Python 3.13</span></div><span class="check"></span></div>
+          <div class="appopt add"><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Add an app…</div>
+        </div></div>
+      <div class="section"><h2><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5v.5M12 16.5v.01"/></svg> Questions</h2><p class="sub">On paper is the usual: students get no browser and no internet at all. On a website: the exam browser opens only these.</p>
+        <div class="seg" style="margin-bottom:12px"><span><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg> On paper</span><span class="on"><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 3.8 5.6 3.8 9s-1.2 6.4-3.8 9c-2.6-2.6-3.8-5.6-3.8-9S9.4 5.6 12 3z"/></svg> On a website</span></div>
+        <div class="urls">
+          <div class="urlrow"><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5v.5M12 16.5v.01"/></svg><code>ict.school.local/exams/y10-term1</code><span class="tag">The questions — opens first</span><span class="end"><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg></span></div>
+          <div class="urlrow"><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 3.8 5.6 3.8 9s-1.2 6.4-3.8 9c-2.6-2.6-3.8-5.6-3.8-9S9.4 5.6 12 3z"/></svg><code>docs.python.org/3/library/csv.html</code><span class="muted small">this page only</span><span class="end"><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></span></div>
+          <button class="btn sm ghost" style="align-self:flex-start"><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Add a website</button>
+        </div></div>
+    </div>
+    <div class="formcol">
+      <div class="section"><h2><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg> Files to give</h2><p class="sub">Copied into every student's Exam folder when the exam starts.</p>
+        <div class="files">
+          <div class="fr"><span class="ai excel">X</span>sales.xlsx<span class="sz">16 KB</span></div>
+          <div class="fr"><span class="ai vscode"><svg class="ico s12" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 7L3.5 12l5 5M15.5 7l5 5-5 5M13.5 4.5l-3 15"/></svg></span>grades.py<span class="sz">1 KB · starter code</span></div>
+          <div class="fr"><span class="ai calc"><svg class="ico s12" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 9.5h16M4 15h16M10 4v16"/></svg></span>marks.csv<span class="sz">1 KB</span></div>
+        </div>
+        <button class="btn sm ghost" style="margin-top:8px"><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Add files</button></div>
+      <div class="section"><h2><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-4.5"/></svg> Rules</h2>
+        <div class="rule"><div><b>Leaving locks the student out</b><span>They can't join again unless you let them back in.</span></div><span class="switch on"></span></div>
+        <div class="rule"><div><b>ExamMode closed suddenly counts as leaving</b><span>Task Manager, a crash, a power cut — you decide who comes back (13b).</span></div><span class="switch on"></span></div>
+        <div class="rule"><div><b>Hand in by itself when the time is up</b><span>Every student's work is collected at the end.</span></div><span class="switch on"></span></div>
+        <div class="rule"><div><b>Copy and paste only inside the exam</b><span>The clipboard is emptied at the start and at the end.</span></div><span class="switch on"></span></div>
+      </div>
+    </div>
+    <div class="preview">
+      <div class="section"><h2 style="margin-bottom:10px">What students see</h2>
+        <div class="mini-bar"><span class="xtag">EXAM</span><span class="mt on"><span class="ai web">?</span>Questions</span><span class="mt"><span class="ai word">W</span>Word</span><span class="mt"><span class="ai excel">X</span>Excel</span><span class="mt"><span class="ai vscode">&lt;&gt;</span>VS Code</span></div>
+        <div class="mini-desk">the question page fills the screen</div></div>
+      <div class="section"><h2 style="margin-bottom:10px">Ready to open</h2>
+        <div class="sumlist">
+          <div><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>26 students in Year 10 A</span></div>
+          <div><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>3 apps, all installed on the lab computers</span></div>
+          <div><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>2 websites — the question page answers</span></div>
+          <div><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>3 files to give · 18 KB</span></div>
+        </div></div>
+    </div>
+  </div>
+
+  <div class="overlay">
+  <div class="dialog wide">
+    <div class="dh"><span class="di accent"><svg class="ico s20" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 9h16"/></svg></span><div><h2>Add an app to this exam</h2><p>The apps installed on the lab computers. Students can open only the apps you add.</p></div></div>
+    <div class="db full">
+      <div class="input focus"><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg> <span class="ph">Find an app</span></div>
+      <div class="picker">
+        <div class="pick-h">Has an exam profile</div>
+        <div class="pick"><span class="ai access">A</span><div><b>Access</b><span class="d">Microsoft Office · on 26 of 26 computers</span></div><span class="pill ok prof"><svg class="ico s12" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-4.5"/></svg> ways out closed</span><span class="check"></span></div>
+        <div class="pick"><span class="ai project">P</span><div><b>Project</b><span class="d">Microsoft Office · on 26 of 26 computers</span></div><span class="pill ok prof"><svg class="ico s12" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-4.5"/></svg> ways out closed</span><span class="check"></span></div>
+        <div class="pick hl"><span class="ai oneeditor"><svg class="ico fill s12" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg></span><div><b>OneEditor</b><span class="d">CodingSpaceKH · 1.5.3 · on 26 of 26 computers</span></div><span class="pill ok prof"><svg class="ico s12" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-4.5"/></svg> ways out closed</span><span class="check on"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></div>
+        <div class="pick"><span class="ai microlab">M</span><div><b>MicroLab</b><span class="d">CodingSpaceKH · 0.12.2 · on 26 of 26 computers</span></div><span class="pill ok prof"><svg class="ico s12" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-4.5"/></svg> ways out closed</span><span class="check"></span></div>
+        <div class="pick"><span class="ai thonny">T</span><div><b>Thonny</b><span class="d">4.1 · on 24 of 26 computers</span></div><span class="pill ok prof"><svg class="ico s12" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-4.5"/></svg> ways out closed</span><span class="check"></span></div>
+        <div class="pick-h">No profile yet</div>
+        <div class="pick"><span class="ai scratch">S</span><div><b>Scratch 3</b><span class="d">Scratch Foundation · on 26 of 26 computers</span></div><span class="pill wait prof">only allowed to run</span><span class="check"></span></div>
+        <div class="pick"><span class="ai npp">N</span><div><b>Notepad++</b><span class="d">8.6 · on 12 of 26 computers</span></div><span class="pill wait prof">only allowed to run</span><span class="check"></span></div>
+        <div class="pick"><span class="ai gimp">G</span><div><b>GIMP</b><span class="d">2.10 · on 26 of 26 computers</span></div><span class="pill wait prof">only allowed to run</span><span class="check"></span></div>
+      </div>
+      <div class="note-box info"><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.8v.01"/></svg><span>An app with <b>no profile</b> still can't reach the internet, and anything it starts that isn't allowed is closed. A profile also turns off the app's own ways out — sign-in, add-ons, links that open a browser.</span></div>
+    </div>
+    <div class="df"><button class="btn ghost" style="margin-right:auto"><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg> Choose a program file…</button><button class="btn">Cancel</button><button class="btn primary">Add 1 app</button></div>
+  </div>
+</div>
+
+</div>
+</body></html>

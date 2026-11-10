@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>01 Join an exam</title>
+{{include:head}}
+</head>
+<body>
+<p class="frame-label"><b>01 · Join an exam</b> (F-01, F-02, F-03) — ExamMode on a lab computer, before the exam. It finds the exams that teachers have opened <b>on the classroom network</b> by itself: no address to type (Q4). The student picks the exam, picks <b>their own name from the class list</b> — so the teacher's list and the hand-ins match, and a name can be in only one exam at a time — and types the <b>exam code</b> the teacher shows on the projector, so no one joins from another room. Nothing is locked yet.</p>
+<div class="frame">
+  <div class="calm">
+    <div class="calm-top">
+      <div class="brand">{{include:logo}}<b>Exam<span>Mode</span></b></div>
+      <span class="spacer"></span>
+      <span class="who">{{i:pc:s14}} PC-14 · ICT Lab 2</span>
+    </div>
+    <div class="card join">
+      <h1>Join your exam</h1>
+      <p class="lead">These exams are open on the classroom network.</p>
+      <div class="found">
+        <div class="exam-opt on"><span class="ei">{{i:questions:s20}}</span><div><b>Year 10 ICT — Term 1 practical exam</b><span>Ms Srey Leak · Year 10 A · 1 h 30 min</span></div><span class="radio on"></span></div>
+        <div class="exam-opt"><span class="ei">{{i:questions:s20}}</span><div><b>Year 11 ICT — Mock paper 2</b><span>Mr Dara Ouk · Year 11 B · 2 h</span></div><span class="radio"></span></div>
+      </div>
+      <div class="fgrid" style="grid-template-columns: 1.3fr 1fr; align-items:end">
+        <div class="field"><label>Your name</label><div class="input select focus">{{i:user:s14}} Sokha Chan <span class="spacer"></span>{{i:down:s14}}</div></div>
+        <div class="field"><label>Exam code (on the board)</label><div class="code-boxes"><span>4</span><span>8</span><span>1</span><span class="on empty">·</span></div></div>
+      </div>
+      <div class="foot">
+        <div class="hint">{{i:info:s14}}<span>Can't see your exam? Ask your teacher to open it. Not on the list? Your teacher can add you.</span></div>
+        <span class="spacer"></span>
+        <button class="btn primary lg" disabled>Join {{i:arrowr:s14}}</button>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

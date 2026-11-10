@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>14 After the exam</title>
+{{include:head}}
+</head>
+<body>
+<!--@NE: on-->
+<!--@TBAR_R: <div class="exname"><b>Year 10 ICT — Term 1 practical exam</b><span>Year 10 A · 09:30 – 11:00</span></div><span class="pill done">{{i:check:s12}} Ended 11:00</span><button class="btn">{{i:csv:s14}} Export the log (CSV)</button><button class="btn primary">{{i:folder:s14}} Open the hand-in folder</button>-->
+<p class="frame-label"><b>14 · After the exam</b> (F-17, F-42) — everyone's work is on the teacher's computer, one folder per student (<code>Hand-ins\Year 10 ICT — Term 1\Sokha Chan\</code>), with how and when it was handed in and the receipt code. Students still working at 11:00 were handed in by the clock. Warnings stay with each name; <b>Export the log</b> gives every event as a spreadsheet, for the school's records.</p>
+<div class="frame">
+  {{include:teacherbar}}
+  <div class="tbody">
+    <div class="tmain">
+      <div class="tiles" style="grid-template-columns:repeat(4,1fr)">
+        <div class="tile"><span><i style="background:var(--done)"></i>Handed in</span><b>21</b></div>
+        <div class="tile"><span><i style="background:var(--line-strong)"></i>Handed in when time ran out</span><b>4</b></div>
+        <div class="tile"><span><i style="background:var(--danger)"></i>Left — work up to then</span><b>1</b></div>
+        <div class="tile"><span><i style="background:var(--warn)"></i>Students with warnings</span><b>4</b></div>
+      </div>
+      <div class="collect">
+        <div class="ch"><h2>Hand-ins</h2><span class="muted small">26 students · 78 files · 1.1 MB</span><span class="spacer"></span><div class="search">{{i:search:s14}} Find a student</div></div>
+        <table class="ltable">
+          <tr><th>Student</th><th>Computer</th><th>Status</th><th>At</th><th>How</th><th>Files</th><th>Warnings</th><th></th></tr>
+{{include:end-rows}}
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>
