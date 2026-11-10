@@ -42,7 +42,7 @@ function runProbe(p) {
       const line = out.split(/\r?\n/).reverse().find((l) => l.startsWith('RESULT '));
       let result = null;
       try { result = line ? JSON.parse(line.slice(7)) : null; } catch { /* broken line */ }
-      resolve({ name: p.name, what: p.what, seconds: Math.round((Date.now() - t0) / 1000), code, result, stderr: result ? undefined : err.slice(-2000) });
+      resolve({ name: p.name, what: p.what, seconds: Math.round((Date.now() - t0) / 1000), code, result, stderr: result ? undefined : (err.length > 3000 ? `${err.slice(0, 1500)}\n…\n${err.slice(-1500)}` : err) });
     });
   });
 }

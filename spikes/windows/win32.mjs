@@ -1,6 +1,9 @@
 // M0 spike (MILESTONES §6, M0 step 5): the Windows calls the probes use, through koffi 3.
 // Throw-away code (T10): never imported by src/. Pointers and handles are BigInts in koffi 3.
 import { execFileSync } from 'node:child_process';
+import { readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import koffi from 'koffi';
 
 export const user32 = koffi.load('user32.dll');
@@ -88,9 +91,22 @@ export function ps(command) {
   return execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 2 ** 20 }).trim();
 }
 export function psJson(command) {
-  const out = ps(`${command} | ConvertTo-Json -Depth 4 -Compress`);
-  // Windows PowerShell 5 leaves control characters (found in some apps' names) unescaped: not valid JSON
-  return out ? JSON.parse(out.replace(/[\u0000-\u001f]+/g, ' ')) : null;
+  // Through a file, not the pipe: Windows PowerShell 5 can break long piped output lines inside a JSON value
+  const file = join(tmpdir(), `exammode-spike-${process.pid}-${Date.now()}.json`);
+  try {
+    ps(`${command} | ConvertTo-Json -Depth 4 -Compress | Set-Content -Encoding UTF8 -LiteralPath '${file}'`);
+    const text = readFileSync(file, 'utf8').replace(/^\uFEFF/, '').trim();
+    if (!text) return null;
+    try {
+      // Windows PowerShell 5 leaves control characters (found in some apps' names) unescaped
+      return JSON.parse(text.replace(/[\u0000-\u001f]+/g, ' '));
+    } catch (e) {
+      const at = Number(/position (\d+)/.exec(String(e))?.[1] ?? 0);
+      throw new Error(`PowerShell's JSON didn't parse near ${at}: …${text.slice(Math.max(0, at - 80), at + 80)}…`);
+    }
+  } finally {
+    rmSync(file, { force: true });
+  }
 }
 export function run(file, args) {
   try {
