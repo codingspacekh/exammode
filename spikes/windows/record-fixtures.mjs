@@ -15,13 +15,11 @@ w.EnumWindows((hwnd) => {
 }, 0);
 const procs = w.psJson('Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,ExecutablePath') ?? [];
 const paths = [...new Set(procs.map((p) => p.ExecutablePath).filter(Boolean))];
+// one PowerShell for every signature (hundreds of programs)
 const signers = {};
-for (const path of paths) {
-  try {
-    const s = w.psJson(`Get-AuthenticodeSignature -LiteralPath '${path.replace(/'/g, "''")}' | Select-Object @{n='Status';e={"$($_.Status)"}},@{n='Signer';e={$_.SignerCertificate.Subject}}`);
-    signers[path] = s;
-  } catch { signers[path] = null; }
-}
+const list = paths.map((p) => `'${p.replace(/'/g, "''")}'`).join(',');
+const sigs = paths.length ? w.psJson(`@(${list}) | ForEach-Object { Get-AuthenticodeSignature -LiteralPath $_ } | Select-Object Path,@{n='Status';e={"$($_.Status)"}},@{n='Signer';e={$_.SignerCertificate.Subject}}`) : [];
+for (const s of [sigs ?? []].flat()) signers[s.Path] = s;
 const records = procs.map((p) => ({
   pid: p.ProcessId, parentPid: p.ParentProcessId, name: p.Name, image: p.ExecutablePath ?? null,
   signer: p.ExecutablePath ? signers[p.ExecutablePath]?.Signer ?? null : null,

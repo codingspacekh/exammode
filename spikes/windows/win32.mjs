@@ -88,7 +88,11 @@ export function terminate(pid) {
 /** PowerShell, returning its output (trimmed). */
 export function ps(command) {
   // a computer's installed apps can be several MB of JSON: well past Node's 1 MB default
-  return execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 2 ** 20 }).trim();
+  // Without PSModulePath: one set by PowerShell 7 (GitHub's default shell) stops Windows PowerShell 5 loading its own
+  // modules (Get-AuthenticodeSignature), and Windows PowerShell rebuilds the default itself
+  const env = { ...process.env };
+  delete env.PSModulePath;
+  return execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 2 ** 20, env }).trim();
 }
 export function psJson(command) {
   // Through a file, not the pipe: Windows PowerShell 5 can break long piped output lines inside a JSON value
