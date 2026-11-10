@@ -1,0 +1,30 @@
+# The check on GitHub (MILESTONES §4.3): `npm run check` and the e2e test on macOS (the teacher's side, Q19) and
+# `npm run check:win` (check + the windows tests, as administrator) and the e2e test on Windows (the lab computers),
+# for every push to main or dev, every pull request, and by hand.
+name: check
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+  workflow_dispatch:
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - name: Download the Electron binary, up to 3 tries
+        shell: bash
+        run: for i in 1 2 3; do node node_modules/electron/install.js && exit 0; sleep 15; done; exit 1
+      - run: npm run check
+        if: runner.os != 'Windows'
+      - run: npm run check:win
+        if: runner.os == 'Windows'
+      - run: npm run e2e
+        if: ${{ !cancelled() }}

@@ -1,0 +1,87 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+
+/* The prototype's tokens (design/src/styles.css, screen 15) as shadcn/ui's variables (N-07, Q11).
+   Light only, like the prototype. */
+:root {
+  --radius: 8px;
+
+  --background: #f4f6f8;
+  --foreground: #151a21;
+  --card: #ffffff;
+  --card-foreground: #151a21;
+  --popover: #ffffff;
+  --popover-foreground: #151a21;
+  --primary: #3b4fd8;            /* accent */
+  --primary-foreground: #ffffff;
+  --secondary: #eef1f4;          /* bg-2 */
+  --secondary-foreground: #151a21;
+  --muted: #eef1f4;
+  --muted-foreground: #646d7b;   /* tx-3 */
+  --accent: #eceffd;             /* accent-soft: hover and selected */
+  --accent-foreground: #27349a;  /* accent-ink */
+  --destructive: #d03b3b;
+  --border: #e1e5ea;             /* line */
+  --input: #c9d0d8;              /* line-strong */
+  --ring: #3b4fd8;
+
+  /* ExamMode's own: the five student states and the exam bar */
+  --text-2: #4b5563;
+  --ok: #198754;      --ok-soft: #e6f4ec;      --ok-line: #b9dfc9;
+  --warn: #a8690d;    --warn-soft: #fdf3e1;    --warn-line: #f1d9a8;   --warn-ink: #7a520f;
+  --danger-soft: #fdeaea;  --danger-line: #f3c4c4;  --danger-ink: #8f2424;
+  --lost: #64748b;    --lost-soft: #eef1f5;    --lost-line: #cfd6df;
+  --done: #3b4fd8;    --done-soft: #eceffd;
+  --xbar: #0f172a;    --xbar-2: #1e293b;       --xbar-3: #334155;
+  --xbar-foreground: #e2e8f0;  --xbar-muted: #94a3b8;  --xtag: #ef4444;
+}
+
+@theme inline {
+  --font-sans: "Inter Variable", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", Consolas, monospace;
+
+  --radius-sm: calc(var(--radius) - 3px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 4px);
+  --radius-xl: calc(var(--radius) + 6px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-text-2: var(--text-2);
+  --color-ok: var(--ok);  --color-ok-soft: var(--ok-soft);  --color-ok-line: var(--ok-line);
+  --color-warn: var(--warn);  --color-warn-soft: var(--warn-soft);  --color-warn-line: var(--warn-line);  --color-warn-ink: var(--warn-ink);
+  --color-danger-soft: var(--danger-soft);  --color-danger-line: var(--danger-line);  --color-danger-ink: var(--danger-ink);
+  --color-lost: var(--lost);  --color-lost-soft: var(--lost-soft);  --color-lost-line: var(--lost-line);
+  --color-done: var(--done);  --color-done-soft: var(--done-soft);
+  --color-xbar: var(--xbar);  --color-xbar-2: var(--xbar-2);  --color-xbar-3: var(--xbar-3);
+  --color-xbar-foreground: var(--xbar-foreground);  --color-xbar-muted: var(--xbar-muted);  --color-xtag: var(--xtag);
+}
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-size: 13px;
+    line-height: 1.45;
+    font-feature-settings: "tnum" 1, "cv11" 1;
+  }
+}

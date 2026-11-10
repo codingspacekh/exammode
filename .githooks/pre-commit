@@ -1,0 +1,3 @@
+#!/bin/sh
+# The quick check on every commit (MILESTONES §4.3): lint, type-check, unit tests. GitHub runs the rest.
+npm run --silent check:quick
