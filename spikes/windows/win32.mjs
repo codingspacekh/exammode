@@ -1,7 +1,7 @@
 // M0 spike (MILESTONES §6, M0 step 5): the Windows calls the probes use, through koffi 3.
 // Throw-away code (T10): never imported by src/. Pointers and handles are BigInts in koffi 3.
 import { execFileSync } from 'node:child_process';
-import { readFileSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import koffi from 'koffi';
@@ -98,7 +98,10 @@ export function psJson(command) {
   // Through a file, not the pipe: Windows PowerShell 5 can break long piped output lines inside a JSON value
   const file = join(tmpdir(), `exammode-spike-${process.pid}-${Date.now()}.json`);
   try {
-    ps(`${command} | ConvertTo-Json -Depth 4 -Compress | Set-Content -Encoding UTF8 -LiteralPath '${file}'`);
+    // `exit 0`: errors told to be quiet (-ErrorAction SilentlyContinue) still make Windows PowerShell exit with 1;
+    // the file is what counts
+    ps(`${command} | ConvertTo-Json -Depth 4 -Compress | Set-Content -Encoding UTF8 -LiteralPath '${file}'; exit 0`);
+    if (!existsSync(file)) return null;
     const text = readFileSync(file, 'utf8').replace(/^\uFEFF/, '').trim();
     if (!text) return null;
     try {
