@@ -7,7 +7,7 @@ Keeps a student's lab computer inside the exam's own apps and websites until the
 - [Milestones & TDD workflow](docs/MILESTONES.md): build plan, gates, progress
 - [UI prototype](design/screens/index.html): `python3 -m http.server 8000 --directory design/screens`, or open the file
 
-Status: M0, Foundations + Windows spike, is in progress.
+Status: M1, the rules, is built and waiting for the teacher's reading ([acceptance](docs/acceptance/M1.md)). M0's lab run is still to do ([acceptance](docs/acceptance/M0.md)).
 
 ## Develop
 

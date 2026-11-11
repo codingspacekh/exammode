@@ -1,5 +1,7 @@
 # 2. Architecture
 
+*Revision 6 (2026-11-11): M1 — `decide()` also takes the account's environment and ExamMode's own paths, and knows a browser by its product name as well as its file name (§2.5); the journal is written one entry a line, so a half-written entry can be told apart (§2.4); the cases §2.8's table didn't cover are in [`acceptance/M1.md`](acceptance/M1.md) §2, for the teacher's yes or no.*
+
 *Revision 5 (2026-11-10): CI on GitHub — `check` on macOS and `check:win` on `windows-latest` for every push; `check:quick` stays a local pre-commit hook (§2.14).*
 
 *Revision 3 (2026-11-10): a review before M0. The Guard is its **own program** and ExamMode's Electron fuses are set, so ExamMode.exe can't be used to run other code through the firewall (D3, D10); after stopping suddenly the Guard **starts ExamMode again** to show 10 (§2.4); a **`resume`** message after a network gap, and a token on the Guard's `stopped` (§2.7); **before Start** a stop isn't leaving (§2.8); ExamMode only reaches the teacher, plus 80/443 when the exam has websites (§2.6); the Exam folder is deleted only after the teacher has confirmed the files (§2.9); extra time per student (§2.11); the teacher's side on Windows or macOS.*
@@ -137,7 +139,7 @@ Start ────────────────────────�
 
 ### Step 3: the journal (D9, N-04)
 
-`C:\ProgramData\ExamMode\journal.json`. The Guard writes each change *before* making it: `{ id, kind, target, before, after, at }`. Then:
+`C:\ProgramData\ExamMode\journal.json`. The Guard writes each change *before* making it, one entry a line: `{ id, kind, target, before, after, at }`. A last line cut short by a crash is left out when the journal is read: its change was never made. Then:
 
 - **unlock** (hand-in, leave, end, the teacher's *unlock*) → undo every entry in reverse order → delete the journal;
 - **ExamMode's process ends without unlocking** (the Guard watches its process handle) → the Guard reports *stopped suddenly* to the teacher (§2.8), undoes the journal, then **starts ExamMode again** in the user's session with `--resume <run>`. ExamMode joins, is refused, and shows 10 (F-20);
@@ -152,8 +154,9 @@ So a computer is never left locked with no ExamMode on it, and a student who sto
 The question for every window that appears: **may it stay?** It is decided in `src/lib/guard/decide.ts`, a pure function.
 
 ```ts
-decide(proc: ProcInfo, ctx: { allowed: AppProfile[]; ancestors: ProcInfo[]; always: SystemList }): Decision
+decide(proc: ProcInfo, ctx: { allowed: AppProfile[]; ancestors: ProcInfo[]; always: SystemList; env: Env; self: string[] }): Decision
 // ProcInfo: { pid, image (full path), signer?, product?, hasWindow, parentPid }
+// env: the account's environment variables, for %ProgramFiles% in a profile's paths; self: the installed ExamMode.exe and ExamModeGuard.exe
 // Decision: { allow: true, why } | { allow: false, why, kind: 'app' | 'remote' | 'browser' }
 ```
 
@@ -161,7 +164,7 @@ decide(proc: ProcInfo, ctx: { allowed: AppProfile[]; ancestors: ProcInfo[]; alwa
 1. Windows' own processes on the **system list** (`dwm.exe`, `ctfmon.exe`, `TextInputHost.exe`, the IME…) are allowed. The list is data, matched by path in `%SystemRoot%` and signer *Microsoft Windows*, and made from the recordings in M0. Windows' own apps that are a way out (Search, Settings, Widgets) aren't on it.
 2. **ExamMode** itself (the installed copy, D10) is allowed.
 3. A process that **matches an allowed profile** (signer + file name + path pattern) is allowed.
-4. A process whose **ancestor matches an allowed profile** is allowed if that profile allows its children (`python.exe` from VS Code), and it is never a browser or remote tool.
+4. A process whose **ancestor matches an allowed profile** is allowed if that profile allows its children (`python.exe` from VS Code), and it is never a browser or remote tool. Browsers and remote tools are known by file name *or product name*, so a browser renamed `python.exe` is still a browser.
 5. Anything else **with a visible window** is closed: `TerminateProcess` and an `appClosed` event. Background processes are closed only if they are on the **always-close list** (remote tools, local AI runners such as Ollama and LM Studio, screen recorders).
 
 **How fast (N-02):** a `SetWinEventHook(EVENT_OBJECT_SHOW)` in the hook worker reports a new window within milliseconds. A sweep with `EnumWindows` every 500 ms catches anything missed. Signer checks are cached by path and file timestamp, so a decision takes well under 1 ms after the first.
