@@ -1,0 +1,1145 @@
+[
+ {
+  "pid": 0,
+  "parentPid": 0,
+  "name": "System Idle Process",
+  "image": null,
+  "signer": null,
+  "signature": null,
+  "hasWindow": false
+ },
+ {
+  "pid": 4,
+  "parentPid": 0,
+  "name": "System",
+  "image": null,
+  "signer": null,
+  "signature": null,
+  "hasWindow": false
+ },
+ {
+  "pid": 72,
+  "parentPid": 4,
+  "name": "Secure System",
+  "image": null,
+  "signer": null,
+  "signature": null,
+  "hasWindow": false
+ },
+ {
+  "pid": 124,
+  "parentPid": 4,
+  "name": "Registry",
+  "image": null,
+  "signer": null,
+  "signature": null,
+  "hasWindow": false
+ },
+ {
+  "pid": 492,
+  "parentPid": 4,
+  "name": "smss.exe",
+  "image": null,
+  "signer": null,
+  "signature": null,
+  "hasWindow": false
+ },
+ {
+  "pid": 640,
+  "parentPid": 628,
+  "name": "csrss.exe",
+  "image": null,
+  "signer": null,
+  "signature": null,
+  "hasWindow": false
+ },
+ {
+  "pid": 764,
+  "parentPid": 628,
+  "name": "wininit.exe",
+  "image": null,
+  "signer": null,
+  "signature": null,
+  "hasWindow": false
+ },
+ {
+  "pid": 856,
+  "parentPid": 764,
+  "name": "services.exe",
+  "image": null,
+  "signer": null,
+  "signature": null,
+  "hasWindow": false
+ },
+ {
+  "pid": 876,
+  "parentPid": 764,
+  "name": "LsaIso.exe",
+  "image": null,
+  "signer": null,
+  "signature": null,
+  "hasWindow": false
+ },
+ {
+  "pid": 884,
+  "parentPid": 764,
+  "name": "lsass.exe",
+  "image": "C:\\Windows\\system32\\lsass.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 1000,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 428,
+  "parentPid": 764,
+  "name": "fontdrvhost.exe",
+  "image": "C:\\Windows\\system32\\fontdrvhost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 704,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 852,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 1124,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\System32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 1196,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 1268,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\System32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 1340,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\System32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 1368,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 1376,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 1384,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 1444,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 1508,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\System32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 1656,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 1692,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 1720,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 1748,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 1812,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\System32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 1844,
+  "parentPid": 856,
+  "name": "vmms.exe",
+  "image": "C:\\Windows\\system32\\vmms.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 1860,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 1896,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 1980,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\System32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 2112,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\System32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 2140,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 2148,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 2292,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 2356,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 2372,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\System32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 2396,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 2416,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 2428,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\System32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 2544,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\System32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 2608,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 2656,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 2708,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 2728,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 2796,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\System32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 2856,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 2896,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 2232,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 3116,
+  "parentPid": 856,
+  "name": "spoolsv.exe",
+  "image": "C:\\Windows\\System32\\spoolsv.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 3224,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 3232,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\System32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 3240,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 3256,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 3272,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 3280,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\System32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 3304,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\System32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 3344,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 3380,
+  "parentPid": 856,
+  "name": "sqlwriter.exe",
+  "image": "C:\\Program Files\\Microsoft SQL Server\\90\\Shared\\sqlwriter.exe",
+  "signer": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 3412,
+  "parentPid": 856,
+  "name": "WaAppAgent.exe",
+  "image": "C:\\WindowsAzure\\GuestAgent_2.7.41491.1243_2026-11-01_211032\\WaAppAgent.exe",
+  "signer": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 3440,
+  "parentPid": 856,
+  "name": "WindowsAzureGuestAgent.exe",
+  "image": "C:\\WindowsAzure\\GuestAgent_2.7.41491.1243_2026-11-01_211032\\WindowsAzureGuestAgent.exe",
+  "signer": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 3456,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\System32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 3472,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 3532,
+  "parentPid": 856,
+  "name": "SMSvcHost.exe",
+  "image": "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\SMSvcHost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 3576,
+  "parentPid": 856,
+  "name": "mqsvc.exe",
+  "image": "C:\\Windows\\system32\\mqsvc.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 3584,
+  "parentPid": 856,
+  "name": "MsMpEng.exe",
+  "image": null,
+  "signer": null,
+  "signature": null,
+  "hasWindow": false
+ },
+ {
+  "pid": 3592,
+  "parentPid": 856,
+  "name": "MpDefenderCoreService.exe",
+  "image": null,
+  "signer": null,
+  "signature": null,
+  "hasWindow": false
+ },
+ {
+  "pid": 3684,
+  "parentPid": 856,
+  "name": "dockerd.exe",
+  "image": "C:\\Windows\\system32\\dockerd.exe",
+  "signer": null,
+  "signature": "NotSigned",
+  "hasWindow": false
+ },
+ {
+  "pid": 3892,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\System32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 4344,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 4396,
+  "parentPid": 856,
+  "name": "SMSvcHost.exe",
+  "image": "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\SMSvcHost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 4716,
+  "parentPid": 856,
+  "name": "vmcompute.exe",
+  "image": "C:\\Windows\\system32\\vmcompute.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 4960,
+  "parentPid": 1000,
+  "name": "dllhost.exe",
+  "image": "C:\\Windows\\system32\\DllHost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 6056,
+  "parentPid": 1896,
+  "name": "taskhostw.exe",
+  "image": "C:\\Windows\\system32\\taskhostw.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 5356,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\System32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 5256,
+  "parentPid": 3412,
+  "name": "WaSecAgentProv.exe",
+  "image": "C:\\WindowsAzure\\SecAgent\\WaSecAgentProv.exe",
+  "signer": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 5564,
+  "parentPid": 5256,
+  "name": "conhost.exe",
+  "image": "C:\\Windows\\system32\\conhost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 6624,
+  "parentPid": 6612,
+  "name": "csrss.exe",
+  "image": null,
+  "signer": null,
+  "signature": null,
+  "hasWindow": false
+ },
+ {
+  "pid": 6672,
+  "parentPid": 6612,
+  "name": "winlogon.exe",
+  "image": "C:\\Windows\\system32\\winlogon.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 6720,
+  "parentPid": 6672,
+  "name": "fontdrvhost.exe",
+  "image": "C:\\Windows\\system32\\fontdrvhost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 6768,
+  "parentPid": 6672,
+  "name": "dwm.exe",
+  "image": "C:\\Windows\\system32\\dwm.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 7068,
+  "parentPid": 856,
+  "name": "vds.exe",
+  "image": "C:\\Windows\\System32\\vds.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 4276,
+  "parentPid": 3584,
+  "name": "DefenderSessionHelper.exe",
+  "image": null,
+  "signer": null,
+  "signature": null,
+  "hasWindow": false
+ },
+ {
+  "pid": 5304,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 2076,
+  "parentPid": 2656,
+  "name": "sihost.exe",
+  "image": "C:\\Windows\\system32\\sihost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 5788,
+  "parentPid": 1896,
+  "name": "taskhostw.exe",
+  "image": "C:\\Windows\\system32\\taskhostw.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 1544,
+  "parentPid": 1896,
+  "name": "taskhostw.exe",
+  "image": "C:\\Windows\\system32\\taskhostw.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 6500,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\System32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 2624,
+  "parentPid": 6500,
+  "name": "ctfmon.exe",
+  "image": "C:\\Windows\\system32\\ctfmon.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 5520,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 732,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 1220,
+  "parentPid": 1000,
+  "name": "OpenWith.exe",
+  "image": "C:\\Windows\\system32\\OpenWith.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 6820,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\System32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 7544,
+  "parentPid": 1000,
+  "name": "RuntimeBroker.exe",
+  "image": "C:\\Windows\\System32\\RuntimeBroker.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 7728,
+  "parentPid": 1000,
+  "name": "RuntimeBroker.exe",
+  "image": "C:\\Windows\\System32\\RuntimeBroker.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 5708,
+  "parentPid": 4368,
+  "name": "AzureArcSysTray.exe",
+  "image": "C:\\Windows\\AzureArcSetup\\Systray\\AzureArcSysTray.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 3136,
+  "parentPid": 1000,
+  "name": "RuntimeBroker.exe",
+  "image": "C:\\Windows\\System32\\RuntimeBroker.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 7180,
+  "parentPid": 4368,
+  "name": "ServiceFabricLocalClusterManager.exe",
+  "image": "C:\\Program Files\\Microsoft SDKs\\Service Fabric\\Tools\\ServiceFabricLocalClusterManager\\ServiceFabricLocalClusterManager.exe",
+  "signer": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 1140,
+  "parentPid": 1000,
+  "name": "RuntimeBroker.exe",
+  "image": "C:\\Windows\\System32\\RuntimeBroker.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 3432,
+  "parentPid": 1896,
+  "name": "hosted-compute-agent",
+  "image": "C:\\ProgramData\\GitHub\\HostedComputeAgent\\hosted-compute-agent",
+  "signer": null,
+  "signature": "NotSigned",
+  "hasWindow": true
+ },
+ {
+  "pid": 3528,
+  "parentPid": 3432,
+  "name": "conhost.exe",
+  "image": "C:\\Windows\\system32\\conhost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 4516,
+  "parentPid": 3432,
+  "name": "provjobd.exe661692958",
+  "image": "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\provjobd.exe661692958",
+  "signer": null,
+  "signature": "NotSigned",
+  "hasWindow": false
+ },
+ {
+  "pid": 5644,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": null,
+  "signer": null,
+  "signature": null,
+  "hasWindow": false
+ },
+ {
+  "pid": 5600,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 7348,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\System32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 6120,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\System32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 2588,
+  "parentPid": 856,
+  "name": "msdtc.exe",
+  "image": "C:\\Windows\\System32\\msdtc.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 7796,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 2460,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 1012,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": "C:\\Windows\\system32\\svchost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 1500,
+  "parentPid": 3432,
+  "name": "Runner.Listener.exe",
+  "image": "C:\\actions-runner\\cached\\2.338.2\\bin\\Runner.Listener.exe",
+  "signer": null,
+  "signature": "NotSigned",
+  "hasWindow": false
+ },
+ {
+  "pid": 1772,
+  "parentPid": 1500,
+  "name": "Runner.Worker.exe",
+  "image": "C:\\actions-runner\\cached\\2.338.2\\bin\\Runner.Worker.exe",
+  "signer": null,
+  "signature": "NotSigned",
+  "hasWindow": false
+ },
+ {
+  "pid": 1244,
+  "parentPid": 1772,
+  "name": "conhost.exe",
+  "image": "C:\\Windows\\system32\\conhost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 2160,
+  "parentPid": 1772,
+  "name": "pwsh.exe",
+  "image": "C:\\Program Files\\PowerShell\\7\\pwsh.EXE",
+  "signer": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 6140,
+  "parentPid": 2160,
+  "name": "node.exe",
+  "image": "C:\\hostedtoolcache\\windows\\node\\24.22.2\\x64\\node.exe",
+  "signer": "CN=OpenJS Foundation, O=OpenJS Foundation, L=San Francisco, S=California, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 8,
+  "parentPid": 1000,
+  "name": "WmiPrvSE.exe",
+  "image": "C:\\Windows\\system32\\wbem\\wmiprvse.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 7008,
+  "parentPid": 856,
+  "name": "svchost.exe",
+  "image": null,
+  "signer": null,
+  "signature": null,
+  "hasWindow": false
+ },
+ {
+  "pid": 3876,
+  "parentPid": 1000,
+  "name": "WmiPrvSE.exe",
+  "image": "C:\\Windows\\system32\\wbem\\wmiprvse.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 6800,
+  "parentPid": 4292,
+  "name": "explorer.exe",
+  "image": "C:\\Windows\\explorer.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": true
+ },
+ {
+  "pid": 7264,
+  "parentPid": 1000,
+  "name": "StartMenuExperienceHost.exe",
+  "image": "C:\\Windows\\SystemApps\\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\\StartMenuExperienceHost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 1112,
+  "parentPid": 1000,
+  "name": "SearchApp.exe",
+  "image": "C:\\Windows\\SystemApps\\Microsoft.Windows.Search_cw5n1h2txyewy\\SearchApp.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 6976,
+  "parentPid": 1000,
+  "name": "TextInputHost.exe",
+  "image": "C:\\Windows\\SystemApps\\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\\TextInputHost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": true
+ },
+ {
+  "pid": 6372,
+  "parentPid": 1000,
+  "name": "ShellExperienceHost.exe",
+  "image": "C:\\Windows\\SystemApps\\ShellExperienceHost_cw5n1h2txyewy\\ShellExperienceHost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": true
+ },
+ {
+  "pid": 2892,
+  "parentPid": 6140,
+  "name": "node.exe",
+  "image": "C:\\hostedtoolcache\\windows\\node\\24.22.2\\x64\\node.exe",
+  "signer": "CN=OpenJS Foundation, O=OpenJS Foundation, L=San Francisco, S=California, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 2008,
+  "parentPid": 2892,
+  "name": "powershell.exe",
+  "image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ },
+ {
+  "pid": 2156,
+  "parentPid": 2008,
+  "name": "conhost.exe",
+  "image": "C:\\Windows\\system32\\conhost.exe",
+  "signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "signature": "Valid",
+  "hasWindow": false
+ }
+]
