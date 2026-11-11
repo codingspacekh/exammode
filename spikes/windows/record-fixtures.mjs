@@ -1,4 +1,4 @@
-// MILESTONES §3.1: record this computer's processes (path, signer, parent, visible window) and installed apps,
+// MILESTONES §3.1: record this computer's processes (path, signer, product, parent, visible window) and installed apps,
 // for tests/fixtures/procs and tests/fixtures/inventory. Writes spikes/windows/out/<computer>-procs.json / -inventory.json.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
@@ -18,12 +18,14 @@ const paths = [...new Set(procs.map((p) => p.ExecutablePath).filter(Boolean))];
 // one PowerShell for every signature (hundreds of programs)
 const signers = {};
 const list = paths.map((p) => `'${p.replace(/'/g, "''")}'`).join(',');
-const sigs = paths.length ? w.psJson(`@(${list}) | ForEach-Object { Get-AuthenticodeSignature -LiteralPath $_ } | Select-Object Path,@{n='Status';e={"$($_.Status)"}},@{n='Signer';e={$_.SignerCertificate.Subject}}`) : [];
+const sigs = paths.length ? w.psJson(`@(${list}) | ForEach-Object { Get-AuthenticodeSignature -LiteralPath $_ } | Select-Object Path,@{n='Status';e={"$($_.Status)"}},@{n='Signer';e={$_.SignerCertificate.Subject}},@{n='Product';e={(Get-Item -LiteralPath $_.Path).VersionInfo.ProductName}}`) : [];
 for (const s of [sigs ?? []].flat()) signers[s.Path] = s;
 const records = procs.map((p) => ({
   pid: p.ProcessId, parentPid: p.ParentProcessId, name: p.Name, image: p.ExecutablePath ?? null,
   signer: p.ExecutablePath ? signers[p.ExecutablePath]?.Signer ?? null : null,
   signature: p.ExecutablePath ? signers[p.ExecutablePath]?.Status ?? null : null,
+  // the file's ProductName: a renamed browser still says Google Chrome (decide(), architecture §2.5)
+  product: p.ExecutablePath ? signers[p.ExecutablePath]?.Product ?? null : null,
   hasWindow: withWindow.has(p.ProcessId),
 }));
 writeFileSync(new URL(`${host}-procs.json`, out), JSON.stringify(records, null, 1));
