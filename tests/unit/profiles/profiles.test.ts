@@ -26,6 +26,8 @@ describe('§2.10 the profile schema', () => {
   });
   it('a policy is a registry value of the user or the machine', () => {
     expect(appProfile.safeParse({ ...wordJson, policies: [{ hive: 'everyone', key: 'Software\\X', name: 'Y', value: 1 }] }).success).toBe(false);
+    // the journal's target is the key and the name joined by a backslash: a name can't have one
+    expect(appProfile.safeParse({ ...wordJson, policies: [{ hive: 'user', key: 'Software\\X', name: 'Y\\Z', value: 1 }] }).success).toBe(false);
   });
 });
 

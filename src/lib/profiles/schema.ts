@@ -7,7 +7,7 @@ import { z } from 'zod';
 const text = z.string().min(1);
 
 /** A registry value set for the exam and put back afterwards: under the user's hive (HKU\<SID>) or the machine's. */
-export const policy = z.object({ hive: z.enum(['user', 'machine']), key: text, name: text, value: z.union([z.int(), z.string()]) });
+export const policy = z.object({ hive: z.enum(['user', 'machine']), key: text, name: text.regex(/^[^\\]+$/), value: z.union([z.int(), z.string()]) });
 export type Policy = z.infer<typeof policy>;
 
 /** The folders a launch argument may name. */
