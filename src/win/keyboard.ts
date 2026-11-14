@@ -25,6 +25,8 @@ const GetMessageW = user32.func('int __stdcall GetMessageW(_Out_ MSG *msg, void 
 const TranslateMessage = user32.func('bool __stdcall TranslateMessage(const MSG *msg)');
 const DispatchMessageW = user32.func('intptr __stdcall DispatchMessageW(const MSG *msg)');
 const GetModuleHandleW = kernel32.func('void * __stdcall GetModuleHandleW(const char16_t *name)');
+const GetCurrentThreadId = kernel32.func('uint32 __stdcall GetCurrentThreadId()');
+const UnhookWindowsHookEx = user32.func('bool __stdcall UnhookWindowsHookEx(void *hhk)');
 
 const swallowBy = ${swallowBy.toString()};
 const rules = workerData.rules;
@@ -49,16 +51,20 @@ const each = koffi.register((nCode, wParam, lParam) => {
 
 // WH_KEYBOARD_LL
 hook = SetWindowsHookExW(13, each, GetModuleHandleW(null), 0);
-parentPort.postMessage({ ready: Boolean(hook) });
+parentPort.postMessage({ ready: Boolean(hook), thread: GetCurrentThreadId() });
+// until WM_QUIT is posted to this thread (stop)
 const msg = {};
 while (GetMessageW(msg, null, 0, 0) > 0) {
   TranslateMessage(msg);
   DispatchMessageW(msg);
 }
+if (hook) UnhookWindowsHookEx(hook);
+koffi.unregister(each);
 `;
 
 export class KeyboardHook {
   private worker?: Worker;
+  private thread = 0;
   private readonly bar = new SharedArrayBuffer(8);
   private readonly seenKeys = new SharedArrayBuffer(4 * 256);
   private readonly swallowedCount = new SharedArrayBuffer(4);
@@ -74,7 +80,11 @@ export class KeyboardHook {
     this.worker = worker;
     return new Promise((resolve, reject) => {
       worker.once('error', reject);
-      worker.once('message', (m: { ready: boolean }) => (m.ready ? resolve() : reject(new Error('Windows didn\'t take the keyboard hook'))));
+      worker.once('message', (m: { ready: boolean; thread: number }) => {
+        this.thread = m.thread;
+        if (m.ready) resolve();
+        else reject(new Error('Windows didn\'t take the keyboard hook'));
+      });
     });
   }
 
@@ -93,10 +103,15 @@ export class KeyboardHook {
     return Atomics.load(new Int32Array(this.swallowedCount), 0);
   }
 
-  /** Removes the hook: Windows takes it away with its thread. */
+  /** Removes the hook. Its thread waits inside Windows for messages and can't be stopped from outside: it is
+   *  told to quit (WM_QUIT), and ends by itself. */
   async stop(): Promise<void> {
     const worker = this.worker;
     this.worker = undefined;
-    await worker?.terminate();
+    if (!worker) return;
+    const ended = new Promise<void>((resolve) => worker.once('exit', () => resolve()));
+    const koffi = (await import('koffi')).default;
+    koffi.load('user32.dll').func('bool __stdcall PostThreadMessageW(uint32 thread, uint32 msg, uintptr wParam, intptr lParam)')(this.thread, 0x0012, 0, 0);
+    await ended;
   }
 }
