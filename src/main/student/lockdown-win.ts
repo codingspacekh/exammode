@@ -10,8 +10,7 @@ import { join } from 'node:path';
 import { lookup } from 'node:dns/promises';
 import { LISTS } from '@lib/guard/lists';
 import { appName, appsToClose, runChecks, unsavedIn } from '@lib/lockdown/checks';
-import type { Change } from '@lib/lockdown/journal';
-import { plan } from '@lib/lockdown/plan';
+import { builtin } from '@lib/profiles/builtin';
 import { fileName, matches } from '@lib/profiles/match';
 import type { AppProfile } from '@lib/profiles/schema';
 import { GUARD, GuardClient, type Endpoint } from '../../guard/pipe';
@@ -94,16 +93,17 @@ export class WindowsLockdown implements Lockdown {
     if (!sid) return 'This account can\'t be read. Tell your teacher.';
     // the firewall takes addresses, not names
     const address = await lookup(info.teacher.host, { family: 4 }).then((found) => found.address, () => info.teacher.host);
-    const { examMode, guard, keepReachable = [] } = this.options;
-    let changes = plan({ userSid: sid, runId: info.runId, examMode, guard, teacher: { address, port: info.teacher.port }, websites: info.websites, profiles: info.apps });
-    if (keepReachable.length > 0) {
-      const extra = keepReachable.map((program, i): Change => ({ kind: 'firewallRule', target: `ExamMode: kept reachable ${i + 1}`, after: { name: `ExamMode: kept reachable ${i + 1}`, program, protocol: 'tcp' } }));
-      const at = changes.findIndex((c) => c.kind === 'firewallState');
-      changes = [...changes.slice(0, at), ...extra, ...changes.slice(at)];
-    }
+    const { keepReachable = [] } = this.options;
+    // the Guard is told what to lock for, and makes the plan itself (it is never handed one): the exam's apps
+    // with a built-in profile go by their ids
+    const ask = {
+      userSid: sid, runId: info.runId, teacher: { address, port: info.teacher.port }, websites: info.websites,
+      profiles: info.apps.filter((a) => builtin(a.id) !== undefined).map((a) => a.id),
+      ...(keepReachable.length > 0 ? { keepReachable } : {}),
+    };
 
     const secret = randomBytes(24).toString('base64url');
-    const locked = await this.client.ask({ type: 'lock', plan: changes, secret }).catch((error: unknown) => ({ ok: false as const, why: 'failed' as const, detail: String(error) }));
+    const locked = await this.client.ask({ type: 'lock', lock: ask, secret }).catch((error: unknown) => ({ ok: false as const, why: 'failed' as const, detail: String(error) }));
     if (!locked.ok) return WHY[locked.why] ?? `This computer couldn't be locked${'detail' in locked && locked.detail ? ` (${locked.detail})` : ''}. Tell your teacher.`;
     this.secret = secret;
     this.info = info;
@@ -162,8 +162,10 @@ export class WindowsLockdown implements Lockdown {
       env: process.env as Record<string, string>,
       exists: (path) => access(path).then(() => true, () => false),
       list: (folder) => readdir(folder).catch(() => []),
-      // `start /max`: maximised — under the exam bar, as the work area ends there
-      start: async (exe, args, folder) => void spawn('cmd.exe', ['/c', 'start', '', '/max', '/d', folder, exe, ...args], { detached: true, stdio: 'ignore', windowsHide: true }).unref(),
+      // started as itself, in the Exam folder — never through a command line, where a word of the exam's could
+      // be read as a command. Its window is maximised when it is brought to the front (under the exam bar, as the
+      // work area ends there)
+      start: async (exe, args, folder) => void spawn(exe, args, { cwd: folder, detached: true, stdio: 'ignore' }).on('error', () => undefined).unref(),
     });
   }
 

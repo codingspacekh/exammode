@@ -2,6 +2,8 @@
  * The lockdown plan (architecture §2.4 step 2): the exam's rules and profiles as a list of reversible changes, in
  * the order the Guard makes them. Pure. To add a lockdown change, add it here; its undo is the journal's.
  */
+import { z } from 'zod';
+import { builtin } from '../profiles/builtin';
 import type { AppProfile } from '../profiles/schema';
 import type { Change, FirewallRule } from './journal';
 
@@ -58,4 +60,32 @@ export function plan(input: PlanInput): Change[] {
   // a value two apps both set is changed once
   const seen = new Set<string>();
   return changes.filter((c) => !seen.has(`${c.kind} ${c.target}`) && seen.add(`${c.kind} ${c.target}`));
+}
+
+/** What ExamMode asks the Guard to lock for (D3). Not a plan: the Guard runs as the system, and whoever could hand
+ *  it a list of changes could write anything anywhere. It is told only what the exam needs, each part checked —
+ *  this account, this run, the teacher's address, whether the exam has websites, which of the built-in profiles —
+ *  and makes the plan itself. */
+export const lockAsk = z.object({
+  runId: z.uuid(),
+  userSid: z.string().regex(/^S-1-\d+(-\d+){1,14}$/),
+  teacher: z.object({ address: z.ipv4(), port: z.int().min(1).max(65_535) }),
+  websites: z.boolean(),
+  /** the exam's apps that have a built-in profile, by id: their policies are the ones ExamMode ships with */
+  profiles: z.array(z.string().min(1).max(60)).max(60),
+  /** development only: programs that stay reachable through the firewall (a test computer's own agent) */
+  keepReachable: z.array(z.string().min(1).max(400)).max(20).optional(),
+});
+export type LockAsk = z.infer<typeof lockAsk>;
+
+/** The plan for what was asked, made by the Guard. `examMode`: the program that asked, as the Guard itself saw
+ *  it; `guard`: the Guard's own. `dev`: a development Guard, which also keeps `keepReachable` reachable. */
+export function planAsked(ask: LockAsk, on: { examMode: string; guard: string; dev?: boolean }): Change[] {
+  const profiles = ask.profiles.flatMap((id) => builtin(id) ?? []);
+  const changes = plan({ userSid: ask.userSid, runId: ask.runId, examMode: on.examMode, guard: on.guard, teacher: ask.teacher, websites: ask.websites, profiles });
+  const kept = on.dev ? ask.keepReachable ?? [] : [];
+  if (kept.length === 0) return changes;
+  const extra = kept.map((program, i): Change => ({ kind: 'firewallRule', target: `ExamMode: kept reachable ${i + 1}`, after: { name: `ExamMode: kept reachable ${i + 1}`, program, protocol: 'tcp' } }));
+  const at = changes.findIndex((c) => c.kind === 'firewallState');
+  return [...changes.slice(0, at), ...extra, ...changes.slice(at)];
 }

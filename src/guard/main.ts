@@ -2,16 +2,22 @@
  * ExamMode Guard, the program (architecture D3, §2.4): started with Windows as a service, it undoes any journal
  * left behind, then waits for ExamMode. Run as an administrator; as a service it is LocalSystem.
  *
- *   ExamModeGuard [--allow <ExamMode.exe>]… [--port <n>] [--journal <file>] [--no-relaunch]
+ *   ExamModeGuard [--allow <ExamMode.exe>]… [--port <n>] [--journal <file>] [--no-relaunch] [--dev]
  *
  * `--allow`: the programs that may ask it to lock — the installed ExamMode.exe by default (D10).
  * `--no-relaunch`: for development, where ExamMode is Electron itself and can't be started by its program alone.
+ * `--dev`: a development Guard also keeps the programs a caller names reachable through the firewall (GitHub's own
+ * agent on its computers). The installed service is never started with it.
  */
 import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
+import type { Socket } from 'node:net';
 import { dirname, join } from 'node:path';
+import { planAsked } from '@lib/lockdown/plan';
+import { onlySystem } from '../win/acl';
 import { imageOf, prepareProcesses } from '../win/processes';
 import { prepareSessions, startInUserSession } from '../win/session';
+import { ownerOfConnection } from '../win/tcp';
 import { WindowsSystem } from '../win/system';
 import { Guard } from './guard';
 import { GUARD, serve } from './pipe';
@@ -25,6 +31,9 @@ const port = Number(all('--port')[0] ?? (typeof GUARD === 'object' ? GUARD.port 
 const say = (text: string): void => console.log(`${new Date().toISOString()} ${text}`);
 
 mkdirSync(dirname(journal), { recursive: true });
+// the journal's folder is the system's and the administrators' alone: what is in the journal is put back as the
+// system. (A journal file named on the command line — a test's — is where it is.)
+if (all('--journal').length === 0 && !(await onlySystem(dirname(journal)))) say(`the folder ${dirname(journal)} couldn't be closed to other accounts`);
 await prepareProcesses();
 const service = await prepareSessions();
 
@@ -52,10 +61,22 @@ const guard = new Guard({
 
 const undone = await guard.recover();
 if (undone > 0) say(`${undone} changes of an exam that didn't end were undone`);
-// only ExamMode is heard: the program a caller says it is has to be one of the allowed ones
-const server = await serve(guard, { host: '127.0.0.1', port }, (pid) => {
-  const image = imageOf(pid);
-  return image !== null && allowed.includes(image.toLowerCase());
+// only ExamMode is heard: the process at the other end of the connection — as Windows says, not as the caller
+// says — has to be one of the allowed programs
+const owners = new Map<Socket, number | undefined>();
+const server = await serve(guard, { host: '127.0.0.1', port }, (socket) => {
+  const pid = owners.get(socket);
+  const image = pid === undefined ? null : imageOf(pid);
+  return pid !== undefined && image !== null && allowed.includes(image.toLowerCase()) ? { pid, image } : undefined;
+}, (ask, caller) => planAsked(ask, { examMode: caller.image, guard: process.execPath, dev: args.includes('--dev') }));
+// (looked up when the connection is made, before its first message is read)
+server.prependListener('connection', (socket: Socket) => {
+  socket.pause();
+  void ownerOfConnection(socket.remotePort ?? 0, port).catch(() => undefined).then((pid) => {
+    owners.set(socket, pid);
+    socket.once('close', () => owners.delete(socket));
+    socket.resume();
+  });
 });
 say(`ExamMode Guard is ready${service ? ' (a service)' : ''}: port ${port}, journal ${journal}, for ${allowed.join(', ')}`);
 

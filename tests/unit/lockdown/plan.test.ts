@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { plan, type PlanInput } from '@lib/lockdown/plan';
+import { lockAsk, plan, planAsked, type LockAsk, type PlanInput } from '@lib/lockdown/plan';
+import { builtin } from '@lib/profiles/builtin';
 import type { Change } from '@lib/lockdown/journal';
 import { vscode, word } from '../../fixtures/profiles';
 
@@ -92,5 +93,30 @@ describe('§2.4 the plan: the order', () => {
   });
   it('the start-with-Windows entry is first, so a power cut during locking still brings ExamMode back', () => {
     expect(changes[0]?.target.endsWith('\\Run\\ExamMode')).toBe(true);
+  });
+});
+
+describe('D3 what ExamMode asks the Guard for, and the plan the Guard makes of it', () => {
+  const ask: LockAsk = { runId: '3f2a9c41-07be-4d25-8a55-1b2c3d4e5f60', userSid: SID, teacher: { address: '192.168.1.20', port: 47800 }, websites: true, profiles: ['word', 'not-a-profile'] };
+  const on = { examMode: 'C:\\Program Files\\ExamMode\\ExamMode.exe', guard: 'C:\\Program Files\\ExamMode\\ExamModeGuard.exe' };
+  it('is the plan for this account, this run and the built-in profiles — a profile the Guard doesn\'t know adds nothing', () => {
+    expect(planAsked(ask, on)).toEqual(plan({ userSid: SID, runId: ask.runId, ...on, teacher: ask.teacher, websites: true, profiles: [builtin('word')!] }));
+  });
+  it('a program to keep reachable is kept only by a development Guard, before the firewall is switched on', () => {
+    const kept = { ...ask, keepReachable: ['C:\\actions-runner\\bin\\Runner.Worker.exe'] };
+    expect(planAsked(kept, on)).toEqual(planAsked(ask, on));
+    const dev = planAsked(kept, { ...on, dev: true });
+    expect(dev).toHaveLength(planAsked(ask, on).length + 1);
+    const at = dev.findIndex((c) => c.target === 'ExamMode: kept reachable 1');
+    expect(dev[at]).toMatchObject({ kind: 'firewallRule', after: { program: 'C:\\actions-runner\\bin\\Runner.Worker.exe', protocol: 'tcp' } });
+    expect(dev[at + 1]).toMatchObject({ kind: 'firewallState' });
+    expect(planAsked({ ...ask, keepReachable: [] }, { ...on, dev: true })).toEqual(planAsked(ask, on));
+  });
+  it('only what an exam needs can be asked: a run\'s id, an account\'s SID, an address, yes or no, profile ids', () => {
+    expect(lockAsk.safeParse(ask).success).toBe(true);
+    for (const bad of [
+      { runId: 'r-1' }, { runId: `${ask.runId} --inspect` }, { userSid: 'S-1-5-21-1\\Software' }, { userSid: 'Everyone' },
+      { teacher: { address: 'teacher-laptop', port: 47800 } }, { teacher: { address: '192.168.1.20', port: 70_000 } }, { websites: 1 }, { profiles: [''] },
+    ]) expect(lockAsk.safeParse({ ...ask, ...bad }).success).toBe(false);
   });
 });

@@ -5,7 +5,7 @@ import {
 
 const v = PROTOCOL_VERSION;
 const sha = 'a'.repeat(64);
-const join = { v, type: 'join', runId: 'r-1', studentId: 's-07', code: '4821', pc: 'PC-07', instanceId: 'i-1', bootId: 'b-1' };
+const join = { v, type: 'join', runId: '3f2a9c41-07be-4d25-8a55-1b2c3d4e5f60', studentId: 's-07', code: '4821', pc: 'PC-07', instanceId: 'i-1', bootId: 'b-1' };
 
 /** The classroom protocol of architecture §2.7: one definition, checked at both ends. */
 describe('§2.7 messages from a student', () => {
@@ -75,7 +75,7 @@ describe('§2.7 messages from the teacher', () => {
 
 describe('§2.7 the beacon, the Guard and files', () => {
   it('F-01 the beacon says which run is open, and where', () => {
-    const b = { v, runId: 'r-1', title: 'Year 10 ICT — Term 1 practical exam', teacher: 'Ms Leak', class: '10A', port: 47800, teacherKeyFp: null };
+    const b = { v, runId: '3f2a9c41-07be-4d25-8a55-1b2c3d4e5f60', title: 'Year 10 ICT — Term 1 practical exam', teacher: 'Ms Leak', class: '10A', port: 47800, teacherKeyFp: null };
     expect(beacon.parse(b)).toEqual(b);
     expect(beacon.safeParse({ ...b, port: 70_000 }).success).toBe(false);
   });
@@ -90,5 +90,25 @@ describe('§2.7 the beacon, the Guard and files', () => {
     expect(upload.safeParse({ ...u, kind: 'backup' }).success).toBe(true);
     expect(upload.safeParse({ ...u, files: [{ name: 'Report.docx', bytes: 18_220, sha256: 'ABC' }] }).success).toBe(false);
     expect(upload.safeParse({ ...u, files: [{ name: '', bytes: 1, sha256: sha }] }).success).toBe(false);
+  });
+
+  it('every word and list has a size, and a run\'s id is a UUID: nothing sent can fill a log or become a command', () => {
+    const ok = (msg: unknown) => parseFromStudent(msg).ok;
+    expect(ok(join)).toBe(true);
+    expect(ok({ ...join, runId: 'r-1' })).toBe(false);
+    expect(ok({ ...join, runId: `${join.runId}" --inspect` })).toBe(false);
+    expect(ok({ ...join, pc: 'x'.repeat(81) })).toBe(false);
+    expect(ok({ v, type: 'event', kind: 'appClosed', details: { app: 'Notepad' } })).toBe(true);
+    expect(ok({ v, type: 'event', kind: 'k'.repeat(61), details: {} })).toBe(false);
+    expect(ok({ v, type: 'event', kind: 'appClosed', details: { app: 'x'.repeat(3000) } })).toBe(false);
+    expect(ok({ v, type: 'beat', seq: 1, front: 'x'.repeat(301) })).toBe(false);
+    expect(ok({ v, type: 'checks', results: Array.from({ length: 41 }, () => ({ check: 'oneScreen', ok: true })) })).toBe(false);
+    const entry = { at: 1, kind: 'pageBlocked', details: {} };
+    expect(ok({ v, type: 'resume', token: 't', instanceId: 'i', localLog: Array.from({ length: 500 }, () => entry) })).toBe(true);
+    expect(ok({ v, type: 'resume', token: 't', instanceId: 'i', localLog: Array.from({ length: 501 }, () => entry) })).toBe(false);
+    const file = { name: 'a.txt', bytes: 1, sha256: 'a'.repeat(64) };
+    expect(upload.safeParse({ v, token: 't', kind: 'backup', files: [file] }).success).toBe(true);
+    expect(upload.safeParse({ v, token: 't', kind: 'backup', files: [{ ...file, name: 'x'.repeat(401) }] }).success).toBe(false);
+    expect(upload.safeParse({ v, token: 't', kind: 'handIn', files: Array.from({ length: 20_001 }, () => file) }).success).toBe(false);
   });
 });

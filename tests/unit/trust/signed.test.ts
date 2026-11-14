@@ -11,7 +11,7 @@ const identity = (name = 'Srey Leak', by = author.privateKey): Identity => {
   return { privateKey: keys.privateKey, licence: issue({ name, school: 'Riverside High School', key: keys.publicKey }, '0042', 1, by) };
 };
 const teacher = identity();
-const EXAM: Beacon = { v: PROTOCOL_VERSION, runId: 'r-1', title: 'Term 1', teacher: 'Ms Srey Leak', class: 'Year 10 A', minutes: 90, port: 47800, teacherKeyFp: null };
+const EXAM: Beacon = { v: PROTOCOL_VERSION, runId: '3f2a9c41-07be-4d25-8a55-1b2c3d4e5f60', title: 'Term 1', teacher: 'Ms Srey Leak', class: 'Year 10 A', minutes: 90, port: 47800, teacherKeyFp: null };
 
 describe('F-44 the announcement of an exam', () => {
   const signed = signBeacon(EXAM, teacher);

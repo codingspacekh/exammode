@@ -23,6 +23,8 @@ export const MAX_LOCAL_LOG = 500;
 /** One file at most; a bigger one isn't sent, and the teacher is told. */
 export const MAX_FILE_BYTES = 500 * 1024 * 1024;
 const time = z.int().nonnegative();
+/** A run's id is a UUID, and nothing else: it becomes part of folder names and of a command on the lab computer. */
+const runId = z.uuid();
 
 /** A file by name, size and SHA-256 (F-16, F-22). */
 export const fileMeta = z.object({ name: z.string().min(1).max(400), bytes: z.int().nonnegative(), sha256: z.string().regex(/^[0-9a-f]{64}$/) });
@@ -36,7 +38,7 @@ const logEntry = z.object({ at: time, kind, details });
 const nonce = z.string().min(8).max(100).optional();
 
 export const fromStudent = z.discriminatedUnion('type', [
-  z.object({ v, type: z.literal('join'), runId: id, studentId: id, code: z.string().regex(/^\d{4}$/), pc: id.max(80), instanceId: id, bootId: id, nonce }),
+  z.object({ v, type: z.literal('join'), runId, studentId: id, code: z.string().regex(/^\d{4}$/), pc: id.max(80), instanceId: id, bootId: id, nonce }),
   z.object({ v, type: z.literal('resume'), token: id, instanceId: id, localLog: z.array(logEntry).max(MAX_LOCAL_LOG), nonce }),
   z.object({ v, type: z.literal('checks'), results: z.array(z.object({ check: z.string().min(1).max(60), ok: z.boolean() })).max(40) }),
   z.object({ v, type: z.literal('ready') }),
@@ -78,7 +80,7 @@ export type FromTeacher = z.infer<typeof fromTeacher>;
  *  and the teacher's signature on everything else in it (F-44) — parts this version doesn't know are kept, as
  *  they were signed too. */
 export const beacon = z.looseObject({
-  v, runId: id, title: id, teacher: id, class: id, minutes: z.int().positive().optional(), port: z.int().min(1).max(65_535), teacherKeyFp: z.string().nullable(),
+  v, runId, title: id, teacher: id, class: id, minutes: z.int().positive().optional(), port: z.int().min(1).max(65_535), teacherKeyFp: z.string().nullable(),
   licence: licence.optional(), sig: z.string().max(200).optional(),
 });
 export type Beacon = z.infer<typeof beacon>;

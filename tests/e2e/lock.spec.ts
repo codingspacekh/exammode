@@ -51,7 +51,7 @@ async function freePort(): Promise<number> {
 
 /** The Guard, as its own program. Answers when it says it is ready. */
 function startGuard(port: number): Promise<ChildProcess> {
-  const child = spawn(process.execPath, ['out/guard/main.js', '--allow', electronExe, '--port', String(port), '--journal', join(home, 'journal.json'), '--no-relaunch'], { stdio: ['ignore', 'pipe', 'inherit'] });
+  const child = spawn(process.execPath, ['out/guard/main.js', '--allow', electronExe, '--port', String(port), '--journal', join(home, 'journal.json'), '--no-relaunch', '--dev'], { stdio: ['ignore', 'pipe', 'inherit'] });
   return new Promise((resolve, reject) => {
     child.once('exit', (code) => reject(new Error(`The Guard stopped (${code})`)));
     child.stdout!.on('data', (text: Buffer) => {

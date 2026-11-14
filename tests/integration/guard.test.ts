@@ -6,6 +6,7 @@ import { apply, read, type Change, type SystemState } from '@lib/lockdown/journa
 import { plan } from '@lib/lockdown/plan';
 import type { Stopped } from '@lib/protocol/messages';
 import { alive, Guard, type GuardOptions, type System, type Watched } from '../../src/guard/guard';
+import { planAsked, type LockAsk } from '@lib/lockdown/plan';
 import { GuardClient, serve } from '../../src/guard/pipe';
 import { later, tempFolder } from './helpers';
 
@@ -202,18 +203,23 @@ describe('F-20 the watchdog: ExamMode\'s process ends without unlocking', () => 
 });
 
 describe('§2.4 ExamMode and the Guard talk', () => {
+  const EXAM_MODE = 'C:\\Program Files\\ExamMode\\ExamMode.exe';
+  /** (where the system can't say who is calling — a test's socket — the caller's word is taken) */
+  const caller = (isExamMode: (pid: number) => boolean) => (_socket: unknown, claimed: number) => (isExamMode(claimed) ? { pid: claimed, image: EXAM_MODE } : undefined);
+  const planFor = (ask: LockAsk, who: { image: string }) => planAsked(ask, { examMode: who.image, guard: 'C:\\Program Files\\ExamMode\\ExamModeGuard.exe' });
+  const ASK: LockAsk = { runId: '3f2a9c41-07be-4d25-8a55-1b2c3d4e5f60', userSid: 'S-1-5-21-1004336348-1177238915-682003330-1001', teacher: { address: '10.0.0.2', port: 47800 }, websites: false, profiles: ['word'] };
   async function piped(isExamMode = (pid: number) => pid === 4242) {
     const made = await guard({ alive: () => true });
     // (a Unix socket stands in for the Windows pipe)
     const path = process.platform === 'win32' ? `\\\\.\\pipe\\exammode-test-${process.pid}-${Date.now()}` : join(await tempFolder(), 'guard.sock');
-    const server = await serve(made.g, path, isExamMode);
+    const server = await serve(made.g, path, caller(isExamMode), planFor);
     later(() => new Promise<void>((r) => server.close(() => r())));
     return { ...made, path, client: new GuardClient(path, 4242) };
   }
 
   it('on a port that only this computer can reach', async () => {
     const made = await guard();
-    const server = await serve(made.g, { host: '127.0.0.1', port: 0 }, () => true);
+    const server = await serve(made.g, { host: '127.0.0.1', port: 0 }, caller(() => true), planFor);
     later(() => new Promise<void>((r) => server.close(() => r())));
     const { port, address } = server.address() as { port: number; address: string };
     expect(address).toBe('127.0.0.1');
@@ -223,9 +229,11 @@ describe('§2.4 ExamMode and the Guard talk', () => {
   it('lock, status, watch and unlock go over it', async () => {
     const { client, system } = await piped();
     expect(await client.ask({ type: 'status' })).toEqual({ id: 1, ok: true, locked: false, changes: 0 });
-    expect(await client.ask({ type: 'lock', plan: PLAN, secret: 's3cret' })).toEqual({ id: 2, ok: true });
+    expect(await client.ask({ type: 'lock', lock: ASK, secret: 's3cret' })).toEqual({ id: 2, ok: true });
     expect(system.state.explorer).toBe('stopped');
-    expect(await client.ask({ type: 'watch', secret: 's3cret', runId: 'run-1', token: 't-1', instanceId: 'i-1', pc: 'PC-07', teacher: { host: '10.0.0.2', port: 47800 } })).toEqual({ id: 3, ok: true });
+    // the plan is the Guard's own: for the program that asked, as the Guard saw it
+    expect(system.state.firewall.rules['ExamMode: the teacher']).toMatchObject({ program: EXAM_MODE, remoteAddress: '10.0.0.2' });
+    expect(await client.ask({ type: 'watch', secret: 's3cret', runId: ASK.runId, token: 't-1', instanceId: 'i-1', pc: 'PC-07', teacher: { host: '10.0.0.2', port: 47800 } })).toEqual({ id: 3, ok: true });
     expect(await client.ask({ type: 'status' })).toMatchObject({ locked: true, watching: 4242 });
     expect(await client.ask({ type: 'unlock', secret: 'guessed' })).toEqual({ id: 5, ok: false, why: 'secret' });
     expect(await client.ask({ type: 'unlock', secret: 's3cret' })).toEqual({ id: 6, ok: true });
@@ -235,16 +243,25 @@ describe('§2.4 ExamMode and the Guard talk', () => {
   it('a program that isn\'t ExamMode is not heard', async () => {
     const { path, system } = await piped();
     const stranger = new GuardClient(path, 999);
-    expect(await stranger.ask({ type: 'lock', plan: PLAN, secret: 'mine' })).toEqual({ id: 1, ok: false, why: 'notExamMode' });
+    expect(await stranger.ask({ type: 'lock', lock: ASK, secret: 'mine' })).toEqual({ id: 1, ok: false, why: 'notExamMode' });
     expect(await stranger.ask({ type: 'unlock', secret: 'mine' })).toMatchObject({ ok: false, why: 'notExamMode' });
     expect(system.applied).toEqual([]);
   });
 
-  it('what isn\'t a message is refused, and a plan is checked before anything is done', async () => {
+  it('what isn\'t a message is refused; a caller can\'t hand the Guard a plan, or a word that isn\'t what it should be', async () => {
     const { client, system, path } = await piped();
-    const bad = [{ kind: 'registry', target: 'HKLM\\X', after: 1 }, { kind: 'format', target: 'C:', after: 'now' }] as unknown as Change[];
-    expect(await client.ask({ type: 'lock', plan: bad, secret: 's' })).toMatchObject({ ok: false, why: 'invalid' });
-    expect(system.applied).toEqual([]);
+    // a list of changes of the caller's own: the Guard, which is the system, would write anything anywhere
+    const own = { type: 'lock', plan: [{ kind: 'registry', target: 'HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\utilman.exe\\Debugger', after: 'cmd.exe' }], secret: 's' };
+    expect(await client.ask(own as never)).toMatchObject({ ok: false, why: 'invalid' });
+    expect(await client.ask({ type: 'lock', lock: { ...ASK, plan: own.plan } as never, secret: 's' })).toMatchObject({ ok: true });
+    expect(system.applied.some((c) => c.includes('utilman'))).toBe(false);
+    expect(await client.ask({ type: 'unlock', secret: 's' })).toMatchObject({ ok: true });
+    const applied = system.applied.length;
+    for (const bad of [
+      { ...ASK, runId: 'x" --inspect' }, { ...ASK, userSid: 'S-1-5-21-1\\..\\..\\SOFTWARE' }, { ...ASK, teacher: { address: 'example.com', port: 47800 } },
+      { ...ASK, teacher: { address: '10.0.0.2', port: 0 } }, { ...ASK, websites: 'yes' }, { ...ASK, profiles: 'word' },
+    ]) expect(await client.ask({ type: 'lock', lock: bad as never, secret: 's' })).toMatchObject({ ok: false, why: 'invalid' });
+    expect(system.applied).toHaveLength(applied);
     const { createConnection } = await import('node:net');
     const raw = await new Promise<string>((resolve) => {
       const socket = createConnection(path, () => socket.write('not json\n'));
