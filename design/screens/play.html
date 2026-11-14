@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>ExamMode — try it</title>
+<meta name="viewport" content="width=device-width">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+  html, body { height: 100%; }
+  body { padding: 0; background: var(--bg-3); display: flex; flex-direction: column; overflow: hidden; }
+  .top { display: flex; align-items: center; gap: 12px; padding: 10px 18px; background: var(--panel); border-bottom: 1px solid var(--line); flex: none; }
+  .top h1 { font-size: 15px; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .top .logo { width: 24px; height: 24px; }
+  .top .spacer { flex: 1; }
+  .seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; }
+  .seg button { padding: 6px 12px; font-size: 12.5px; color: var(--tx-2); }
+  .seg button + button { border-left: 1px solid var(--line-strong); }
+  .seg button.on { background: var(--accent); color: #fff; }
+  .guide { display: flex; gap: 12px; align-items: flex-start; padding: 10px 18px; background: #fff8e6; border-bottom: 1px solid #f1dca6; color: #5b4708; font-size: 13.5px; line-height: 1.5; flex: none; min-height: 62px; }
+  .guide .n { font-weight: 700; white-space: nowrap; color: #8a6a00; }
+  .guide b { color: #3d2f00; }
+  .guide .next { color: #3d2f00; }
+  .stage { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 14px 18px 16px; }
+  .stage.one { grid-template-columns: 1fr; }
+  .stage.one .device.hide { display: none; }
+  .device { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .cap { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; flex: none; }
+  .cap b { font-size: 13.5px; }
+  .cap span { color: var(--tx-3); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .screen { flex: 1; min-height: 0; position: relative; border-radius: 10px; overflow: hidden; background: var(--bg); border: 1px solid var(--line-strong); box-shadow: 0 14px 40px rgba(16, 24, 40, .16); }
+  .screen.flash { animation: flash .7s ease-out; }
+  @keyframes flash { from { box-shadow: 0 0 0 4px var(--accent), 0 14px 40px rgba(16, 24, 40, .16); } }
+  @media (prefers-reduced-motion: reduce) { .screen.flash { animation: none; } }
+  .screen iframe { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; }
+  .tries { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; flex: none; min-height: 32px; }
+  .tries span { color: var(--tx-3); font-size: 12px; margin-right: 2px; }
+  .tries .btn[disabled] { opacity: .45; cursor: not-allowed; }
+</style></head>
+<body>
+<div class="top">
+  <h1><svg class="logo" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="7" fill="#3b4fd8"/><path d="M14 5.5l7 2.6v5.2c0 4-3 7.3-7 8.2-4-.9-7-4.2-7-8.2V8.1z" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><rect x="10.6" y="12.2" width="6.8" height="5.3" rx="1.2" fill="#fff"/><path d="M12 12.2v-1.4a2 2 0 0 1 4 0v1.4" fill="none" stroke="#fff" stroke-width="1.5"/></svg>
+ ExamMode — try it</h1>
+  <div class="seg" id="layout" role="group" aria-label="What to show">
+    <button data-layout="both" class="on">Both</button><button data-layout="teacher">Teacher's laptop</button><button data-layout="student">Lab computer</button>
+  </div>
+  <span class="spacer"></span>
+  <button class="btn" id="show" aria-pressed="false"><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg> Show what can be clicked</button>
+  <button class="btn" id="restart"><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8M4 4v4h4M4 13a8 8 0 0 0 14.5 4.5L20 16M20 20v-4h-4"/></svg> Start again</button>
+  <a class="btn ghost" href="index.html"><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg> All screens</a>
+</div>
+<div class="guide" aria-live="polite"><span class="n" id="where"></span><div><span id="said"></span> <span class="next" id="next"></span></div></div>
+<div class="stage" id="stage">
+  <div class="device" id="dev-teacher">
+    <div class="cap"><b><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg> The teacher's laptop</b><span id="cap-teacher"></span></div>
+    <div class="screen" id="scr-teacher"><iframe id="teacher" title="The teacher's laptop"></iframe></div>
+    <div class="tries"><span>Or:</span><button class="btn sm" data-try="timeup"><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 1.5M9.5 2.5h5"/></svg> Let the time run out</button></div>
+  </div>
+  <div class="device" id="dev-student">
+    <div class="cap"><b><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M7 20h10"/></svg> A lab computer</b><span id="cap-student"></span></div>
+    <div class="screen" id="scr-student"><iframe id="student" title="A lab computer"></iframe></div>
+    <div class="tries"><span>What a student might try:</span>
+      <button class="btn sm" data-try="chrome">Open Chrome</button>
+      <button class="btn sm" data-try="link">Click a link to another site</button>
+      <button class="btn sm" data-try="cable" id="cable"><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M8.5 16a5 5 0 0 1 7 0M5.5 12.5a9.5 9.5 0 0 1 4-2.2M2.5 9a14 14 0 0 1 5-3M13.5 6.1A14 14 0 0 1 21.5 9M16 10.8a9.5 9.5 0 0 1 2.5 1.7"/><circle cx="12" cy="19" r=".8"/></svg> Pull the network cable</button>
+      <button class="btn sm" data-try="kill"><svg class="ico s14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg> Close ExamMode from Task Manager</button>
+    </div>
+  </div>
+</div>
+<script>
+/*
+ * The player: the teacher's laptop and one lab computer side by side. A click inside either screen is told here
+ * (proto.js), and `on()` decides what both show next — the same rules as the app's, in miniature.
+ */
+const TITLES = {
+  '01-join': '01 · Join an exam', '02-checks': '02 · Getting this computer ready', '03-waiting': '03 · Waiting for the teacher',
+  '04-exam-questions': '04 · In the exam — the questions', '05-exam-word': '05 · In the exam — Word', '06-exam-vscode': '06 · In the exam — VS Code',
+  '07-app-closed': '07 · An app that isn\'t allowed', '07b-page-blocked': '07b · A page that isn\'t part of the exam', '08-leave': '08 · Leave the exam?',
+  '09-hand-in': '09 · Hand in', '09b-handed-in': '09b · Handed in', '10-cant-rejoin': '10 · Can\'t join again', '10b-connection-lost': '10b · The teacher\'s computer can\'t be reached',
+  '11-make-exam': '11 · Make an exam', '11b-add-app': '11b · Add an app', '12-lobby': '12 · Students joining', '13-dashboard': '13 · The exam, live',
+  '13b-student': '13b · One student — let back in?', '14-end': '14 · After the exam',
+};
+const fresh = () => ({
+  t: '11-make-exam', s: '01-join',
+  open: false, live: false, ended: false,
+  inExam: false,            // the student is in the exam now
+  out: null,                // 'left' | 'killed' | 'handed': how the student stopped being in it
+  asks: false,              // a refused join is waiting for the teacher
+  asked: false,             // … or was, at some point
+  cable: true,
+  app: '04-exam-questions', // the exam screen to go back to
+  said: 'An exam, from making it to collecting the work. Click inside the two screens as the teacher and as a student would.',
+});
+let S = fresh();
+const $ = (id) => document.getElementById(id);
+const frames = { t: $('teacher'), s: $('student') };
+const shown = { t: '', s: '' };
+
+/** What happens when something is clicked: `who` is 't' (teacher's laptop), 's' (lab computer) or 'try'. */
+function on(who, event) {
+  const say = (text) => void (S.said = text);
+  const backToApp = () => void (S.s = S.app);
+  if (who === 't') {
+    switch (event) {
+      case 'open': S.t = '12-lobby'; S.open = true; return say('<b>The exam is open.</b> The teacher\'s laptop announces it on the classroom network every 2 seconds, and shows the code for the board.');
+      case 'addapp': S.t = '11b-add-app'; return say('Any app on the lab computers can be added to an exam.');
+      case 'addapp-close': S.t = '11-make-exam'; return say('');
+      case 'start':
+        S.t = '13-dashboard'; S.live = true;
+        if (S.s === '03-waiting') { S.s = S.app; S.inExam = true; return say('<b>Started on every ready computer at once.</b> The clock counts from now; the lab computer shows the exam bar and the questions.'); }
+        return say('<b>Started.</b> This student wasn\'t ready yet: a late joiner starts as soon as their computer is locked, with the time that is left.');
+      case 'look': S.t = '13b-student'; return say('A student\'s card opens their timeline: what happened, in order, and the two choices.');
+      case 'letin':
+        S.t = '13-dashboard';
+        if (S.asks) { S.asks = S.asked = false; S.out = null; S.inExam = true; backToApp(); return say('<b>Let back in.</b> The exam opened on the lab computer by itself, with the student\'s files. The reason and the time out are in the log.'); }
+        return say('<b>Let back in</b> is written in the log with the reason.');
+      case 'keepout':
+        S.t = '13-dashboard';
+        if (S.asks) { S.asks = false; return say('<b>Kept out.</b> The lab computer stays on "You can\'t join this exam again". The work up to leaving is the hand-in.'); }
+        return say('<b>Keep out</b> is written in the log with the reason.');
+      case 'addtime': return say('<b>Add time</b> is for everyone or for one student; each lab computer shows the new end at once. (Not drawn in the prototype.)');
+      case 'end': return over('<b>The teacher ended the exam.</b>');
+      case 'exams': return restart();
+    }
+  }
+  if (who === 's') {
+    switch (event) {
+      case 'join':
+        if (!S.open) return say('<b>No exam is open yet.</b> On a real lab computer this list would be empty. On the teacher\'s laptop, press <b>Open for students…</b> first.');
+        if (S.ended) return say('The exam has ended: nobody can join it any more.');
+        if (S.out === 'handed') return say('<b>Refused:</b> this student has already handed in.');
+        if (S.out) { S.s = '10-cant-rejoin'; S.asks = S.asked = true; return say('<b>Refused.</b> The rule belongs to the exam, not the computer. The teacher is told that the student asks to come back.'); }
+        S.s = '02-checks'; return say('The code was right and the name is in the class. The teacher\'s list now shows this student as <i>checking</i>.');
+      case 'back': S.s = '01-join'; return say('');
+      case 'continue':
+        if (S.live) { S.s = S.app; S.inExam = true; return say('<b>A late joiner:</b> the exam had started, so this computer locks and goes straight in, with the time that is left.'); }
+        S.s = '03-waiting'; return say('<b>Locked.</b> The taskbar and Start menu are gone. The teacher\'s list shows this student as <i>ready</i>.');
+      case 'waiting': return say('Nothing to press here: the exam starts when the teacher presses <b>Start the exam</b>.');
+      case 'handin': S.s = '09-hand-in'; return say('Hand in lists exactly which files go.');
+      case 'more': S.s = '08-leave'; return say('Leaving is the one thing that can\'t be undone, so it has to be ticked first.');
+      case 'stay': case 'dismiss': backToApp(); return say('');
+      case 'plug': return say('Nothing to press: the student just keeps working. Use <b>Plug the cable back in</b> below.');
+      case 'handnow': S.s = '09b-handed-in'; S.inExam = false; S.out = 'handed'; return say('<b>Handed in.</b> The teacher\'s laptop checked every file and answered with the receipt; the same code is on the teacher\'s list.');
+      case 'finish': S.s = '01-join'; return say('The computer is back to normal: taskbar, settings and firewall restored, the Exam folder removed.');
+      case 'left': S.s = '01-join'; S.inExam = false; S.out = 'left'; return say('<b>Left.</b> The work so far went to the teacher as it was, and the computer is back to normal. Try joining again.');
+      case 'close': S.s = '01-join'; return say('');
+      default:
+        if (event.startsWith('tab:')) { S.app = S.s = event.slice(4); return say('The exam bar\'s buttons open the exam\'s apps, under the bar.'); }
+    }
+  }
+  if (who === 'try') {
+    if (event === 'timeup') return S.live && !S.ended ? over('<b>The time is up.</b>') : say('The exam hasn\'t started yet.');
+    if (!S.inExam) return say('That only matters during the exam: get the student into it first.');
+    switch (event) {
+      case 'chrome': S.s = '07-app-closed'; return say('<b>Closed within a second.</b> The student stays in the exam; the teacher\'s live view counts a warning on their card (as on Dara\'s).');
+      case 'link': S.s = '07b-page-blocked'; return say('<b>Not opened.</b> The teacher\'s log gets a small note, not a warning: students click links by mistake.');
+      case 'cable':
+        S.cable = !S.cable;
+        if (!S.cable) { S.s = '10b-connection-lost'; return say('<b>Not leaving.</b> The computer stays locked and the clock keeps going. After 10 seconds the teacher sees <i>no contact</i> (as on Mealea\'s card).'); }
+        backToApp(); return say('<b>Back in contact.</b> The same ExamMode reports the gap and what happened in it; the teacher sees <i>in the exam</i> again. Nothing was lost.');
+      case 'kill':
+        S.inExam = false; S.out = 'killed'; S.asks = S.asked = true; S.cable = true; S.s = '10-cant-rejoin';
+        if (S.t === '13b-student') S.t = '13-dashboard';
+        return say('<b>Stopped suddenly counts as leaving.</b> The teacher was told at once, the computer went back to normal, and ExamMode started again by itself to say why.');
+    }
+  }
+}
+
+/** Time up, or End the exam: whoever is still in the exam is handed in. */
+function over(how) {
+  S.t = '14-end'; S.ended = true; S.asks = false;
+  if (S.inExam) { S.s = '09b-handed-in'; S.inExam = false; S.out = 'handed'; S.said = `${how} The student's work was handed in by itself, and every hand-in is on the teacher's laptop.`; }
+  else S.said = `${how} Every hand-in is on the teacher's laptop, one folder per student.`;
+}
+
+/** What to do next, in words. */
+function next() {
+  if (S.ended) return 'That is the whole exam. Press <b>Start again</b> to try another way through.';
+  if (S.t === '11-make-exam') return 'Next: on the teacher\'s laptop, press <b>Open for students…</b>';
+  if (S.t === '11b-add-app') return 'Next: close the dialog (<b>Cancel</b> or <b>Add 1 app</b>).';
+  if (S.s === '01-join' && !S.out) return 'Next: on the lab computer, click the <b>code boxes</b> to type the last digit, then press <b>Join</b>.';
+  if (S.s === '01-join' && S.out === 'left') return 'Next: on the lab computer, type the code and press <b>Join</b> again.';
+  if (S.s === '02-checks') return 'Next: on the lab computer, press <b>Close the 3 apps and continue</b>.';
+  if (S.s === '03-waiting') return 'Next: on the teacher\'s laptop, press <b>Start the exam</b>.';
+  if (S.asks && S.t === '13-dashboard') return 'Next: on the teacher\'s laptop, click the student\'s <b>red card</b> (or <b>Look</b>).';
+  if (S.asks && S.t === '13b-student') return 'Next: choose <b>Let back in</b> or <b>Keep out</b>.';
+  if (S.asks) return 'Next: on the teacher\'s laptop, press <b>Start the exam</b>, then look at the student\'s card.';
+  if (S.s === '08-leave') return 'Next: tick <b>I understand</b> and press <b>Leave the exam</b> — or stay.';
+  if (S.s === '09-hand-in') return 'Next: <b>Hand in now</b>, or keep working.';
+  if (S.s === '09b-handed-in') return 'Next: press <b>Finish</b>; or end the exam on the teacher\'s laptop.';
+  if (S.inExam && !S.cable) return 'Next: <b>Plug the cable back in</b>.';
+  if (S.inExam) return 'Try anything: the exam bar\'s tabs, <b>Hand in…</b>, <b>⋯</b> to leave, or the buttons under the lab computer.';
+  if (!S.live) return 'Next: on the teacher\'s laptop, press <b>Start the exam</b>.';
+  return 'Next: on the teacher\'s laptop, <b>End the exam…</b> or <b>Let the time run out</b>.';
+}
+
+function render() {
+  // the teacher's screens are drawn with Vannak locked out; when it is this student, the two swap (proto.js)
+  const told = (S.out === 'left' || S.out === 'killed') && S.asked ? `teacher-${S.out}` : '';
+  const want = {
+    t: `${S.t}.html?play=1${told && /^13/.test(S.t) ? `&as=${told}` : ''}`,
+    s: `${S.s}.html?play=1${S.s === '10-cant-rejoin' && S.out ? `&as=${S.out}` : ''}`,
+  };
+  for (const k of ['t', 's']) {
+    if (want[k] === shown[k]) continue;
+    shown[k] = want[k];
+    frames[k].src = want[k] + (showing ? '&show=1' : '');
+    const box = frames[k].parentElement;
+    box.classList.remove('flash');
+    void box.offsetWidth;
+    box.classList.add('flash');
+  }
+  $('cap-teacher').textContent = `Ms Srey Leak · ${TITLES[S.t]}`;
+  $('cap-student').textContent = `PC-14 · Sokha Chan · ${TITLES[S.s]}`;
+  $('where').textContent = S.ended ? 'After the exam' : S.live ? 'During the exam' : S.open ? 'Students joining' : 'Before the exam';
+  $('said').innerHTML = S.said;
+  $('next').innerHTML = next();
+  $('cable').lastChild.textContent = S.cable ? ' Pull the network cable' : ' Plug the cable back in';
+  for (const b of document.querySelectorAll('[data-try]')) b.disabled = b.dataset.try === 'timeup' ? !S.live || S.ended : !S.inExam || (!S.cable && b.dataset.try !== 'cable' && b.dataset.try !== 'kill');
+}
+
+/** Each screen is drawn 1280 wide, the narrowest the app allows, and scaled to the space it has. */
+function fit() {
+  for (const frame of Object.values(frames)) {
+    const box = frame.parentElement.getBoundingClientRect();
+    if (!box.width) continue;
+    const scale = box.width / 1280;
+    frame.style.width = '1280px';
+    frame.style.height = `${box.height / scale}px`;
+    frame.style.transform = `scale(${scale})`;
+  }
+}
+
+function restart() {
+  S = fresh();
+  render();
+}
+
+let showing = false;
+window.addEventListener('message', (e) => {
+  if (!e.data || !e.data.proto) return;
+  const who = e.source === frames.t.contentWindow ? 't' : e.source === frames.s.contentWindow ? 's' : null;
+  if (!who) return;
+  on(who, e.data.event);
+  render();
+});
+for (const b of document.querySelectorAll('[data-try]')) b.addEventListener('click', () => { on('try', b.dataset.try); render(); });
+$('restart').addEventListener('click', restart);
+$('show').addEventListener('click', () => {
+  showing = !showing;
+  $('show').setAttribute('aria-pressed', String(showing));
+  $('show').classList.toggle('primary', showing);
+  for (const frame of Object.values(frames)) frame.contentWindow.postMessage({ protoShow: showing }, '*');
+});
+for (const frame of Object.values(frames)) frame.addEventListener('load', () => frame.contentWindow.postMessage({ protoShow: showing }, '*'));
+for (const b of document.querySelectorAll('[data-layout]')) {
+  b.addEventListener('click', () => {
+    for (const other of document.querySelectorAll('[data-layout]')) other.classList.toggle('on', other === b);
+    const layout = b.dataset.layout;
+    $('stage').classList.toggle('one', layout !== 'both');
+    $('dev-teacher').classList.toggle('hide', layout === 'student');
+    $('dev-student').classList.toggle('hide', layout === 'teacher');
+    fit();
+  });
+}
+new ResizeObserver(fit).observe($('stage'));
+render();
+fit();
+</script>
+</body></html>

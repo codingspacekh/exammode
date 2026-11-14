@@ -123,7 +123,7 @@ def main():
     pages = sorted(SRC.glob("*.html"))
     for page in pages:
         (OUT / page.name).write_text(build_page(page))
-    for asset in ("styles.css",):
+    for asset in ("styles.css", "proto.js"):
         shutil.copy(SRC / asset, OUT / asset)
     print(f"built {len(pages)} screens into {OUT.relative_to(ROOT.parent)}")
 
