@@ -3,6 +3,8 @@
  * state the student's screens show (architecture §2.2). M3: 01 Join, 03 Waiting, 04 the exam bar, 09 Hand in,
  * 09b Handed in. The computer isn't checked or locked yet (M4), so joining goes straight to waiting.
  */
+import { z } from 'zod';
+import { beacon, type Beacon } from '@lib/protocol/messages';
 import type { Trust } from '@lib/trust/licence';
 import type { Installed } from '@lib/profiles/inventory';
 import { PROTOCOL_VERSION } from '@lib/protocol/messages';
@@ -13,7 +15,7 @@ import { folderName } from '@lib/files/names';
 import type { FoundExam, JoinError, Name, StudentState } from '@lib/app/state';
 import { examProfiles } from '@lib/profiles/exam-apps';
 import type { ExamInfo } from '@lib/protocol/messages';
-import { Discovery, examsAt, namesOf, type Found } from './discovery';
+import { ANYONE, Discovery, examsAt, listed, namesOf, type Found } from './discovery';
 import { StudentExam, type Receipt } from './exam';
 import type { Lockdown } from './lockdown';
 import { Session, type SessionOptions } from './session';
@@ -42,7 +44,15 @@ export interface FlowOptions {
   timing?: Pick<SessionOptions, 'beatMs' | 'retryMs' | 'clockMs'> & { backupMs?: number; graceMs?: number };
 }
 
-interface Remembered { exam: FoundExam; student: Name; code: string }
+/** The exam this computer is in, for coming back after ExamMode stopped: with the announcement as it was heard,
+ *  signature and all — what the file says is checked again, not believed (it is in the lab account's own folder). */
+const remembered = z.object({
+  exam: z.object({ runId: z.string(), title: z.string(), teacher: z.string(), class: z.string(), minutes: z.number().optional(), host: z.string(), port: z.number(), teacherKey: z.string().optional() }),
+  student: z.object({ id: z.string(), name: z.string(), email: z.string().optional() }),
+  code: z.string(),
+  heard: beacon.optional(),
+});
+type Remembered = z.infer<typeof remembered>;
 
 const toFound = (f: Found): FoundExam => ({ runId: f.runId, title: f.title, teacher: f.teacher, class: f.class, minutes: f.minutes, host: f.host, port: f.port, ...(f.teacherKey ? { teacherKey: f.teacherKey } : {}) });
 
@@ -62,6 +72,7 @@ export class StudentFlow {
   private found?: FoundExam;
   private readonly now: () => number;
   private readonly toldInstalled = new Set<string>();
+  private readonly heard = new Map<string, Beacon>();
   private installed?: Promise<Installed | undefined>;
 
   constructor(private readonly options: FlowOptions) {
@@ -110,9 +121,21 @@ export class StudentFlow {
     if (this.current.picked === runId) this.set({ names });
   }
 
+  /** An announcement as it came, by run: kept with the exam this computer joins. */
+  private keepHeard(found: Found): void {
+    const announcement: Partial<Found> = { ...found };
+    delete announcement.host;
+    delete announcement.heardAt;
+    delete announcement.teacherKey;
+    this.heard.set(found.runId, announcement as Beacon);
+    if (this.heard.size > 50) this.heard.delete(this.heard.keys().next().value!);
+  }
+
   /** The teacher's computer name, typed in because no exam was found (F-01, R3). */
   async lookAt(host: string): Promise<void> {
-    this.typed = (await examsAt(host.trim(), this.options.teacherPort, this.now, fetch, this.options.trust)).map(toFound);
+    const there = await examsAt(host.trim(), this.options.teacherPort, this.now, fetch, this.options.trust);
+    for (const a of there) this.keepHeard(a);
+    this.typed = there.map(toFound);
     this.listed();
     if (this.typed.length === 0) this.set({ joinError: 'unreachable' });
   }
@@ -122,10 +145,15 @@ export class StudentFlow {
    *  computer doesn't remember that exam. */
   async resume(runId: string): Promise<void> {
     const file = this.options.remember;
-    const was = file ? await readFile(file, 'utf8').then((text) => JSON.parse(text) as Remembered, () => undefined) : undefined;
+    // (a file that can't be read, or isn't what it should be, is nothing to come back to)
+    const was = file ? await readFile(file, 'utf8').then((text) => remembered.safeParse(JSON.parse(text)).data).catch(() => undefined) : undefined;
     if (!was || was.exam.runId !== runId || this.current.screen !== 'join') return;
-    // (an installed ExamMode only comes back to a licensed teacher's exam)
-    if (!was.exam.teacherKey && this.options.trust && !this.options.trust.allowUnsigned) return;
+    // the teacher's key isn't taken from the file: the announcement kept with it is checked as a new one would be
+    // — the author's licence, the teacher's signature, from that address. An installed ExamMode comes back only
+    // to a licensed teacher's exam
+    const again = was.heard ? listed(was.heard, this.options.trust ?? ANYONE, was.exam.host, this.now()) : undefined;
+    if (!again && !(this.options.trust ?? ANYONE).allowUnsigned) return;
+    was.exam.teacherKey = again?.teacherKey;
     this.typed = [was.exam];
     this.listed();
     this.set({ picked: runId, names: [was.student] });
@@ -137,7 +165,8 @@ export class StudentFlow {
     const file = this.options.remember;
     if (!file) return;
     await mkdir(dirname(file), { recursive: true }).catch(() => undefined);
-    await writeFile(file, JSON.stringify({ exam, student, code } satisfies Remembered)).catch(() => undefined);
+    const heard = this.heard.get(exam.runId);
+    await writeFile(file, JSON.stringify({ exam, student, code, ...(heard ? { heard } : {}) } satisfies Remembered)).catch(() => undefined);
   }
 
   async join(studentId: string, code: string): Promise<void> {
@@ -359,7 +388,9 @@ export class StudentFlow {
 
   /** What is open on the network, and what a typed-in name found. An exam that is gone is no longer chosen. */
   private listed(): void {
-    const heard = (this.discovery?.found() ?? []).map(toFound);
+    const announced = this.discovery?.found() ?? [];
+    for (const a of announced) this.keepHeard(a);
+    const heard = announced.map(toFound);
     const found = [...heard, ...this.typed.filter((t) => !heard.some((h) => h.runId === t.runId))];
     const gone = this.current.screen === 'join' && this.current.picked !== undefined && !found.some((f) => f.runId === this.current.picked);
     this.set(gone ? { found, picked: undefined, names: [] } : { found });

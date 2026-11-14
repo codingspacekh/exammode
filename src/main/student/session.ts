@@ -7,7 +7,7 @@ import { randomBytes } from 'node:crypto';
 import { WebSocket } from 'ws';
 import { MAX_LOCAL_LOG, PROTOCOL_VERSION, parseFromTeacher, type ExamInfo, type FromStudent, type FromTeacher, type RefusedReason } from '@lib/protocol/messages';
 import type { CheckResult } from '@lib/session/attempt';
-import { checkMessage } from '../../trust/signed';
+import { checkMessage, connectionOf } from '../../trust/signed';
 import { clockOffset, isTimeUp, teacherTime } from '@lib/session/time';
 
 export type SessionState =
@@ -246,11 +246,14 @@ export class Session {
   private ask(): void {
     this.asked = this.now();
     const { runId, studentId, code, pc, instanceId, bootId } = this.options;
-    this.nonce = randomBytes(18).toString('base64url');
+    const nonce = randomBytes(18).toString('base64url');
+    const msg: FromStudent = this.token
+      ? { v: PROTOCOL_VERSION, type: 'resume', token: this.token, instanceId, localLog: this.localLog, nonce }
+      : { v: PROTOCOL_VERSION, type: 'join', runId, studentId, code, pc, instanceId, bootId, nonce };
+    // the teacher's signatures on this connection are for this word and exactly this question (F-44)
+    this.nonce = connectionOf(msg) ?? nonce;
     this.lastN = -1;
-    const nonce = this.nonce;
-    if (this.token) this.send({ v: PROTOCOL_VERSION, type: 'resume', token: this.token, instanceId, localLog: this.localLog, nonce });
-    else this.send({ v: PROTOCOL_VERSION, type: 'join', runId, studentId, code, pc, instanceId, bootId, nonce });
+    this.send(msg);
   }
 
   /** The connection is gone, or couldn't be made. */

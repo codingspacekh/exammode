@@ -78,6 +78,7 @@ describe('§2.4 the journal\'s folder', () => {
     console.log(`[acl] ${acl.replace(/\s+/g, ' ').trim()}`);
     expect(acl).toMatch(/NT AUTHORITY\\SYSTEM:\(OI\)\(CI\)\(F\)/);
     expect(acl).toMatch(/BUILTIN\\Administrators:\(OI\)\(CI\)\(F\)/);
-    expect(acl).not.toMatch(/Users|Everyone|INTERACTIVE/);
+    // (the folder's own path has "Users" in it; a test's folder also keeps the account that made it, an administrator)
+    expect(acl).not.toMatch(/BUILTIN\\Users|Everyone|Authenticated Users|INTERACTIVE|CREATOR OWNER/);
   });
 });

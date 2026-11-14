@@ -82,6 +82,9 @@ export type FromTeacher = z.infer<typeof fromTeacher>;
 export const beacon = z.looseObject({
   v, runId, title: id, teacher: id, class: id, minutes: z.int().positive().optional(), port: z.int().min(1).max(65_535), teacherKeyFp: z.string().nullable(),
   licence: licence.optional(), sig: z.string().max(200).optional(),
+  /** the teacher's laptop's own addresses, signed with the rest: an announcement that comes from another
+   *  computer — the real one, sent on by someone — isn't listed */
+  addresses: z.array(z.string().max(45)).max(16).optional(),
 });
 export type Beacon = z.infer<typeof beacon>;
 

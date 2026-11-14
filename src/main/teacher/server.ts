@@ -15,10 +15,11 @@ import { statfs } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { pipeline } from 'node:stream/promises';
 import type { AddressInfo } from 'node:net';
+import { networkInterfaces } from 'node:os';
 import busboy from 'busboy';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { MAX_FILE_BYTES, MAX_FILES, PROTOCOL_VERSION, inventory, parseFromStudent, stopped, updateReply, upload, type Beacon, type FromTeacher, type Inventory, type Upload } from '@lib/protocol/messages';
-import { signBeacon, signMessage, signUpload, type Identity } from '../../trust/signed';
+import { connectionOf, signBeacon, signMessage, signUpload, type Identity } from '../../trust/signed';
 import type { Classroom, Link } from './classroom';
 import { discard, newIncoming, receive, type Received } from './handIns';
 
@@ -72,6 +73,12 @@ async function smallBody(req: IncomingMessage, limit = SMALL_BODY): Promise<unkn
   }
 }
 
+/** This laptop's own addresses (IPv4, as the beacon is), for the signed announcement. */
+export function ownAddresses(interfaces: ReturnType<typeof networkInterfaces> = networkInterfaces()): string[] {
+  const found = Object.values(interfaces).flatMap((list) => (list ?? []).filter((a) => a.family === 'IPv4').map((a) => a.address));
+  return [...new Set(found)].slice(0, 16);
+}
+
 export class ClassroomServer {
   private readonly rooms = new Map<string, Classroom>();
   private readonly http: Server;
@@ -112,7 +119,7 @@ export class ClassroomServer {
     return [...this.rooms.values()].flatMap((room) => {
       const listing = room.listing();
       if (!listing) return [];
-      const beacon: Beacon = { v: PROTOCOL_VERSION, ...listing, port: this.port, teacherKeyFp: null };
+      const beacon: Beacon = { v: PROTOCOL_VERSION, ...listing, port: this.port, teacherKeyFp: null, ...(this.options.identity ? { addresses: ownAddresses() } : {}) };
       return [this.options.identity ? signBeacon(beacon, this.options.identity) : beacon];
     });
   }
@@ -162,9 +169,10 @@ export class ClassroomServer {
       } catch {
         return;
       }
-      const asking = raw as { type?: unknown; nonce?: unknown } | null;
-      if (asking && (asking.type === 'join' || asking.type === 'resume') && typeof asking.nonce === 'string') {
-        nonce = asking.nonce;
+      // (a join or a return: what this connection's answers are signed for from here on)
+      const asked = raw !== null && typeof raw === 'object' ? connectionOf(raw) : undefined;
+      if (asked) {
+        nonce = asked;
         n = 0;
       }
       const parsed = parseFromStudent(raw);

@@ -7,7 +7,7 @@ import { PROTOCOL_VERSION } from '@lib/protocol/messages';
 import { newKeyPair } from '../../src/trust/keys';
 import { issue } from '../../src/trust/licence';
 import { type Trust } from '@lib/trust/licence';
-import { signMessage, type Identity } from '../../src/trust/signed';
+import { connectionOf, signMessage, type Identity } from '../../src/trust/signed';
 import { StudentExam } from '../../src/main/student/exam';
 import { StudentFlow } from '../../src/main/student/flow';
 import { Session } from '../../src/main/student/session';
@@ -59,6 +59,49 @@ describe('F-44 only a licensed teacher\'s exam, and only that teacher\'s laptop'
     expect(flow.session!.ignored).toBe(0);
   });
 
+  it('coming back after a sudden stop: the exam this computer remembers is checked again, not believed', async () => {
+    const { root, flow, desk } = await room(teacher);
+    await eventually(() => expect(flow.state().found).toHaveLength(1));
+    const runId = flow.state().found[0]!.runId;
+    await flow.pick(runId);
+    await flow.join(flow.state().names.find((n) => n.name === 'Sokha Chan')!.id, desk.state().run!.code);
+    await eventually(() => expect(desk.state().students.find((s) => s.name === 'Sokha Chan')!.state).toBe('ready'));
+    const file = join(root, 'exam.json');
+    const kept = JSON.parse(await readFile(file, 'utf8')) as { exam: { teacherKey: string; host: string }; heard: { licence: unknown; sig: string } };
+    expect(kept.heard).toMatchObject({ licence: teacher.licence, sig: expect.any(String) });
+    await flow.stop();
+
+    /** ExamMode started again by the Guard, with what the file says now: did it ask to join, and whose key is pinned? */
+    const back = async (change: (was: typeof kept) => unknown) => {
+      await writeFile(file, JSON.stringify(change(structuredClone(kept))));
+      const again = new StudentFlow({ pc: 'PC-14', examRoot: join(root, 'Exam'), bootId: 'boot', remember: file, discoveryPort: false, trust, timing: { beatMs: 40, retryMs: 40, clockMs: 20 } });
+      const joins: (string | undefined)[] = [];
+      const join_ = again.join.bind(again);
+      again.join = async (...args) => {
+        const asking = join_(...args);
+        joins.push(again.session?.teacherKey);
+        return asking;
+      };
+      await again.resume(runId);
+      await again.stop();
+      return joins;
+    };
+    // as it was written: it asks the teacher's laptop to join again, with the teacher's key pinned
+    expect(await back((was) => was)).toEqual([teacher.licence.key]);
+    // someone's own "teacher" written into the file: their key, their address, no announcement, or one changed
+    const other = identity('Fake Teacher', newKeyPair().privateKey);
+    expect(await back((was) => ({ ...was, exam: { ...was.exam, teacherKey: other.licence.key }, heard: undefined }))).toEqual([]);
+    expect(await back((was) => ({ ...was, exam: { ...was.exam, host: '10.0.0.66' } }))).toEqual([]);
+    expect(await back((was) => ({ ...was, heard: { ...was.heard, licence: other.licence } }))).toEqual([]);
+    // a key written into the file doesn't replace the announcement's
+    expect(await back((was) => ({ ...was, exam: { ...was.exam, teacherKey: other.licence.key } }))).toEqual([teacher.licence.key]);
+    // a file that isn't one is nothing to come back to
+    await writeFile(file, '{ not json');
+    const broken = new StudentFlow({ pc: 'PC-14', examRoot: join(root, 'Exam'), bootId: 'boot', remember: file, discoveryPort: false, trust });
+    await expect(broken.resume(runId)).resolves.toBeUndefined();
+    expect(broken.session).toBeUndefined();
+  });
+
   it('F-44 a beacon signed by an unlicensed key isn\'t listed — nor is that laptop\'s exam found by its name', async () => {
     const { flow, desk } = await room(identity('Fake Teacher', newKeyPair().privateKey));
     await new Promise((r) => setTimeout(r, 300));
@@ -89,10 +132,11 @@ describe('F-44 after joining, only the pinned teacher\'s messages count', () => 
     const server = new WebSocketServer({ port: 0 });
     servers.push(server);
     await new Promise((r) => server.once('listening', r));
-    const joined = new Promise<{ nonce: string; say: (msg: object) => void }>((resolve) => {
+    const joined = new Promise<{ nonce: string; plain: string; say: (msg: object) => void }>((resolve) => {
       server.on('connection', (ws) => ws.on('message', (data) => {
         const msg = JSON.parse(String(data)) as { type: string; nonce: string };
-        if (msg.type === 'join') resolve({ nonce: msg.nonce, say: (m) => ws.send(JSON.stringify(m)) });
+        // (what the teacher's laptop signs for: this join's own word, and exactly what it asked)
+        if (msg.type === 'join') resolve({ nonce: connectionOf(msg)!, plain: msg.nonce, say: (m) => ws.send(JSON.stringify(m)) });
       }));
     });
     const session = new Session({ host: '127.0.0.1', port: (server.address() as { port: number }).port, teacherKey: teacher.licence.key, runId: 'r-1', studentId: 's-1', code: '1234', pc: 'PC-14', instanceId: 'i-1', bootId: 'b-1', beatMs: 1000, retryMs: 1000 });
@@ -135,11 +179,16 @@ describe('F-44 after joining, only the pinned teacher\'s messages count', () => 
     expect(ends).toEqual([5_000_000_000_000, 5_000_000_600_000]);
   });
 
-  it('a join answered by a laptop that isn\'t the teacher\'s never joins', async () => {
-    const { session, nonce, say } = await laptop();
+  it('a join answered by a laptop that isn\'t the teacher\'s never joins — nor with the teacher\'s answer to someone else\'s join', async () => {
+    const { session, nonce, plain, say } = await laptop();
     say(signMessage(welcome, nonce, 0, other.privateKey));
     say(welcome);
-    await eventually(() => expect(session.ignored).toBe(2));
+    // the real teacher's signed "you're in", made for the same random word but for another student's join: a
+    // computer in between asked in its own name and passes the answer on
+    const theirs = connectionOf({ type: 'join', nonce: plain, runId: 'r-1', studentId: 'someone-else', pc: 'PC-66', instanceId: 'i-66' })!;
+    say(signMessage(welcome, theirs, 0, teacher.privateKey));
+    say(signMessage(welcome, plain, 0, teacher.privateKey));
+    await eventually(() => expect(session.ignored).toBe(4));
     expect(session.state).toBe('joining');
     expect(session.token).toBeUndefined();
   });

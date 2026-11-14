@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PROTOCOL_VERSION, beacon, type Beacon } from '@lib/protocol/messages';
 import { fingerprint, newKeyPair } from '../../../src/trust/keys';
 import { issue } from '../../../src/trust/licence';
-import { checkMessage, checkUpload, signBeacon, signMessage, signUpload, teacherOf, type Identity } from '../../../src/trust/signed';
+import { checkMessage, checkUpload, connectionOf, signBeacon, signMessage, signUpload, teacherOf, type Identity } from '../../../src/trust/signed';
 
 const author = newKeyPair();
 const trust = { authorKeys: [author.publicKey] };
@@ -39,6 +39,18 @@ describe('F-44 the announcement of an exam', () => {
     expect(teacherOf(EXAM, { ...trust, allowUnsigned: true })).toBeNull();
     // … which still doesn't take a licence that is wrong
     expect(teacherOf({ ...signed, title: 'x' }, { ...trust, allowUnsigned: true })).toBeUndefined();
+  });
+  it('an announcement sent on by another computer isn\'t listed: it has to come from one of the laptop\'s own addresses', () => {
+    const real = signBeacon({ ...EXAM, addresses: ['192.168.1.20', '127.0.0.1'] }, teacher);
+    expect(teacherOf(real, trust, '192.168.1.20')).toBe(teacher.licence.key);
+    expect(teacherOf(real, trust, '::ffff:192.168.1.20')).toBe(teacher.licence.key);
+    expect(teacherOf(real, trust, '192.168.1.66')).toBeUndefined();
+    // the addresses are signed with the rest: adding one's own breaks the signature
+    expect(teacherOf({ ...real, addresses: [...real.addresses!, '192.168.1.66'] }, trust, '192.168.1.66')).toBeUndefined();
+    // an announcement with no addresses in it comes from nowhere
+    expect(teacherOf(signed, trust, '192.168.1.20')).toBeUndefined();
+    // a development build's unlicensed teacher has none to check
+    expect(teacherOf(EXAM, { ...trust, allowUnsigned: true }, '192.168.1.66')).toBeNull();
   });
   it('signing again replaces the signature', () => {
     expect(teacherOf(signBeacon({ ...signed, title: 'Term 2' }, teacher), trust)).toBe(teacher.licence.key);
@@ -85,5 +97,25 @@ describe('F-44 the answer to a backup or a hand-in', () => {
     expect(checkUpload(sig, 'token-1', 'backup', files, teacher.licence.key)).toBe(false);
     expect(checkUpload(sig, 'token-1', 'handIn', files, identity().licence.key)).toBe(false);
     expect(checkUpload(undefined, 'token-1', 'handIn', files, teacher.licence.key)).toBe(false);
+  });
+});
+
+describe('F-44 what a connection\'s signatures are bound to', () => {
+  const join = { type: 'join', nonce: 'a-random-word', runId: 'r', studentId: 's-07', pc: 'PC-07', instanceId: 'i-1', code: '4817' };
+  it('a join: its own word and who asked, from where; a return: its word and which ExamMode', () => {
+    expect(connectionOf(join)).toBe('["a-random-word","join","r","s-07","PC-07","i-1"]');
+    expect(connectionOf({ type: 'resume', nonce: 'another-word', token: 't', instanceId: 'i-1' })).toBe('["another-word","resume","i-1"]');
+  });
+  it('another student, another computer or another ExamMode is another connection', () => {
+    const same = connectionOf(join);
+    for (const other of [{ studentId: 's-08' }, { pc: 'PC-66' }, { instanceId: 'i-2' }, { nonce: 'b' }, { runId: 'r2' }]) expect(connectionOf({ ...join, ...other })).not.toBe(same);
+    // (a name with the separator in it can't be made to look like another)
+    expect(connectionOf({ ...join, studentId: 's-07","PC-07', pc: 'x' })).not.toBe(connectionOf({ ...join, studentId: 's-07', pc: 'PC-07","x' }));
+  });
+  it('what isn\'t a join or a return, or has no word or a part missing, is none', () => {
+    expect(connectionOf({ ...join, type: 'beat' })).toBeUndefined();
+    expect(connectionOf({ ...join, nonce: undefined })).toBeUndefined();
+    expect(connectionOf({ ...join, pc: 7 })).toBeUndefined();
+    expect(connectionOf({ type: 'resume', nonce: 'w' })).toBeUndefined();
   });
 });

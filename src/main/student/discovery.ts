@@ -4,6 +4,7 @@
  * that computer directly.
  */
 import { createSocket, type Socket } from 'node:dgram';
+import { lookup } from 'node:dns/promises';
 import { z } from 'zod';
 import { PROTOCOL_VERSION, beacon, type Beacon } from '@lib/protocol/messages';
 import type { Trust } from '@lib/trust/licence';
@@ -17,7 +18,7 @@ export const ANYONE: Trust = { authorKeys: [], allowUnsigned: true };
 
 /** An announcement as an exam to list — only a licensed teacher's (F-44). */
 export function listed(b: Beacon, trust: Trust, host: string, heardAt: number): Found | undefined {
-  const key = teacherOf(b, trust);
+  const key = teacherOf(b, trust, host);
   return key === undefined ? undefined : { ...b, host, heardAt, ...(key ? { teacherKey: key } : {}) };
 }
 export interface Name { id: string; name: string; email?: string }
@@ -107,9 +108,11 @@ export class Discovery {
 /** The exams open on a computer whose name or address was typed in (F-01's fallback). None if it can't be reached. */
 export async function examsAt(host: string, port = 47800, now: () => number = Date.now, get: typeof fetch = fetch, trust: Trust = ANYONE): Promise<Found[]> {
   try {
-    const res = await get(`http://${host}:${port}/exams`, { signal: AbortSignal.timeout(3000) });
+    // the name is looked up first: an announcement counts only when it comes from one of the addresses in it
+    const address = await lookup(host, { family: 4 }).then((found) => found.address, () => host);
+    const res = await get(`http://${address}:${port}/exams`, { signal: AbortSignal.timeout(3000) });
     const exams = z.array(beacon).safeParse(await res.json());
-    return exams.success ? exams.data.filter((e) => e.v === PROTOCOL_VERSION).flatMap((e) => listed(e, trust, host, now()) ?? []) : [];
+    return exams.success ? exams.data.filter((e) => e.v === PROTOCOL_VERSION).flatMap((e) => listed(e, trust, address, now()) ?? []) : [];
   } catch {
     return [];
   }

@@ -127,8 +127,8 @@ describe('a classmate can\'t be put out, and work the laptop can\'t keep is said
     const sim = await started();
     const dara = sim.student('Dara Kim');
     await sim.until(() => sim.view('Dara Kim').connected);
-    // (a beat has come over Dara's connection)
-    await new Promise((r) => setTimeout(r, sim.clock.ms(2500)));
+    // (beats have come over Dara's connection: one every 2 s of the exam's clock)
+    await new Promise((r) => setTimeout(r, sim.clock.ms(9000)));
     const said: unknown[] = [];
     await sim.room.receive({ send: (m) => void said.push(m), close: () => undefined, from: '10.0.0.66' }, { v, type: 'join', runId: sim.room.id, studentId: dara.id, code: sim.code, pc: dara.pc, instanceId: 'someone-else', bootId: 'b' });
     expect(said).toEqual([{ v, type: 'refused', reason: 'nameTaken' }]);

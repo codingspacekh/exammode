@@ -21,14 +21,26 @@ export function signBeacon(b: Beacon, id: Identity): Beacon {
   return { ...body, sig: sign('beacon', body, id.privateKey) };
 }
 
-/** Whose exam is this? The teacher's key, when the author licensed it and the announcement is that teacher's;
- *  `null` for a teacher with no licence that a development build takes; nothing: not an exam to list. */
-export function teacherOf(b: Beacon, trust: Trust): string | null | undefined {
+/** Whose exam is this? The teacher's key, when the author licensed it, the announcement is that teacher's, and it
+ *  came from one of the laptop's own addresses (`from`); `null` for a teacher with no licence that a development
+ *  build takes; nothing: not an exam to list. */
+export function teacherOf(b: Beacon, trust: Trust, from?: string): string | null | undefined {
   const { sig, ...body } = b;
   if (b.licence === undefined || sig === undefined) return trust.allowUnsigned ? null : undefined;
   const checked = checkLicence(b.licence, trust);
   if (!checked.ok || !verify('beacon', body, sig, checked.licence.key)) return undefined;
+  // sent on by another computer: the signature is right, the sender isn't the teacher's laptop
+  if (from !== undefined && !(b.addresses ?? []).includes(from.replace(/^::ffff:/, ''))) return undefined;
   return checked.licence.key;
+}
+
+/** What a connection's signatures are bound to: the student's own random word, and exactly what was asked with
+ *  it — so an answer made for one join can't be handed to another student, or to another computer. */
+export function connectionOf(message: object): string | undefined {
+  const asking = message as { type?: unknown; nonce?: unknown; runId?: unknown; studentId?: unknown; pc?: unknown; instanceId?: unknown };
+  if (typeof asking.nonce !== 'string' || (asking.type !== 'join' && asking.type !== 'resume')) return undefined;
+  const parts = asking.type === 'join' ? [asking.runId, asking.studentId, asking.pc, asking.instanceId] : [asking.instanceId];
+  return parts.every((p) => typeof p === 'string') ? JSON.stringify([asking.nonce, asking.type, ...parts]) : undefined;
 }
 
 /** A message to a student, signed for this connection and counted. */
