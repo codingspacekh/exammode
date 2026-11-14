@@ -22,7 +22,8 @@ let home: string;
 
 const out = (file: string, args: string[]): string => {
   try {
-    return execFileSync(file, args, { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
+    // (never without a limit: a helper that hangs would keep this computer locked)
+    return execFileSync(file, args, { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'], timeout: 20_000 });
   } catch (error) {
     return String((error as { stdout?: string }).stdout ?? '');
   }
@@ -125,11 +126,14 @@ async function classroom() {
   return { teacher, student, studentApp, teacherApp };
 }
 
+const step = (text: string): void => console.log(`[lock ${new Date().toISOString().slice(11, 19)}] ${text}`);
+
 test('F-07 F-12 F-21 F-23 a lab computer is locked for the exam, closes an app that isn\'t part of it, and is put back after the hand-in', async () => {
   test.setTimeout(6 * 60_000);
   expect(curlReaches()).toBe(true);
   const { teacher, student, studentApp } = await classroom();
 
+  step('locked');
   // locked: no taskbar or desktop, no Task Manager, and no program but ExamMode reaches the internet
   expect(explorerRuns()).toBe(false);
   expect(taskManagerOff()).toBe(true);
@@ -144,12 +148,14 @@ test('F-07 F-12 F-21 F-23 a lab computer is locked for the exam, closes an app t
   // D6 the bar holds the top of the screen: the work area starts under it
   await expect.poll(workAreaTop, { timeout: 20_000 }).toBeGreaterThanOrEqual(50);
 
+  step('started; the bar holds the top');
   // F-11 the exam's app is on the bar: pressed, it opens and may stay; the teacher's card says it is in front
   await bar.getByRole('button', { name: /charmap/i }).click();
   await expect.poll(charmapRuns, { timeout: 20_000 }).toBe(true);
   await expect(bar.getByRole('button', { name: /charmap/i }).getByRole('img', { name: 'open' })).toBeVisible({ timeout: 15_000 });
   await expect(teacher.getByRole('button', { name: 'Sokha Chan' })).toContainText(/charmap/i, { timeout: 15_000 });
 
+  step('charmap is open and in front');
   // F-12 Notepad is started: closed, said on the bar, and a warning on the teacher's card
   spawn('notepad.exe', [], { detached: true, stdio: 'ignore' }).unref();
   await expect(teacher.getByRole('list', { name: 'What\'s happening' })).toContainText(/Sokha Chan opened notepad — closed/i, { timeout: 30_000 });
@@ -159,6 +165,7 @@ test('F-07 F-12 F-21 F-23 a lab computer is locked for the exam, closes an app t
   // … while the exam's own app is still there
   expect(charmapRuns()).toBe(true);
 
+  step('notepad was closed');
   // the work is handed in; Finish puts the computer back
   const root = join(home, 'Exam');
   writeFileSync(join(root, readdirSync(root)[0]!, 'Sokha Chan', 'Report.docx'), 'written while locked');
@@ -169,7 +176,9 @@ test('F-07 F-12 F-21 F-23 a lab computer is locked for the exam, closes an app t
   await student.getByRole('button', { name: 'Finish' }).click();
   await expect(student.getByRole('heading', { name: 'Join your exam' })).toBeVisible();
 
+  step('Finish pressed');
   await expect.poll(() => existsSync(join(home, 'journal.json')), { timeout: 60_000 }).toBe(false);
+  step('unlocked');
   await expect.poll(explorerRuns, { timeout: 30_000 }).toBe(true);
   expect(taskManagerOff()).toBe(false);
   // the exam's apps were closed with the exam
