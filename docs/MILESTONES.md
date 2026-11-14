@@ -6,6 +6,8 @@ How ExamMode is built, **in what order**, and **how each part is proven to work*
 - System design (processes, lockdown, protocol, profiles): [`02-architecture.md`](02-architecture.md)
 - UI prototype: [`../design/screens/index.html`](../design/screens/index.html) — approved 2026-11-10
 
+*Revision 10 (2026-11-14): **M6 before M4 and M5, as far as it goes without them** (the teacher: *"continue"*): the lock can only be tried on a lab computer, and the teacher's and student's remaining screens can be tried on the Mac today. What M6 needs from the lock (the checks) and the apps (choosing them) waits.*
+
 *Revision 9 (2026-11-14): **the prototype is clickable** (`design/screens/play.html`: the teacher's laptop and a lab computer side by side), and after trying it the teacher said *"okay go ahead"*: **M3 was started**, again with the earlier gates open. Its trial on lab computers is one more check for the lab day.*
 
 *Revision 8 (2026-11-14): **M2 was started with the gates of M0 and M1 still open** (the teacher: *"I don't have a Windows PC, so can you go ahead"*): M2 runs on the Mac and on GitHub; only its last check needs the lab network (R3), and it is done with M0's lab run. Nothing is merged into `main` until those gates pass.*
@@ -421,6 +423,6 @@ Each milestone lists: **goal · build order (TDD slices) · tests written first 
 | M3 Walking skeleton | 🔨 built; waiting for the teacher and the lab | | The first usable app, unlocked: screens 01, 03, 04, 07b, 09, 09b, 11 (minimal), 12, 13; e2e with a teacher and two students (`docs/acceptance/M3.md`); **waiting: the teacher's look at the screens and yes or no to M3.md §3; the 10-minute trial on lab computers** |
 | M4 Locking a lab computer | | | |
 | M5 The apps | | | |
-| M6 The teacher's whole exam | | | |
+| M6 The teacher's whole exam | 🔨 in progress, ahead of M4 and M5 | | Built: 08, 10, 10b, 13b with Let back in / Keep out, Add time, 13's filters and list, the code full screen, 14 and the log (`docs/acceptance/M6.md`). To build: classes, the full *Make an exam* (save, copy, files to give, rules), the 26-student story |
 | M7 Teacher licence & trust | | | |
 | M8 Hardening & v1.0 | | | |
