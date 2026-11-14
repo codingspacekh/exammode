@@ -49,6 +49,9 @@ async function load(): Promise<Api> {
   const GetForegroundWindow = user32.func('void * __stdcall GetForegroundWindow()');
   const SetForegroundWindow = user32.func('bool __stdcall SetForegroundWindow(void *hwnd)');
   const ShowWindow = user32.func('bool __stdcall ShowWindow(void *hwnd, int show)');
+  const BringWindowToTop = user32.func('bool __stdcall BringWindowToTop(void *hwnd)');
+  const AttachThreadInput = user32.func('bool __stdcall AttachThreadInput(uint32 from, uint32 to, bool attach)');
+  const GetCurrentThreadId = kernel32.func('uint32 __stdcall GetCurrentThreadId()');
   const TH32CS_SNAPPROCESS = 0x2;
   const PROCESS_TERMINATE = 0x1;
   const SYNCHRONIZE = 0x100000;
@@ -120,6 +123,20 @@ async function load(): Promise<Api> {
     },
     focus(pids) {
       let done = false;
+      /** Windows lets a program take the front only if it has the front's input (it was just clicked, say):
+       *  for the moment of asking, this thread shares the input of the window that is in front now. */
+      const toFront = (hwnd: unknown): boolean => {
+        const front = GetForegroundWindow();
+        const theirs = front ? GetWindowThreadProcessId(front, [0]) : 0;
+        const mine = GetCurrentThreadId();
+        const shared = theirs !== 0 && theirs !== mine && AttachThreadInput(mine, theirs, true);
+        try {
+          BringWindowToTop(hwnd);
+          return Boolean(SetForegroundWindow(hwnd));
+        } finally {
+          if (shared) AttachThreadInput(mine, theirs, false);
+        }
+      };
       const each = koffi.register((hwnd: unknown) => {
         if (IsWindowVisible(hwnd)) {
           const pid = [0];
@@ -128,7 +145,7 @@ async function load(): Promise<Api> {
           if (pids.includes(pid[0]!) && titled) {
             // SW_MAXIMIZE: under the exam bar, as the work area ends there
             ShowWindow(hwnd, 3);
-            if (!done) done = Boolean(SetForegroundWindow(hwnd));
+            if (!done) done = toFront(hwnd);
           }
         }
         return true;
