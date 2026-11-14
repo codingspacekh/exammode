@@ -109,6 +109,12 @@ async function load(): Promise<Api> {
 }
 
 export interface FileFacts { signer?: string; product?: string }
+
+/** `CN=Microsoft Windows, O=Microsoft Corporation, …` → `Microsoft Windows`; a name with a comma is in quotes. */
+export function commonName(subject: string): string | undefined {
+  const found = /(?:^|,\s*)CN=(?:"([^"]+)"|([^,]+))/.exec(subject);
+  return (found?.[1] ?? found?.[2])?.trim() || undefined;
+}
 const facts = new Map<string, { stamp: number; facts: FileFacts }>();
 
 /** Who made these programs, and what they call themselves: asked once per file (and again only if it changed). */
@@ -117,12 +123,13 @@ export async function fileFacts(paths: string[]): Promise<Map<string, FileFacts>
   for (const path of new Set(paths)) stamps.set(path, await stat(path).then((s) => s.mtimeMs, () => 0));
   const unknown = [...stamps].filter(([path, stamp]) => facts.get(path)?.stamp !== stamp).map(([path]) => path);
   if (unknown.length > 0) {
-    type Row = { Path: string; Signer: string | null; Product: string | null };
+    type Row = { Path: string; Status: string | null; Subject: string | null; Product: string | null };
     const list = unknown.map((p) => `'${p.replaceAll("'", "''")}'`).join(',');
-    // the publisher only of a signature that holds: its certificate's common name
-    const rows = await powershellJson<Row[] | Row>(`@(${list}) | ForEach-Object { $s = Get-AuthenticodeSignature -LiteralPath $_ -ErrorAction SilentlyContinue; $v = (Get-Item -LiteralPath $_ -ErrorAction SilentlyContinue).VersionInfo; [pscustomobject]@{ Path = $_; Signer = $(if ($s -and $s.Status -eq 'Valid') { $s.SignerCertificate.GetNameInfo('SimpleName', $false) } else { $null }); Product = $v.ProductName } }`);
+    const rows = await powershellJson<Row[] | Row>(`@(${list}) | ForEach-Object { Get-AuthenticodeSignature -LiteralPath $_ -ErrorAction SilentlyContinue } | Select-Object Path,@{n='Status';e={"$($_.Status)"}},@{n='Subject';e={$_.SignerCertificate.Subject}},@{n='Product';e={(Get-Item -LiteralPath $_.Path).VersionInfo.ProductName}}`);
     for (const row of rows ? [rows].flat() : []) {
-      facts.set(row.Path, { stamp: stamps.get(row.Path) ?? 0, facts: { ...(row.Signer ? { signer: row.Signer } : {}), ...(row.Product ? { product: row.Product } : {}) } });
+      // the publisher only of a signature that holds: its certificate's common name
+      const signer = row.Status === 'Valid' ? commonName(row.Subject ?? '') : undefined;
+      facts.set(row.Path, { stamp: stamps.get(row.Path) ?? 0, facts: { ...(signer ? { signer } : {}), ...(row.Product ? { product: row.Product } : {}) } });
     }
     // a file that couldn't be asked about is remembered as unknown, not asked about every half second
     for (const path of unknown) if (!facts.has(path) || facts.get(path)!.stamp !== stamps.get(path)) facts.set(path, { stamp: stamps.get(path) ?? 0, facts: {} });

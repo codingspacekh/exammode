@@ -3,12 +3,21 @@ import { describe, expect, it } from 'vitest';
 import { LISTS } from '@lib/guard/lists';
 import { virtualMachine } from '@lib/lockdown/checks';
 import { ProcessGuard, type Closed, type Procs } from '../../src/main/student/process-guard';
-import { factsKnown, fileFacts, listProcesses, machine, remoteSession, terminate } from '../../src/win/processes';
+import { commonName, factsKnown, fileFacts, listProcesses, machine, remoteSession, terminate } from '../../src/win/processes';
 
 /** M4's process guard against real Windows (T7). */
 const windows = process.platform === 'win32';
 const MIN = 60_000;
 const procs: Procs = { list: listProcesses, known: factsKnown, terminate };
+
+describe('M4 a certificate\'s subject', () => {
+  it('gives the publisher\'s name, also when it has a comma', () => {
+    expect(commonName('CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US')).toBe('Microsoft Windows');
+    expect(commonName('E=x@y.z, CN="Acme, Inc.", O="Acme, Inc.", C=US')).toBe('Acme, Inc.');
+    expect(commonName('O=No Name')).toBeUndefined();
+    expect(commonName('')).toBeUndefined();
+  });
+});
 
 describe.runIf(windows)('M4 the computer\'s processes', () => {
   it('every process is listed with its program; this one too, with its parent', async () => {

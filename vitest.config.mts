@@ -21,7 +21,8 @@ export default defineConfig({
     projects: [
       { extends: true, test: { name: 'unit', include: ['tests/unit/**/*.test.ts'], environment: 'node' } },
       { extends: true, test: { name: 'integration', include: ['tests/integration/**/*.test.ts'], environment: 'node', testTimeout: 15_000 } },
-      { extends: true, test: { name: 'windows', include: ['tests/windows/**/*.test.ts'], environment: 'node', testTimeout: 30_000 } },
+      // one file at a time: these tests change the one real computer they run on
+      { extends: true, test: { name: 'windows', include: ['tests/windows/**/*.test.ts'], environment: 'node', testTimeout: 30_000, fileParallelism: false } },
       { extends: true, test: { name: 'acceptance', include: ['tests/acceptance/**/*.test.ts'], environment: 'node', testTimeout: 30_000 } },
       {
         extends: true,
