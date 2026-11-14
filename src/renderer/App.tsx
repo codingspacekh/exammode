@@ -2,6 +2,7 @@ import type { BrowserApi, StudentApi, TeacherApi } from '@lib/app/state';
 import { useRemote } from '@/lib/remote';
 import { BrowserShell } from './student/BrowserShell';
 import { CantJoin } from './student/CantJoin';
+import { Checks } from './student/Checks';
 import { ExamBar } from './student/ExamBar';
 import { HandedIn } from './student/HandedIn';
 import { HandIn } from './student/HandIn';
@@ -19,6 +20,7 @@ export function StudentApp({ api }: { api: StudentApi }) {
   if (!state) return null;
   switch (state.screen) {
     case 'join': return <Join state={state} api={api} />;
+    case 'checks': return <Checks state={state} api={api} />;
     case 'handIn': return <HandIn state={state} api={api} />;
     case 'leave': return <Leave state={state} api={api} />;
     case 'cantJoin': return <CantJoin state={state} api={api} />;

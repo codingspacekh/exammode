@@ -1,4 +1,4 @@
-import { DoorOpenIcon, ExamIcon, FolderIcon, LockIcon, UploadSimpleIcon, WifiSlashIcon } from '@phosphor-icons/react';
+import { DoorOpenIcon, ExamIcon, FolderIcon, LockIcon, UploadSimpleIcon, WarningIcon, WifiSlashIcon } from '@phosphor-icons/react';
 import type { StudentApi, StudentState } from '@lib/app/state';
 import { formatClock, formatLeft } from '@lib/session/time';
 import { Brand } from '@/components/brand';
@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils';
 
 /** Under this much time the clock turns amber. */
 const LOW_MS = 10 * 60_000;
+/** How long the bar says that an app was closed (07). */
+export const CLOSED_MS = 8000;
 
 /** 04 · The exam bar (F-09): across the top of the screen for the whole exam. M3: an ordinary always-on-top
  *  window; the apps' buttons come with M5. Leave is the door at the end (08): a menu can't open inside a window
@@ -54,6 +56,13 @@ export function ExamBar({ state, api }: { state: StudentState; api: StudentApi }
       <Button className={cn(button, 'border-[#6366f1] bg-[#6366f1] text-white hover:bg-[#5558e6]')} disabled={state.screen !== 'exam'} onClick={() => void api.askHandIn()}><UploadSimpleIcon /> Hand in…</Button>
       <Button variant="ghost" size="icon" aria-label="Leave the exam…" title="Leave the exam…" className="size-[34px] rounded-[7px] text-xbar-foreground hover:bg-xbar-3 hover:text-white" disabled={state.screen !== 'exam'} onClick={() => void api.askLeave()}><DoorOpenIcon /></Button>
     </header>
+    {state.contact && state.closed && now - state.closed.at < CLOSED_MS && (
+      // 07: an app that isn't part of the exam was closed — said plainly, and the teacher was told
+      <div role="alert" className="flex h-11 items-center justify-center gap-3 border-b border-warn-line bg-[#fffbeb] px-4 text-[13px] whitespace-nowrap text-warn-ink">
+        <WarningIcon className="size-[18px]" />
+        <span><b className="text-[#5b3d08]">{state.closed.name} isn't part of this exam.</b> It was closed. {exam.teacher} can see that it was opened at {formatClock(state.closed.at)}.</span>
+      </div>
+    )}
     {!state.contact && (
       // 10b: not leaving — the computer stays as it is, the clock keeps going, the work is saved here
       <div role="alert" className="flex h-11 items-center justify-center gap-3 border-b border-warn-line bg-[#fffbeb] px-4 text-[13px] whitespace-nowrap text-warn-ink">

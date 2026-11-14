@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
-import { CheckIcon, MonitorIcon, PlayIcon, UserIcon } from '@phosphor-icons/react';
+import { CheckIcon, MonitorIcon, PlayIcon, UserIcon, WarningIcon } from '@phosphor-icons/react';
 import type { StudentView, TeacherApi, TeacherState } from '@lib/app/state';
 import { formatClock, formatMinutes } from '@lib/session/time';
 import { Pill } from '@/components/brand';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { WHY_NOT } from '@/lib/checks';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ExamName, Section, TeacherBar } from './TeacherBar';
 
 function State({ s }: { s: StudentView }) {
   if (s.state === 'ready') return <Pill tone="ok"><CheckIcon /> Ready</Pill>;
+  if (s.state === 'checking' && s.failed.length > 0) return <Pill tone="warn"><MonitorIcon /> Can't start: {s.failed.map((f) => WHY_NOT[f]).join('; ')}</Pill>;
   if (s.state === 'checking') return <Pill tone="wait">Checking the computer…</Pill>;
   return <Pill tone="wait">Not joined yet</Pill>;
 }
@@ -26,6 +28,7 @@ export function Lobby({ state, api }: { state: TeacherState; api: TeacherApi }) 
   if (!run) return null;
   const ready = students.filter((s) => s.state === 'ready').length;
   const away = students.filter((s) => s.state === 'notJoined').length;
+  const stuck = students.filter((s) => s.state === 'checking' && s.failed.length > 0).length;
   // those who are here first, in the order they joined
   const listed = [...students].sort((a, b) => (a.joinedAt ?? Infinity) - (b.joinedAt ?? Infinity) || a.name.localeCompare(b.name));
   return (
@@ -57,6 +60,7 @@ export function Lobby({ state, api }: { state: TeacherState; api: TeacherApi }) 
           <Section title="Ready">
             <div className="flex items-baseline gap-2.5"><b className="text-[26px]">{ready}</b><span className="text-muted-foreground">of {students.length} students</span></div>
             <Progress value={students.length === 0 ? 0 : (ready / students.length) * 100} aria-label="Students ready" className="mt-2 h-2 bg-secondary [&>div]:bg-ok" />
+            {stuck > 0 && <div className="mt-3 flex items-center gap-2 text-[12.5px] text-warn-ink"><WarningIcon className="size-3.5" /><span>{stuck === 1 ? '1 computer' : `${stuck} computers`} can't start — see the list</span></div>}
             {away > 0 && <div className="mt-3 flex items-center gap-2 text-[12.5px] text-muted-foreground"><UserIcon className="size-3.5" /><span>{away === 1 ? '1 student' : `${away} students`} not here yet</span></div>}
           </Section>
         </div>

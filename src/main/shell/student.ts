@@ -16,6 +16,8 @@ import { createWindow, serve } from './windows';
 const BAR = 54;
 /** … and of the strip under it when the teacher's computer can't be reached (10b). */
 const BANNER = 44;
+/** How long the bar says that an app was closed (as the bar's own screen does). */
+const CLOSED_MS = 8000;
 const number = (text: string | undefined): number | undefined => (text ? Number(text) : undefined);
 
 export async function runStudent(): Promise<void> {
@@ -101,13 +103,25 @@ export async function runStudent(): Promise<void> {
 
   let shown: StudentState['screen'] = 'join';
   let contact = true;
+  let closedAt: number | undefined;
+  let closedTimer: NodeJS.Timeout | undefined;
+  /** The bar's height: with a strip under it while there is something to say. */
+  function resize(state: StudentState): void {
+    if (!bar || bar.isDestroyed()) return;
+    const strip = !state.contact || (state.closed !== undefined && Date.now() - state.closed.at < CLOSED_MS);
+    const area = screen.getPrimaryDisplay().workArea;
+    bar.setBounds({ x: area.x, y: area.y, width: area.width, height: strip ? BAR + BANNER : BAR });
+  }
   flow.onState((state) => {
     tell(state);
     // with no contact the bar grows by a strip that says so (10b)
-    if (state.contact !== contact && bar && !bar.isDestroyed()) {
-      const area = screen.getPrimaryDisplay().workArea;
-      bar.setBounds({ x: area.x, y: area.y, width: area.width, height: state.contact ? BAR : BAR + BANNER });
+    // … and for a few seconds when an app was closed (07)
+    if (state.closed?.at !== closedAt) {
+      closedAt = state.closed?.at;
+      clearTimeout(closedTimer);
+      if (closedAt) closedTimer = setTimeout(() => resize(flow.state()), CLOSED_MS + 200);
     }
+    if (state.contact !== contact || state.closed) resize(state);
     contact = state.contact;
     if (state.screen === shown) return;
     shown = state.screen;
