@@ -15,11 +15,23 @@ export interface KeyPress {
   onBar: boolean;
 }
 
-export function swallow(key: KeyPress): boolean {
+/** The rules as data: the keyboard hook runs on a thread of its own and is given them (src/win/keyboard.ts). */
+export const RULES = {
   // the Windows keys: Start, and with them Win+R, Win+E, Win+D, Win+V, Win+Tab …
-  if (key.vk === VK.LWIN || key.vk === VK.RWIN) return true;
+  always: [VK.LWIN, VK.RWIN] as number[],
   // Ctrl+Esc (Start), Ctrl+Shift+Esc (Task Manager), Alt+Esc (the next window, allowed or not)
-  if (key.vk === VK.ESCAPE) return key.ctrl || key.alt;
+  withCtrlOrAlt: [VK.ESCAPE] as number[],
   // Alt+Space on the bar: its window menu (Move, Close)
-  return key.vk === VK.SPACE && key.alt && key.onBar;
+  withAltOnBar: [VK.SPACE] as number[],
+};
+export type KeyRules = typeof RULES;
+
+/** Is this key press swallowed, by these rules? It uses nothing but what it is given, so the hook's thread can
+ *  run this very function. */
+export function swallowBy(rules: KeyRules, key: KeyPress): boolean {
+  if (rules.always.includes(key.vk)) return true;
+  if (rules.withCtrlOrAlt.includes(key.vk)) return key.ctrl || key.alt;
+  return rules.withAltOnBar.includes(key.vk) && key.alt && key.onBar;
 }
+
+export const swallow = (key: KeyPress): boolean => swallowBy(RULES, key);
