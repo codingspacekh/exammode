@@ -22,8 +22,8 @@ export function run(file: string, args: string[], options: { env?: NodeJS.Proces
 
 /** Windows PowerShell 5. Started without PSModulePath: one set by PowerShell 7 stops it loading its own modules. */
 export function powershell(command: string): Promise<Ran> {
-  const env = { ...process.env };
-  delete env.PSModulePath;
+  // (a copy of the environment is an ordinary object: the variable's name has to be found whatever its case)
+  const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => name.toLowerCase() !== 'psmodulepath'));
   return run('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', command], { env, timeoutMs: 120_000 });
 }
 
