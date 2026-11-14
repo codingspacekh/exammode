@@ -28,13 +28,20 @@ export const fromStudent = z.discriminatedUnion('type', [
 ]);
 export type FromStudent = z.infer<typeof fromStudent>;
 
+/** What a student's ExamMode needs to know about the exam it joined. */
+export const examInfo = z.object({
+  title: id, teacher: id, class: id, minutes: z.int().positive(),
+  websites: z.array(z.object({ url: z.string(), hosts: z.array(z.string()) })),
+});
+export type ExamInfo = z.infer<typeof examInfo>;
+
 export const refusedReason = z.enum(['codeWrong', 'nameTaken', 'notInClass', 'left', 'keptOut', 'handedIn', 'notJoined', 'ended', 'update']);
 export type RefusedReason = z.infer<typeof refusedReason>;
 
 export const fromTeacher = z.discriminatedUnion('type', [
   // `now` is the teacher's clock, for the student's offset to it (§2.8). It is also what a student who waits
   // after `refused: left` hears when the teacher lets them back in (F-40)
-  z.object({ v, type: z.literal('joined'), token: id, now: time, state: z.enum(['checking', 'ready', 'inExam']), endsAt: time.optional() }),
+  z.object({ v, type: z.literal('joined'), token: id, now: time, state: z.enum(['checking', 'ready', 'inExam']), endsAt: time.optional(), exam: examInfo.optional() }),
   z.object({ v, type: z.literal('refused'), reason: refusedReason }),
   z.object({ v, type: z.literal('start'), endsAt: time }),
   z.object({ v, type: z.literal('time'), endsAt: time }),
@@ -46,7 +53,7 @@ export type FromTeacher = z.infer<typeof fromTeacher>;
 
 /** Finding exams (F-01): broadcast by the teacher's laptop every 2 s. The key's fingerprint comes with M7. */
 export const beacon = z.object({
-  v, runId: id, title: id, teacher: id, class: id, port: z.int().min(1).max(65_535), teacherKeyFp: z.string().nullable(),
+  v, runId: id, title: id, teacher: id, class: id, minutes: z.int().positive().optional(), port: z.int().min(1).max(65_535), teacherKeyFp: z.string().nullable(),
 });
 export type Beacon = z.infer<typeof beacon>;
 

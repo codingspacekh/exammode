@@ -5,8 +5,9 @@
  */
 import { randomUUID } from 'node:crypto';
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/sqlite-proxy';
+import type { Website } from '@lib/browser/sites';
 import type { FileMeta } from '@lib/protocol/messages';
 import type { Attempt, HandInHow } from '@lib/session/attempt';
 import { migrations } from './migrations/index';
@@ -20,7 +21,7 @@ export type FileRow = typeof schema.handinFiles.$inferSelect;
 export type FileKind = FileRow['kind'];
 
 export interface NewStudent { name: string; email?: string; number?: number }
-export interface NewExam { title: string; teacher: string; classId: string; minutes: number; websites?: string[] }
+export interface NewExam { title: string; teacher: string; classId: string; minutes: number; websites?: Website[] }
 export interface RunInfo { run: RunRow; exam: ExamRow; className: string }
 export interface LogEntry { studentId?: string; pc?: string; at: number; kind: string; details: Record<string, unknown> }
 /** An attempt as it is kept: the rules' attempt, and what the classroom adds to it. */
@@ -100,6 +101,28 @@ export class Store {
     const row: ExamRow = { id: randomUUID(), ...exam, apps: [], websites: exam.websites ?? [], rules: {}, updatedAt: at };
     await this.db.insert(schema.exams).values(row);
     return row;
+  }
+
+  /** Every class, with how many students it has. */
+  async classes(): Promise<{ id: string; name: string; students: number }[]> {
+    const all = await this.db.select().from(schema.classes).orderBy(asc(schema.classes.name));
+    const students = await this.db.select({ classId: schema.students.classId }).from(schema.students);
+    return all.map((c) => ({ ...c, students: students.filter((s) => s.classId === c.id).length }));
+  }
+
+  /** The exam made last: what the next one starts from. */
+  async lastExam(): Promise<ExamRow | undefined> {
+    const [found] = await this.db.select().from(schema.exams).orderBy(desc(schema.exams.updatedAt)).limit(1);
+    return found;
+  }
+
+  /** How many files the teacher's laptop has from each student of a run. */
+  async fileCounts(runId: string): Promise<Map<string, number>> {
+    const rows = await this.db.select({ studentId: schema.attempts.studentId, kind: schema.handinFiles.kind })
+      .from(schema.handinFiles).innerJoin(schema.attempts, eq(schema.attempts.id, schema.handinFiles.attemptId)).where(eq(schema.attempts.runId, runId));
+    const counts = new Map<string, number>();
+    for (const r of rows) counts.set(r.studentId, (counts.get(r.studentId) ?? 0) + 1);
+    return counts;
   }
 
   async exam(examId: string): Promise<ExamRow | undefined> {

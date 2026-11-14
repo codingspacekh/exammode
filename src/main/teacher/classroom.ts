@@ -12,9 +12,10 @@ import { receiptCode } from '@lib/files/receipt';
 import { PROTOCOL_VERSION, type FromStudent, type FromTeacher, type RefusedReason, type Stopped, type Upload } from '@lib/protocol/messages';
 import {
   addTime, onBeat, onChecks, onEvent, onHandIn, onJoin, onKeepOut, onLeave, onLetBackIn, onReady, onResume, onStart, onStopped, onTick,
-  type Attempt, type AttemptState, type HandInHow, type LeftHow, type Result,
+  type Attempt, type HandInHow, type Result,
 } from '@lib/session/attempt';
 import { endsAt } from '@lib/session/time';
+import type { RunView, StudentView } from '@lib/app/state';
 import { place, setAside, type Received } from './handIns';
 import type { ExamRow, RunRow, Store, StudentRow } from './store/store';
 
@@ -30,39 +31,7 @@ type Join = Extract<FromStudent, { type: 'join' }>;
 type Resume = Extract<FromStudent, { type: 'resume' }>;
 type Receipt = Extract<FromTeacher, { type: 'receipt' }>;
 
-export interface StudentView {
-  id: string;
-  name: string;
-  state: AttemptState;
-  pc?: string;
-  /** the app in front, from the last beat */
-  front?: string;
-  /** a connection is open; what counts for *no contact* is the beats */
-  connected: boolean;
-  warnings: number;
-  extraMinutes: number;
-  endsAt?: number;
-  leftHow?: LeftHow;
-  /** the computer a refused join waits on, for Let back in or Keep out */
-  asksBackFrom?: string;
-  handedInHow?: HandInHow;
-  receipt?: string;
-}
-
-export interface RunView {
-  id: string;
-  code: string;
-  title: string;
-  teacher: string;
-  className: string;
-  minutes: number;
-  extraMinutes: number;
-  folder: string;
-  openedAt: number;
-  startedAt?: number;
-  endsAt?: number;
-  endedAt?: number;
-}
+export type { RunView, StudentView };
 
 export type UploadResult = { ok: true; receipt?: Receipt } | { ok: false; why: 'unknown' | 'refused' | 'mismatch' };
 
@@ -82,6 +51,8 @@ interface Seat {
   link?: Link;
   /** a refused join, still connected, waiting for the teacher */
   waiting?: Link;
+  /** how many files the teacher's laptop has from this student */
+  files?: number;
   /** told that the time is up, or that the exam was ended */
   toldEnd?: boolean;
 }
@@ -158,6 +129,7 @@ export class Classroom {
       room.seats.set(s.id, was ? { attempt: was.attempt, id: was.id, token: was.token, receipt: was.receipt } : { attempt: { state: 'notJoined', extraMinutes: 0, warnings: 0 } });
       if (was?.token) room.tokens.set(was.token, s.id);
     }
+    for (const [studentId, files] of await store.fileCounts(runId)) room.seats.get(studentId)!.files = files;
     await mkdir(room.folder, { recursive: true });
     return room;
   }
@@ -177,9 +149,9 @@ export class Classroom {
   }
 
   /** What the beacon says about this run (F-01); nothing once it has ended. */
-  listing(): { runId: string; title: string; teacher: string; class: string } | undefined {
+  listing(): { runId: string; title: string; teacher: string; class: string; minutes: number } | undefined {
     if (this.run.endedAt !== null) return undefined;
-    return { runId: this.run.id, title: this.exam.title, teacher: this.exam.teacher, class: this.className };
+    return { runId: this.run.id, title: this.exam.title, teacher: this.exam.teacher, class: this.className, minutes: this.exam.minutes };
   }
 
   /** The class list a student picks their name from (F-02): the email only where a name is shared. */
@@ -194,7 +166,7 @@ export class Classroom {
     return {
       run: {
         id: run.id, code: run.code, title: exam.title, teacher: exam.teacher, className: this.className, minutes: exam.minutes,
-        extraMinutes: run.extraMinutes, folder: this.folder, openedAt: run.openedAt,
+        extraMinutes: run.extraMinutes, websites: exam.websites, folder: this.folder, openedAt: run.openedAt,
         startedAt: run.startedAt ?? undefined, endsAt: this.endsAt(), endedAt: run.endedAt ?? undefined,
       },
       students: [...this.roster.values()].map((s) => {
@@ -202,8 +174,8 @@ export class Classroom {
         const a = seat.attempt;
         return {
           id: s.id, name: s.name, state: a.state, pc: a.pc, front: a.front, connected: seat.link !== undefined, warnings: a.warnings,
-          extraMinutes: a.extraMinutes, endsAt: this.endsAt(a), leftHow: a.leftHow, asksBackFrom: a.asksBack?.pc,
-          handedInHow: a.handedInHow, receipt: seat.receipt,
+          extraMinutes: a.extraMinutes, joinedAt: a.joinedAt, endsAt: this.endsAt(a), leftAt: a.leftAt, leftHow: a.leftHow, asksBackFrom: a.asksBack?.pc,
+          handedInAt: a.handedInAt, handedInHow: a.handedInHow, receipt: seat.receipt, files: seat.files ?? 0,
         };
       }),
     };
@@ -349,6 +321,7 @@ export class Classroom {
       for (const f of meta.files) await place(arrived.get(f.name)!, folder, f.name);
       if (!receipt) {
         await this.store.saveFiles(id, meta.files, 'backup', at);
+        seat.files = (await this.store.files(id)).length;
         this.changed(studentId);
         return { ok: true };
       }
@@ -357,6 +330,7 @@ export class Classroom {
       for (const old of await this.store.files(id)) if (!handedIn.has(old.name)) await setAside(folder, old.name, EARLIER);
       const how = this.handInHow(seat.attempt, at, seat.toldEnd);
       await this.store.saveFiles(id, meta.files, how, at);
+      seat.files = meta.files.length;
       seat.receipt = receipt;
       await this.apply(studentId, onHandIn(seat.attempt, how, at));
       return { ok: true, receipt: this.receipt(receipt, meta) };
@@ -524,7 +498,11 @@ export class Classroom {
     seat.link = link;
     this.links.set(link, studentId);
     const state = seat.attempt.state as 'checking' | 'ready' | 'inExam';
-    link.send({ v: PROTOCOL_VERSION, type: 'joined', token: seat.token!, now: this.now(), state, endsAt: state === 'inExam' ? this.endsAt(seat.attempt) : undefined });
+    const { title, teacher, minutes, websites } = this.exam;
+    link.send({
+      v: PROTOCOL_VERSION, type: 'joined', token: seat.token!, now: this.now(), state, endsAt: state === 'inExam' ? this.endsAt(seat.attempt) : undefined,
+      exam: { title, teacher, class: this.className, minutes, websites },
+    });
     this.changed(studentId);
   }
 

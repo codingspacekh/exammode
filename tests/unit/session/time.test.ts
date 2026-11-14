@@ -43,3 +43,25 @@ describe("§2.8 the students' clocks aren't trusted", () => {
     expect(timeLeft(at('10:00'), teacherTime(at('09:28:30'), 90_000))).toBe(30 * 60_000);
   });
 });
+
+describe('F-09 time, as the screens show it', () => {
+  it('the time left counts down in whole seconds', async () => {
+    const { formatLeft } = await import('@lib/session/time');
+    expect(formatLeft(4_360_000)).toBe('1:12:40');
+    expect(formatLeft(1_084_000)).toBe('0:18:04');
+    expect(formatLeft(400)).toBe('0:00:01');
+    expect(formatLeft(0)).toBe('0:00:00');
+    expect(formatLeft(-5000)).toBe('0:00:00');
+  });
+  it('an exam\'s length in words', async () => {
+    const { formatMinutes } = await import('@lib/session/time');
+    expect(formatMinutes(90)).toBe('1 h 30 min');
+    expect(formatMinutes(120)).toBe('2 h');
+    expect(formatMinutes(45)).toBe('45 min');
+    expect(formatMinutes(0)).toBe('0 min');
+  });
+  it('a time of day', async () => {
+    const { formatClock } = await import('@lib/session/time');
+    expect(formatClock(new Date(2026, 10, 12, 9, 5).getTime())).toBe('09:05');
+  });
+});

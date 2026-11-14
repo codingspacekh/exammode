@@ -23,3 +23,23 @@ export function clockOffset(q: { sent: number; received: number; teacher: number
 }
 
 export const teacherTime = (localNow: number, offset: number): number => localNow + offset;
+
+/** Time left as the exam bar shows it: `1:12:40`. */
+export function formatLeft(ms: number): string {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  const two = (n: number) => String(n).padStart(2, '0');
+  return `${Math.floor(s / 3600)}:${two(Math.floor(s / 60) % 60)}:${two(s % 60)}`;
+}
+
+/** An exam's length in words: `1 h 30 min`, `45 min`, `2 h`. */
+export function formatMinutes(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return [h > 0 ? `${h} h` : '', m > 0 || h === 0 ? `${m} min` : ''].filter(Boolean).join(' ');
+}
+
+/** A time of day on a 24-hour clock: `09:30`. */
+export function formatClock(at: number): string {
+  const d = new Date(at);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}

@@ -4,7 +4,7 @@
  * It decides nothing about the exam: the teacher's laptop does (D5).
  */
 import { WebSocket } from 'ws';
-import { PROTOCOL_VERSION, parseFromTeacher, type FromStudent, type FromTeacher, type RefusedReason } from '@lib/protocol/messages';
+import { PROTOCOL_VERSION, parseFromTeacher, type ExamInfo, type FromStudent, type FromTeacher, type RefusedReason } from '@lib/protocol/messages';
 import type { CheckResult } from '@lib/session/attempt';
 import { clockOffset, isTimeUp, teacherTime } from '@lib/session/time';
 
@@ -51,6 +51,8 @@ export class Session {
   token?: string;
   /** the exam's end, on the teacher's clock */
   endsAt?: number;
+  /** the exam, as the teacher's laptop described it when this ExamMode joined */
+  exam?: ExamInfo;
   /** the app in front, sent with every beat */
   front?: string;
 
@@ -77,6 +79,11 @@ export class Session {
 
   get seat(): Seat {
     return this.options;
+  }
+
+  /** What to add to this computer's clock to get the teacher's. */
+  get clockOffset(): number {
+    return this.offset;
   }
 
   /** The time on the teacher's clock, as well as this computer can tell (§2.8). */
@@ -227,6 +234,7 @@ export class Session {
       case 'joined': {
         this.offset = clockOffset({ sent: this.asked, received: this.now(), teacher: msg.now });
         this.token = msg.token;
+        this.exam = msg.exam ?? this.exam;
         this.localLog = [];
         this.become(msg.state);
         this.reply('joined');

@@ -12,6 +12,8 @@ import { at, openStore, tempFolder, year10 } from './helpers';
 
 const v = 1;
 const MIN = 60_000;
+/** what a student's ExamMode is told about the exam when it joins */
+const EXAM = { title: 'Year 10 ICT — Term 1 practical exam', teacher: 'Ms Srey Leak', class: 'Year 10 A', minutes: 90, websites: [] };
 
 /** A student's connection that only remembers what it was sent. */
 class FakeLink implements Link {
@@ -79,7 +81,7 @@ describe('F-01 F-02 F-03 joining a run', () => {
     expect(room.view().run.folder.startsWith(join(handIns, 'Year 10 ICT — Term 1 practical exam 2026-11-12 '))).toBe(true);
     expect(existsSync(room.view().run.folder)).toBe(true);
     expect((await store.events(room.id)).map((e) => e.kind)).toEqual(['runOpened']);
-    expect(room.listing()).toEqual({ runId: room.id, title: exam.title, teacher: 'Ms Srey Leak', class: 'Year 10 A' });
+    expect(room.listing()).toEqual({ runId: room.id, title: exam.title, teacher: 'Ms Srey Leak', class: 'Year 10 A', minutes: 90 });
     await expect(Classroom.create(store, 'no-such-exam', { handIns })).rejects.toThrow();
     await expect(Classroom.open(store, 'no-such-run', { handIns })).rejects.toThrow();
   });
@@ -98,7 +100,7 @@ describe('F-01 F-02 F-03 joining a run', () => {
   it('a student with the right code and a name from the class is in: the checks start', async () => {
     const { join, state, kinds, clock } = await lesson();
     const link = await join('Dara Kim');
-    expect(link.last).toEqual({ v, type: 'joined', token: expect.stringMatching(/^[\w-]{20,}$/), now: clock.now, state: 'checking', endsAt: undefined });
+    expect(link.last).toEqual({ v, type: 'joined', token: expect.stringMatching(/^[\w-]{20,}$/), now: clock.now, state: 'checking', endsAt: undefined, exam: EXAM });
     expect(state('Dara Kim')).toMatchObject({ state: 'checking', pc: 'PC-07', connected: true, warnings: 0 });
     expect(await kinds('Dara Kim')).toEqual(['joined']);
   });
@@ -281,7 +283,7 @@ describe('F-19 losing the network is not leaving', () => {
     const back = new FakeLink();
     const localLog = [{ at: at('09:00:02'), kind: 'contactLost', details: {} }];
     await say(back, { type: 'resume', token: dara.token, instanceId: 'i-1', localLog });
-    expect(back.last).toEqual({ v, type: 'joined', token: dara.token, now: clock.now, state: 'inExam', endsAt: at('10:30') });
+    expect(back.last).toEqual({ v, type: 'joined', token: dara.token, now: clock.now, state: 'inExam', endsAt: at('10:30'), exam: EXAM });
     expect(state('Dara Kim')).toMatchObject({ state: 'inExam', connected: true, warnings: 0 });
     expect((await store.events(room.id)).slice(-2)).toMatchObject([
       { kind: 'noContact' }, { kind: 'gap', details: { seconds: 45, localLog } },
@@ -336,7 +338,7 @@ describe('F-15 F-18 F-20 F-40 leaving, stopping suddenly, and coming back', () =
 
     clock.now = at('09:27');
     await room.letBackIn(id('Dara Kim'), 'the power went off in her row');
-    expect(asks.last).toEqual({ v, type: 'joined', token: expect.any(String), now: clock.now, state: 'inExam', endsAt: at('10:30') });
+    expect(asks.last).toEqual({ v, type: 'joined', token: expect.any(String), now: clock.now, state: 'inExam', endsAt: at('10:30'), exam: EXAM });
     expect(asks.token).not.toBe(dara.token);
     expect(state('Dara Kim')).toMatchObject({ state: 'inExam', pc: 'PC-12', connected: true, asksBackFrom: undefined });
     expect((await kinds('Dara Kim')).slice(-4)).toEqual(['left', 'asksBack', 'letBackIn', 'cameBack']);

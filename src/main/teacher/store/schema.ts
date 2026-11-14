@@ -3,6 +3,7 @@
  * the teacher's clock. After changing a table: `npm run db:generate`, which writes the next file in `migrations/`.
  */
 import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import type { Website } from '@lib/browser/sites';
 import type { AttemptState, CheckResult, HandInHow, LeftHow, Seat } from '@lib/session/attempt';
 
 export const classes = sqliteTable('classes', {
@@ -25,7 +26,7 @@ export const exams = sqliteTable('exams', {
   classId: text('class_id').notNull().references(() => classes.id),
   minutes: integer('minutes').notNull(),
   apps: text('apps', { mode: 'json' }).$type<unknown[]>().notNull(),
-  websites: text('websites', { mode: 'json' }).$type<string[]>().notNull(),
+  websites: text('websites', { mode: 'json' }).$type<Website[]>().notNull(),
   rules: text('rules', { mode: 'json' }).$type<Record<string, unknown>>().notNull(),
   updatedAt: integer('updated_at').notNull(),
 });
