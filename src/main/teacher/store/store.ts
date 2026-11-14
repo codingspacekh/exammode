@@ -84,6 +84,11 @@ export class Store {
     return row;
   }
 
+  async exam(examId: string): Promise<ExamRow | undefined> {
+    const [found] = await this.db.select().from(schema.exams).where(eq(schema.exams.id, examId));
+    return found;
+  }
+
   async openRun(examId: string, run: { code: string; folder: string; at: number }): Promise<RunRow> {
     const row: RunRow = { id: randomUUID(), examId, code: run.code, folder: run.folder, openedAt: run.at, startedAt: null, extraMinutes: 0, endedAt: null };
     await this.db.insert(schema.runs).values(row);
