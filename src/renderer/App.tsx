@@ -1,18 +1,52 @@
-import { Button } from '@/components/ui/button';
-import { Logo } from '@/components/logo';
+import type { BrowserApi, StudentApi, TeacherApi } from '@lib/app/state';
+import { useRemote } from '@/lib/remote';
+import { BrowserShell } from './student/BrowserShell';
+import { ExamBar } from './student/ExamBar';
+import { HandedIn } from './student/HandedIn';
+import { HandIn } from './student/HandIn';
+import { Join } from './student/Join';
+import { Waiting } from './student/Waiting';
+import { Live } from './teacher/Live';
+import { Lobby } from './teacher/Lobby';
+import { MakeExam } from './teacher/MakeExam';
 
-/** M0: a placeholder in the prototype's look (design/screens/01-join.html). The real screens come in M3. */
+/** The lab computer's own window: the plain screens before and after the exam, and Hand in. */
+export function StudentApp({ api }: { api: StudentApi }) {
+  const state = useRemote(api);
+  if (!state) return null;
+  switch (state.screen) {
+    case 'join': return <Join state={state} api={api} />;
+    case 'handIn': return <HandIn state={state} api={api} />;
+    case 'handedIn': return <HandedIn state={state} api={api} />;
+    // during the exam this window is hidden: the exam bar is the screen
+    default: return <Waiting state={state} />;
+  }
+}
+
+export function BarApp({ api }: { api: StudentApi }) {
+  const state = useRemote(api);
+  return state ? <ExamBar state={state} api={api} /> : null;
+}
+
+export function BrowserApp({ api }: { api: BrowserApi }) {
+  const state = useRemote(api);
+  return state ? <BrowserShell state={state} api={api} /> : null;
+}
+
+export function TeacherApp({ api }: { api: TeacherApi }) {
+  const state = useRemote(api);
+  if (!state) return null;
+  if (state.screen === 'lobby') return <Lobby state={state} api={api} />;
+  if (state.screen === 'live') return <Live state={state} api={api} />;
+  // a new form for every exam: it starts from the last one's teacher and class
+  return <MakeExam key={state.classes.length} state={state} api={api} />;
+}
+
+/** Which screen a window is was decided by the main process (`?view=`). */
 export function App() {
-  return (
-    <main className="grid min-h-screen place-items-center bg-[radial-gradient(1200px_600px_at_50%_0%,#e7ebfb_0%,var(--background)_60%)]">
-      <div className="flex w-[min(560px,92%)] flex-col items-start gap-4 rounded-[14px] border border-border bg-card px-9 py-8 shadow-md">
-        <div className="flex items-center gap-2.5">
-          <Logo className="size-7" />
-          <h1 className="text-[22px] font-semibold tracking-tight">ExamMode</h1>
-        </div>
-        <p className="text-[14px] text-muted-foreground">Foundations (M0). The student and teacher screens come next.</p>
-        <Button size="lg">Join an exam</Button>
-      </div>
-    </main>
-  );
+  const { view, student, teacher, browser } = window.exammode;
+  if (view === 'teacher' && teacher) return <TeacherApp api={teacher} />;
+  if (view === 'bar' && student) return <BarApp api={student} />;
+  if (view === 'browser' && browser) return <BrowserApp api={browser} />;
+  return student ? <StudentApp api={student} /> : null;
 }

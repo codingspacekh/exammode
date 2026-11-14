@@ -6,6 +6,8 @@ How ExamMode is built, **in what order**, and **how each part is proven to work*
 - System design (processes, lockdown, protocol, profiles): [`02-architecture.md`](02-architecture.md)
 - UI prototype: [`../design/screens/index.html`](../design/screens/index.html) — approved 2026-11-10
 
+*Revision 9 (2026-11-14): **the prototype is clickable** (`design/screens/play.html`: the teacher's laptop and a lab computer side by side), and after trying it the teacher said *"okay go ahead"*: **M3 was started**, again with the earlier gates open. Its trial on lab computers is one more check for the lab day.*
+
 *Revision 8 (2026-11-14): **M2 was started with the gates of M0 and M1 still open** (the teacher: *"I don't have a Windows PC, so can you go ahead"*): M2 runs on the Mac and on GitHub; only its last check needs the lab network (R3), and it is done with M0's lab run. Nothing is merged into `main` until those gates pass.*
 
 *Revision 7 (2026-11-11): **M1 was started while M0's gate is still open** (the teacher chose *Start M1 now*): M1 is pure TypeScript and needs nothing from the lab run, which is still to do and still closes M0. M1's slices were built with profiles before the guard, because `decide()` needs their matching.*
@@ -416,7 +418,7 @@ Each milestone lists: **goal · build order (TDD slices) · tests written first 
 | M0 Foundations + Windows spike | 🔨 in progress | | Steps 1–4 done; the spike passes all 9 probes on GitHub's Windows Server 2022 and 2025 (`docs/acceptance/M0.md`); **waiting: the 30-minute run on a Windows 10 and a Windows 11 lab computer** |
 | M1 The rules | 🔨 built; waiting for the teacher | | All six slices, test first: 206 unit tests, 100 % coverage of `src/lib` (`docs/acceptance/M1.md`); **waiting: the teacher reads the §2.8 table as tests** (M1.md §2, rows 9–16 need a yes or no) |
 | M2 The classroom network | 🔨 built; waiting for the teacher and the lab | | All six slices, test first: the six stories and 40 simulated students pass (`docs/acceptance/M2.md`); **waiting: a lab computer hears the beacon and joins (R3); the teacher's yes or no to M2.md §3** |
-| M3 Walking skeleton | | | |
+| M3 Walking skeleton | 🔨 built; waiting for the teacher and the lab | | The first usable app, unlocked: screens 01, 03, 04, 07b, 09, 09b, 11 (minimal), 12, 13; e2e with a teacher and two students (`docs/acceptance/M3.md`); **waiting: the teacher's look at the screens and yes or no to M3.md §3; the 10-minute trial on lab computers** |
 | M4 Locking a lab computer | | | |
 | M5 The apps | | | |
 | M6 The teacher's whole exam | | | |

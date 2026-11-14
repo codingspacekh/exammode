@@ -1,5 +1,7 @@
 # 2. Architecture
 
+*Revision 8 (2026-11-14): M3 — the state behind the screens lives in the main process without Electron (`teacher/desk.ts`, `student/flow.ts`), and the windows are thin glue in `src/main/shell` (§2.13); `joined` tells a lab computer about the exam, and the beacon carries its length (§2.7); the exam browser's pages are views under ExamMode's own strip, and a blocked page is ExamMode's screen, not a web page (§2.6); `--teacher` until the licence (§2.14).*
+
 *Revision 7 (2026-11-14): M2 — SQLite is Node's own (`node:sqlite`), so nothing is compiled for Electron (§2.11); the server's addresses, the wrong-code limit, and *Let back in* reaching a waiting ExamMode as `joined` (§2.7); a run keeps the time added for everyone, not its end; an attempt also keeps its token (§2.11); backups that aren't in the hand-in are kept apart (§2.9). The cases the documents didn't cover are in [`acceptance/M2.md`](acceptance/M2.md) §3.*
 
 *Revision 6 (2026-11-11): M1 — `decide()` also takes the account's environment and ExamMode's own paths, and knows a browser by its product name as well as its file name (§2.5); the journal is written one entry a line, so a half-written entry can be told apart (§2.4); the cases §2.8's table didn't cover are in [`acceptance/M1.md`](acceptance/M1.md) §2, for the teacher's yes or no.*
@@ -185,6 +187,8 @@ decide(proc: ProcInfo, ctx: { allowed: AppProfile[]; ancestors: ProcInfo[]; alwa
 
 The exam browser exists **only when the exam has websites** (Q14). With the questions on paper, the default, there is no browser window, no *Questions* button, and ExamMode reaches only the teacher's laptop.
 
+Each tab's page is a view in the browser's own partition, with no access to ExamMode; the strip above it (tabs, back, forward, the address shown but not typed) and *This page isn't part of the exam* are ExamMode's own screens. Every request is decided by `src/lib/browser/sites.ts`.
+
 The browser window has no address box, no DevTools, no downloads, no extensions, no pop-ups outside the list, and its own partition that is wiped at the end.
 
 **The teacher's laptop** must accept connections on 47800: the first time teacher mode opens a run, ExamMode asks for the system's permission (the Windows Defender Firewall prompt, or macOS's *accept incoming connections*).
@@ -322,12 +326,14 @@ exammode/
 │   │   ├── protocol/           # zod messages (§2.7), versions
 │   │   ├── profiles/           # profile schema, matching, launch arguments
 │   │   ├── files/              # changed files, receipt codes
+│   │   ├── browser/            # the exam's websites: what the exam browser opens (§2.6)
+│   │   ├── app/                # the screens' state and the preload API, as types
 │   │   └── exam/               # exam and class rules, CSV import and export
 │   ├── win/                    # WinApi: koffi adapters (windows, processes, hooks, AppBar, registry, displays)
 │   ├── main/
-│   │   ├── student/            # session client, lockdown, process guard loop, launcher, exam browser, files
-│   │   ├── teacher/            # server, beacon, store (Drizzle), hand-ins
-│   │   └── shared/             # windows, updates, IPC
+│   │   ├── student/            # flow (the state the screens show), session client, files; later: lockdown, process guard loop, launcher
+│   │   ├── teacher/            # desk (the state the screens show), classroom, server, beacon, store (Drizzle), hand-ins
+│   │   └── shell/              # Electron glue: windows, IPC, the exam browser's views — proven by e2e, not unit tests
 │   ├── guard/                  # ExamModeGuard.exe, the Windows service: pipe, journal, firewall, policies, Explorer, watchdog
 │   ├── preload/
 │   └── renderer/
@@ -349,7 +355,7 @@ exammode/
 
 | Command | Does |
 |---|---|
-| `npm run dev` | ExamMode in development (`--teacher` or `--student`; the student's lockdown is **off** unless `--lock`) |
+| `npm run dev` | ExamMode in development, as a lab computer; `EXAMMODE_MODE=teacher npm run dev` in teacher mode (until the licence, M7). Nothing is locked before M4 |
 | `npm run class -- --students 30 --minutes 10 --speed 20` | a **simulated classroom**: a teacher's side and 30 fake students joining, working, losing the network, crashing, handing in; it prints the log as it happens |
 | `npm run db:generate` | after changing a table in `schema.ts`: writes the next migration |
 | `npm test` | unit tests |

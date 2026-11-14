@@ -16,9 +16,12 @@ const dir = join('src', 'renderer', 'components', 'ui');
 for (const file of readdirSync(dir).filter((f) => f.endsWith('.tsx'))) {
   const path = join(dir, file);
   const text = readFileSync(path, 'utf8');
-  const fixed = text.replace(/from "cn"/g, 'from "@/lib/utils"');
+  // … and some still import their icons from lucide-react, though components.json says Phosphor (N-07, Q11)
+  const fixed = text.replace(/from "cn"/g, 'from "@/lib/utils"')
+    .replace(/from "lucide-react"/g, 'from "@phosphor-icons/react"')
+    .replace(/\bChevron(Down|Up|Left|Right)Icon\b/g, 'Caret$1Icon');
   if (fixed !== text) {
     writeFileSync(path, fixed);
-    console.log(`fixed the cn import in ${path}`);
+    console.log(`fixed the imports in ${path}`);
   }
 }

@@ -7,7 +7,7 @@ Keeps a student's lab computer inside the exam's own apps and websites until the
 - [Milestones & TDD workflow](docs/MILESTONES.md): build plan, gates, progress
 - [UI prototype](design/screens/index.html): `python3 -m http.server 8000 --directory design/screens`, or open the file
 
-Status: M2, the classroom network, is built and proven with simulated students ([acceptance](docs/acceptance/M2.md)); it waits for a check on the lab network. M1, the rules, waits for the teacher's reading ([acceptance](docs/acceptance/M1.md)). M0's lab run is still to do ([acceptance](docs/acceptance/M0.md)).
+Status: M3, the walking skeleton, is built: a teacher opens an exam, students join, work and hand in, with nothing locked yet ([acceptance](docs/acceptance/M3.md)). The gates of M0–M3 wait for the teacher's answers and a day in the lab ([M0](docs/acceptance/M0.md), [M1](docs/acceptance/M1.md), [M2](docs/acceptance/M2.md)).
 
 ## Develop
 

@@ -1,0 +1,58 @@
+import { vi } from 'vitest';
+import type { BrowserApi, BrowserState, StudentApi, StudentState, StudentView, TeacherApi, TeacherState } from '@lib/app/state';
+
+/** The prototype's exam (MILESTONES §3.1), as the screens are told it. */
+export const at = (clock: string): number => {
+  const [h = 0, m = 0, s = 0] = clock.split(':').map(Number);
+  return new Date(2026, 10, 12, h, m, s).getTime();
+};
+
+const EXAM = { runId: 'run-1', title: 'Year 10 ICT — Term 1 practical exam', teacher: 'Ms Srey Leak', class: 'Year 10 A', minutes: 90, host: '10.0.0.2', port: 47800 };
+
+export function student(over: Partial<StudentState> = {}): StudentState {
+  return {
+    screen: 'join', pc: 'PC-14', found: [EXAM, { ...EXAM, runId: 'run-2', title: 'Year 11 ICT — Mock paper 2', teacher: 'Mr Dara Ouk', class: 'Year 11 B', minutes: 120 }],
+    names: [], joining: false, clockOffset: 0, contact: true, handingIn: false, ...over,
+  };
+}
+
+/** Sokha, joined: for the screens after 01. */
+export function joined(over: Partial<StudentState> = {}): StudentState {
+  return student({
+    screen: 'waiting', picked: 'run-1', student: { id: 's-1', name: 'Sokha Chan' },
+    exam: { runId: 'run-1', title: EXAM.title, teacher: 'Ms Srey Leak', minutes: 90, hasQuestions: false }, ...over,
+  });
+}
+
+export function studentApi(state: StudentState = student()): StudentApi & { tell(next: StudentState): void } {
+  const listeners = new Set<(s: StudentState) => void>();
+  const done = () => vi.fn(async () => undefined);
+  return {
+    get: vi.fn(async () => state), onState: (l) => { listeners.add(l); return () => void listeners.delete(l); },
+    tell: (next) => listeners.forEach((l) => l(next)),
+    pick: done(), lookAt: done(), join: done(), askHandIn: done(), keepWorking: done(), handIn: done(), finish: done(), showQuestions: done(), openFolder: done(),
+  };
+}
+
+export function card(name: string, over: Partial<StudentView> = {}): StudentView {
+  return { id: name, name, state: 'notJoined', connected: false, warnings: 0, extraMinutes: 0, files: 0, ...over };
+}
+
+export function teacher(over: Partial<TeacherState> = {}): TeacherState {
+  return { screen: 'make', classes: [], defaults: { teacher: '' }, students: [], feed: [], ...over };
+}
+
+export const RUN = {
+  id: 'run-1', code: '4817', title: EXAM.title, teacher: 'Ms Srey Leak', className: 'Year 10 A', minutes: 90, extraMinutes: 0, websites: [],
+  folder: '/Hand-ins/Year 10 ICT', openedAt: at('09:20'),
+};
+
+export function teacherApi(state: TeacherState = teacher(), openAnswer?: string): TeacherApi {
+  const done = () => vi.fn(async () => undefined);
+  return { get: vi.fn(async () => state), onState: () => () => undefined, open: vi.fn(async () => openAnswer), start: done(), end: done(), done: done(), openFolder: done() };
+}
+
+export function browserApi(state: BrowserState): BrowserApi {
+  const done = () => vi.fn(async () => undefined);
+  return { get: vi.fn(async () => state), onState: () => () => undefined, select: done(), close: done(), back: done(), forward: done(), reload: done(), toQuestions: done() };
+}

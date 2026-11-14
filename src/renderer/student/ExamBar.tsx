@@ -1,0 +1,54 @@
+import { ExamIcon, FolderIcon, LockIcon, UploadSimpleIcon } from '@phosphor-icons/react';
+import type { StudentApi, StudentState } from '@lib/app/state';
+import { formatClock, formatLeft } from '@lib/session/time';
+import { Brand } from '@/components/brand';
+import { Button } from '@/components/ui/button';
+import { useNow } from '@/lib/remote';
+import { cn } from '@/lib/utils';
+
+/** Under this much time the clock turns amber. */
+const LOW_MS = 10 * 60_000;
+
+/** 04 · The exam bar (F-09): across the top of the screen for the whole exam. M3: an ordinary always-on-top
+ *  window; the apps' buttons come with M5, Leave with M6. */
+export function ExamBar({ state, api }: { state: StudentState; api: StudentApi }) {
+  const now = useNow();
+  const { exam, student } = state;
+  if (!exam || !student) return null;
+  const left = state.endsAt === undefined ? undefined : state.endsAt - (now + state.clockOffset);
+  const sep = <div className="h-7 w-px flex-none bg-xbar-3" />;
+  const button = 'h-[34px] gap-[7px] rounded-[7px] border border-xbar-3 bg-transparent px-3 text-[13px] font-medium text-xbar-foreground hover:bg-xbar-3 hover:text-white';
+  return (
+    <header className="flex h-[54px] items-center gap-3.5 overflow-hidden bg-xbar pr-3.5 pl-4 text-xbar-foreground">
+      <Brand dark />
+      <span className="inline-flex h-6 items-center gap-[5px] rounded-md bg-xtag px-[9px] text-[11.5px] font-bold tracking-[.06em] text-white"><LockIcon className="size-3" /> EXAM</span>
+      <div className="flex min-w-0 flex-col leading-tight">
+        <b className="truncate text-[13px] text-white">{exam.title}</b>
+        <span className="truncate text-[11.5px] text-xbar-muted">{student.name} · {state.pc} · set by {exam.teacher}</span>
+      </div>
+      {exam.hasQuestions && (
+        <>
+          {sep}
+          <div className="flex gap-1 rounded-[10px] bg-xbar-2 p-1">
+            <button type="button" onClick={() => void api.showQuestions()} className="inline-flex h-[34px] items-center gap-2 rounded-[7px] bg-white pr-[13px] pl-2 text-[13px] font-medium whitespace-nowrap text-foreground shadow-[0_1px_3px_rgba(0,0,0,.3)]">
+              <span className="grid size-[22px] place-items-center rounded-[5px] bg-primary text-white"><ExamIcon className="size-3" /></span>Questions
+            </button>
+          </div>
+        </>
+      )}
+      <span className="flex-1" />
+      <span role="status" className={cn('inline-flex items-center gap-1.5 text-[12px] whitespace-nowrap text-xbar-muted', !state.contact && 'text-[#fbbf24]')}>
+        <i className={cn('size-2 rounded-full bg-[#4ade80]', !state.contact && 'bg-[#fbbf24]')} />
+        {state.contact ? 'Connected' : `Can't reach ${exam.teacher} — keep working`}
+      </span>
+      {sep}
+      <div className="flex flex-col items-end leading-[1.15]">
+        <b role="timer" className={cn('font-mono text-[17px] font-semibold tracking-[.02em] text-white', left !== undefined && left < LOW_MS && 'text-[#fbbf24]')}>{left === undefined ? '–:––:––' : formatLeft(left)}</b>
+        <span className="text-[10.5px] whitespace-nowrap text-xbar-muted">{state.endsAt === undefined ? 'left' : `left · ends ${formatClock(state.endsAt - state.clockOffset)}`}</span>
+      </div>
+      {sep}
+      <Button variant="ghost" className={button} onClick={() => void api.openFolder()}><FolderIcon /> Exam folder</Button>
+      <Button className={cn(button, 'border-[#6366f1] bg-[#6366f1] text-white hover:bg-[#5558e6]')} disabled={state.screen !== 'exam'} onClick={() => void api.askHandIn()}><UploadSimpleIcon /> Hand in…</Button>
+    </header>
+  );
+}
