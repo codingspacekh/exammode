@@ -3,6 +3,7 @@
  * state the student's screens show (architecture §2.2). M3: 01 Join, 03 Waiting, 04 the exam bar, 09 Hand in,
  * 09b Handed in. The computer isn't checked or locked yet (M4), so joining goes straight to waiting.
  */
+import type { Trust } from '@lib/trust/licence';
 import type { Installed } from '@lib/profiles/inventory';
 import { PROTOCOL_VERSION } from '@lib/protocol/messages';
 import { randomUUID } from 'node:crypto';
@@ -35,13 +36,15 @@ export interface FlowOptions {
   lockdown?: Lockdown;
   /** what is installed on this computer, told to each teacher's laptop it finds (F-31a); none: nothing is told */
   installed?: () => Promise<Installed | undefined>;
+  /** whose exams this computer lists and joins (F-44); by default anyone's (a development build) */
+  trust?: Trust;
   /** for tests: faster beats and retries */
   timing?: Pick<SessionOptions, 'beatMs' | 'retryMs' | 'clockMs'> & { backupMs?: number; graceMs?: number };
 }
 
 interface Remembered { exam: FoundExam; student: Name; code: string }
 
-const toFound = (f: Found): FoundExam => ({ runId: f.runId, title: f.title, teacher: f.teacher, class: f.class, minutes: f.minutes, host: f.host, port: f.port });
+const toFound = (f: Found): FoundExam => ({ runId: f.runId, title: f.title, teacher: f.teacher, class: f.class, minutes: f.minutes, host: f.host, port: f.port, ...(f.teacherKey ? { teacherKey: f.teacherKey } : {}) });
 
 export class StudentFlow {
   session?: Session;
@@ -64,7 +67,7 @@ export class StudentFlow {
   constructor(private readonly options: FlowOptions) {
     this.now = options.now ?? Date.now;
     this.current = this.fresh();
-    if (options.discoveryPort !== false) this.discovery = new Discovery({ port: options.discoveryPort, now: this.now });
+    if (options.discoveryPort !== false) this.discovery = new Discovery({ port: options.discoveryPort, now: this.now, trust: options.trust });
   }
 
   /** Starts listening for exams. A network that can't be listened on isn't the end: the name can be typed. */
@@ -109,7 +112,7 @@ export class StudentFlow {
 
   /** The teacher's computer name, typed in because no exam was found (F-01, R3). */
   async lookAt(host: string): Promise<void> {
-    this.typed = (await examsAt(host.trim(), this.options.teacherPort, this.now)).map(toFound);
+    this.typed = (await examsAt(host.trim(), this.options.teacherPort, this.now, fetch, this.options.trust)).map(toFound);
     this.listed();
     if (this.typed.length === 0) this.set({ joinError: 'unreachable' });
   }
@@ -121,6 +124,8 @@ export class StudentFlow {
     const file = this.options.remember;
     const was = file ? await readFile(file, 'utf8').then((text) => JSON.parse(text) as Remembered, () => undefined) : undefined;
     if (!was || was.exam.runId !== runId || this.current.screen !== 'join') return;
+    // (an installed ExamMode only comes back to a licensed teacher's exam)
+    if (!was.exam.teacherKey && this.options.trust && !this.options.trust.allowUnsigned) return;
     this.typed = [was.exam];
     this.listed();
     this.set({ picked: runId, names: [was.student] });
@@ -142,7 +147,7 @@ export class StudentFlow {
     this.leaveSession();
     this.set({ joining: true, joinError: undefined });
     const session = new Session({
-      host: exam.host, port: exam.port, runId: exam.runId, studentId, code, pc: this.options.pc, instanceId: randomUUID(), bootId: this.options.bootId,
+      host: exam.host, port: exam.port, teacherKey: exam.teacherKey, runId: exam.runId, studentId, code, pc: this.options.pc, instanceId: randomUUID(), bootId: this.options.bootId,
       now: this.now, ...this.options.timing,
     });
     const folder = join(this.options.examRoot, folderName(`${exam.title} ${exam.runId.slice(0, 8)}`), folderName(student.name));

@@ -173,6 +173,13 @@ describe('11 Make an exam — files to give, saving, changing (F-33, F-35)', () 
     expect(screen.getByRole('dialog')).toHaveTextContent('No lab computer has said what it has installed yet');
   });
 
+  it('F-44 Make an exam says whose licence this laptop runs under — or that it has none', () => {
+    const { rerender } = render(<MakeExam state={teacher({ classes, licence: { name: 'Srey Leak', school: 'Riverside High School', id: '0042' } })} api={teacherApi()} />);
+    expect(screen.getByText(/Licensed to/)).toHaveTextContent('Licensed to Srey Leak · Riverside High School · licence 0042. Your students\' computers trust only this laptop while an exam runs.');
+    rerender(<MakeExam state={teacher({ classes })} api={teacherApi()} />);
+    expect(screen.getByText(/No teacher licence: this is a development build/)).toBeInTheDocument();
+  });
+
   it('a kept exam opens with its apps ticked', () => {
     render(<MakeExam state={teacher({ classes, exams: [{ ...kept, apps: [{ profile: 'excel' }, { custom: { image: 'C:\\Scratch\\Scratch 3.exe', name: 'Scratch 3' } }] }] })} api={teacherApi()} exam={{ ...kept, apps: [{ profile: 'excel' }, { custom: { image: 'C:\\Scratch\\Scratch 3.exe', name: 'Scratch 3' } }] }} />);
     expect(screen.getByRole('checkbox', { name: /Excel/ })).toBeChecked();

@@ -28,6 +28,7 @@
     "prepare": "git config core.hooksPath .githooks || true",
     "spike:win": "node spikes/windows/run-all.mjs",
     "db:generate": "drizzle-kit generate && node scripts/migrations.mjs",
+    "licence": "tsx scripts/licence/cli.ts",
     "class": "tsx scripts/class/cli.ts",
     "guard": "node out/guard/main.js"
   },

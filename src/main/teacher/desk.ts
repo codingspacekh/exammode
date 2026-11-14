@@ -3,6 +3,7 @@
  * and the one state the teacher's screens show (architecture §2.2). M3: open an exam (11, minimal), the lobby (12),
  * the live view (13).
  */
+import type { Identity } from '../../trust/signed';
 import { copyFile, cp, mkdir, readdir, rm, stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { parseSite, type Website } from '@lib/browser/sites';
@@ -31,6 +32,8 @@ export interface DeskOptions {
   now?: () => number;
   /** how often the run's clock ticks */
   tickMs?: number;
+  /** the teacher's licence and key (F-44); none: a development build's teacher */
+  identity?: Identity;
   /** opens a website once and answers with the other hosts it loads its files from (§2.6) */
   record?: (start: string) => Promise<string[]>;
 }
@@ -56,7 +59,7 @@ export class TeacherDesk {
     // (the desk isn't made yet when the server is: what a lab computer says goes to it once it is)
     const made: { desk?: TeacherDesk } = {};
     const server = new ClassroomServer({
-      handIns: options.handIns, port: options.port, tickMs: options.tickMs,
+      handIns: options.handIns, port: options.port, tickMs: options.tickMs, identity: options.identity,
       inventory: async (report) => {
         const kept = await store.saveInventory(report.pc, { profiles: report.profiles, apps: report.apps }, Date.now());
         if (kept) void made.desk?.refresh();
@@ -301,7 +304,9 @@ export class TeacherDesk {
     const last = await this.store.lastExam();
     const defaults = { teacher: last?.teacher ?? '', classId: last?.classId };
     const lab = labApps((await this.store.inventory()).map((r) => r.installed));
-    if (!this.room) return { screen: 'make', classes, exams, labApps: lab, defaults, students: [], feed: [], events: [], files: {} };
+    const by = this.options.identity?.licence;
+    const licence = by ? { name: by.name, school: by.school, id: by.id } : undefined;
+    if (!this.room) return { screen: 'make', classes, exams, labApps: lab, licence, defaults, students: [], feed: [], events: [], files: {} };
     const { run, students } = this.room.view();
     const names = new Map(students.map((s) => [s.id, s.name]));
     const events: FeedItem[] = (await this.store.events(run.id))
@@ -310,6 +315,6 @@ export class TeacherDesk {
     const files: Record<string, KeptFile[]> = {};
     for (const [studentId, kept] of await this.store.runFiles(run.id)) files[studentId] = kept.map(({ name, bytes, kind }) => ({ name, bytes, kind }));
     const screen = run.endedAt !== undefined ? 'ended' : run.startedAt === undefined ? 'lobby' : 'live';
-    return { screen, classes, exams, labApps: lab, defaults, run, students, feed, events, files };
+    return { screen, classes, exams, labApps: lab, licence, defaults, run, students, feed, events, files };
   }
 }

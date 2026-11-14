@@ -17,6 +17,7 @@ import type { AddressInfo } from 'node:net';
 import busboy from 'busboy';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { PROTOCOL_VERSION, inventory, parseFromStudent, stopped, updateReply, upload, type Beacon, type FromTeacher, type Inventory, type Upload } from '@lib/protocol/messages';
+import { signBeacon, signMessage, signUpload, type Identity } from '../../trust/signed';
 import type { Classroom, Link } from './classroom';
 import { discard, newIncoming, receive, type Received } from './handIns';
 
@@ -31,6 +32,9 @@ export interface ServerOptions {
   port?: number;
   /** how often the rooms' clocks tick; 0: only when the caller ticks them */
   tickMs?: number;
+  /** the teacher's licence and key: everything a lab computer must believe is signed with it (F-44). None: a
+   *  development build's teacher, which only a development build's ExamMode joins */
+  identity?: Identity;
   /** keeps what a lab computer says it has installed; false: it wasn't kept */
   inventory?: (report: Inventory) => Promise<boolean>;
 }
@@ -85,7 +89,9 @@ export class ClassroomServer {
   listings(): Beacon[] {
     return [...this.rooms.values()].flatMap((room) => {
       const listing = room.listing();
-      return listing ? [{ v: PROTOCOL_VERSION, ...listing, port: this.port, teacherKeyFp: null }] : [];
+      if (!listing) return [];
+      const beacon: Beacon = { v: PROTOCOL_VERSION, ...listing, port: this.port, teacherKeyFp: null };
+      return [this.options.identity ? signBeacon(beacon, this.options.identity) : beacon];
     });
   }
 
@@ -112,8 +118,12 @@ export class ClassroomServer {
   // ── WebSocket ─────────────────────────────────────────────────────────────────────────────────────────────────
 
   private connected(ws: WebSocket, from?: string): void {
+    // each message is signed for this connection — the student's own random word — and counted (F-44)
+    const identity = this.options.identity;
+    let nonce: string | undefined;
+    let n = 0;
     const say = (msg: FromTeacher): void => {
-      if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(msg));
+      if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(identity && nonce ? signMessage(msg, nonce, n++, identity.privateKey) : msg));
     };
     const link: Link = { send: say, close: () => ws.close(), from };
     let room: Classroom | undefined;
@@ -125,6 +135,11 @@ export class ClassroomServer {
         raw = JSON.parse(String(data));
       } catch {
         return;
+      }
+      const asking = raw as { type?: unknown; nonce?: unknown } | null;
+      if (asking && (asking.type === 'join' || asking.type === 'resume') && typeof asking.nonce === 'string') {
+        nonce = asking.nonce;
+        n = 0;
       }
       const parsed = parseFromStudent(raw);
       if (!parsed.ok) {
@@ -226,7 +241,9 @@ export class ClassroomServer {
       if (!meta || !room) return json(res, 400, { error: 'invalid' });
       const result = await room.upload(meta, received);
       if (!result.ok) return json(res, { unknown: 401, refused: 409, mismatch: 422 }[result.why], { error: result.why });
-      json(res, 200, result.receipt ?? { v: PROTOCOL_VERSION, ok: true });
+      const identity = this.options.identity;
+      // signed: the teacher's laptop has exactly these files of this student (F-44)
+      json(res, 200, { ...(result.receipt ?? { v: PROTOCOL_VERSION, ok: true }), ...(identity ? { sig: signUpload(meta.token, meta.kind, meta.files, identity.privateKey) } : {}) });
     } catch {
       json(res, 400, { error: 'invalid' });
     } finally {

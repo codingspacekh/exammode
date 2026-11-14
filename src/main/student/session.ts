@@ -3,9 +3,11 @@
  * every 2 s, and — when the network goes — the same ExamMode coming back with its own record of the gap (F-19).
  * It decides nothing about the exam: the teacher's laptop does (D5).
  */
+import { randomBytes } from 'node:crypto';
 import { WebSocket } from 'ws';
 import { PROTOCOL_VERSION, parseFromTeacher, type ExamInfo, type FromStudent, type FromTeacher, type RefusedReason } from '@lib/protocol/messages';
 import type { CheckResult } from '@lib/session/attempt';
+import { checkMessage } from '../../trust/signed';
 import { clockOffset, isTimeUp, teacherTime } from '@lib/session/time';
 
 export type SessionState =
@@ -32,6 +34,9 @@ export interface Seat { runId: string; studentId: string; code: string; pc: stri
 export interface SessionOptions extends Seat {
   host: string;
   port: number;
+  /** the licensed teacher's key: only messages signed with it are believed (F-44). None: a development build's
+   *  teacher */
+  teacherKey?: string;
   beatMs?: number;
   retryMs?: number;
   /** how often this computer's count is checked against the end */
@@ -62,6 +67,11 @@ export class Session {
   private offset = 0;
   private seq = 0;
   private asked = 0;
+  /** this connection's random word, and the count of the teacher's last message on it (F-44) */
+  private nonce = '';
+  private lastN = -1;
+  /** messages that weren't the pinned teacher's */
+  ignored = 0;
   private toldTimeUp = false;
   private localLog: LogEntry[] = [];
   private timers: NodeJS.Timeout[] = [];
@@ -77,6 +87,11 @@ export class Session {
   /** `http://host:port`, for the files. */
   get base(): string {
     return `http://${this.options.host}:${this.options.port}`;
+  }
+
+  /** The licensed teacher's key, if this exam has one. */
+  get teacherKey(): string | undefined {
+    return this.options.teacherKey;
   }
 
   get seat(): Seat {
@@ -200,6 +215,14 @@ export class Session {
       } catch {
         return;
       }
+      // F-44: with a licensed teacher, a message that isn't that teacher's, for this connection, in order, is
+      // as if it never came — whatever it says
+      const key = this.options.teacherKey;
+      if (key) {
+        const n = checkMessage(raw, this.nonce, this.lastN, key);
+        if (n === undefined) return void this.ignored++;
+        this.lastN = n;
+      }
       const parsed = parseFromTeacher(raw);
       if (parsed.ok) this.heard(parsed.msg);
       else if (parsed.reason !== 'invalid') this.finish('refused', 'update');
@@ -214,8 +237,11 @@ export class Session {
   private ask(): void {
     this.asked = this.now();
     const { runId, studentId, code, pc, instanceId, bootId } = this.options;
-    if (this.token) this.send({ v: PROTOCOL_VERSION, type: 'resume', token: this.token, instanceId, localLog: this.localLog });
-    else this.send({ v: PROTOCOL_VERSION, type: 'join', runId, studentId, code, pc, instanceId, bootId });
+    this.nonce = randomBytes(18).toString('base64url');
+    this.lastN = -1;
+    const nonce = this.nonce;
+    if (this.token) this.send({ v: PROTOCOL_VERSION, type: 'resume', token: this.token, instanceId, localLog: this.localLog, nonce });
+    else this.send({ v: PROTOCOL_VERSION, type: 'join', runId, studentId, code, pc, instanceId, bootId, nonce });
   }
 
   /** The connection is gone, or couldn't be made. */

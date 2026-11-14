@@ -325,6 +325,88 @@ describe('10 Can\'t join again (F-18, F-20)', () => {
   });
 });
 
+describe('I\'m a teacher… (F-44)', () => {
+  const FORM = { name: 'Srey Leak', school: 'Riverside High School', email: 'sreyleak@riverside-high.example', check: 'riverside-high.example/staff', note: '' };
+  async function fill(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: 'I\'m a teacher…' }));
+    const dialog = within(screen.getByRole('dialog', { name: 'Ask for teacher mode' }));
+    await user.type(dialog.getByRole('textbox', { name: 'Your name' }), FORM.name);
+    await user.type(dialog.getByRole('textbox', { name: 'School' }), FORM.school);
+    await user.type(dialog.getByRole('textbox', { name: 'School email' }), FORM.email);
+    await user.type(dialog.getByRole('textbox', { name: /Where it can be checked/ }), FORM.check);
+    return dialog;
+  }
+
+  it('asks who the teacher is, then shows the request to send, which can be copied', async () => {
+    const api = studentApi();
+    const user = userEvent.setup();
+    render(<Join state={student()} api={api} />);
+    const dialog = await fill(user);
+    expect(dialog.getByRole('alert')).toHaveTextContent('Use your own computer — not one students use.');
+    await user.click(dialog.getByRole('button', { name: 'Make my request' }));
+    expect(api.teacherRequest).toHaveBeenCalledWith(FORM);
+    const send = within(await screen.findByRole('dialog', { name: 'Send your request by email' }));
+    expect(send.getByLabelText('Your request')).toHaveTextContent('ExamMode teacher request Name: Srey Leak Key: MCowBQYDK2VwAyEA');
+    expect(screen.getByRole('dialog')).toHaveTextContent('Send this text to CodingSpaceKH, from your school email if you can.');
+    // no address is built in: there is no email button
+    expect(send.queryByRole('button', { name: /email app/ })).not.toBeInTheDocument();
+    await user.click(send.getByRole('button', { name: 'Copy' }));
+    expect(api.copyText).toHaveBeenCalledWith(expect.stringContaining('ExamMode teacher request'));
+    expect(send.getByRole('button', { name: 'Copied' })).toBeInTheDocument();
+  });
+
+  it('with the author\'s address built in, the request opens in the email app', async () => {
+    const api = studentApi();
+    vi.mocked(api.teacherRequest).mockResolvedValue({ text: 'ExamMode teacher request', address: 'teachers@exammode.example', author: 'CodingSpaceKH' });
+    const user = userEvent.setup();
+    render(<Join state={student()} api={api} />);
+    await user.click((await fill(user)).getByRole('button', { name: 'Make my request' }));
+    expect(await screen.findByRole('dialog')).toHaveTextContent('Send this text to teachers@exammode.example');
+    await user.click(screen.getByRole('button', { name: 'Open in my email app' }));
+    expect(api.emailRequest).toHaveBeenCalledWith('ExamMode teacher request');
+  });
+
+  it('what is missing is said, and the form stays', async () => {
+    const api = studentApi();
+    vi.mocked(api.teacherRequest).mockResolvedValue({ error: 'Type your school email address.' });
+    const user = userEvent.setup();
+    render(<Join state={student()} api={api} />);
+    await user.click(screen.getByRole('button', { name: 'I\'m a teacher…' }));
+    await user.click(screen.getByRole('button', { name: 'Make my request' }));
+    expect(await screen.findByText('Type your school email address.')).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Ask for teacher mode' })).toBeInTheDocument();
+  });
+
+  it('the licence that came back turns teacher mode on, after starting again', async () => {
+    const api = studentApi();
+    vi.mocked(api.loadLicence).mockResolvedValue({ ok: true, name: 'Srey Leak', school: 'Riverside High School', id: '0042' });
+    const user = userEvent.setup();
+    render(<Join state={student()} api={api} />);
+    await user.click(screen.getByRole('button', { name: 'I\'m a teacher…' }));
+    await user.click(screen.getByRole('button', { name: 'I have a licence file…' }));
+    const on = await screen.findByRole('dialog', { name: 'Teacher mode is on' });
+    expect(on).toHaveTextContent('Srey Leak · Riverside High School · licence 0042');
+    await user.click(within(on).getByRole('button', { name: 'Start again in teacher mode' }));
+    expect(api.restart).toHaveBeenCalled();
+  });
+
+  it('F-44 a licence for another computer\'s key is refused, in words; choosing no file changes nothing', async () => {
+    const api = studentApi();
+    const user = userEvent.setup();
+    render(<Join state={student()} api={api} />);
+    await user.click(screen.getByRole('button', { name: 'I\'m a teacher…' }));
+    await user.click(screen.getByRole('button', { name: 'I have a licence file…' }));
+    expect(screen.getByRole('dialog', { name: 'Ask for teacher mode' })).toBeInTheDocument();
+    vi.mocked(api.loadLicence).mockResolvedValue({ ok: false, why: 'otherComputer' });
+    await user.click(screen.getByRole('button', { name: 'I have a licence file…' }));
+    expect(await screen.findByText('This licence is for another computer. Ask for teacher mode from this one.')).toBeInTheDocument();
+    vi.mocked(api.loadLicence).mockResolvedValue({ ok: false, why: 'notFromAuthor' });
+    await user.click(screen.getByRole('button', { name: 'I have a licence file…' }));
+    expect(await screen.findByText(/wasn't made by the author of this ExamMode/)).toBeInTheDocument();
+    expect(api.restart).not.toHaveBeenCalled();
+  });
+});
+
 describe('09 Hand in (F-16)', () => {
   const FILES = [{ name: 'Report.docx', bytes: 24_576, modified: at('10:41') }, { name: 'code/grades.py', bytes: 2048, modified: at('10:36') }];
   const asking = (over = {}) => joined({ screen: 'handIn', endsAt: at('11:00'), handIn: { files: FILES, unchanged: [{ name: 'marks.csv', bytes: 1024, modified: at('09:30') }] }, ...over });

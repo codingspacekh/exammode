@@ -1,3 +1,4 @@
+import type { Trust } from '@lib/trust/licence';
 import type { Installed } from '@lib/profiles/inventory';
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -62,12 +63,12 @@ const INSTALLED: Record<string, Installed> = {
   'PC-03': { profiles: ['word'], apps: [GIMP] },
 };
 
-async function lab(over: Partial<DeskOptions> = {}, lockdown?: Lockdown) {
+async function lab(over: Partial<DeskOptions> = {}, lockdown?: Lockdown, trust?: Trust) {
   const root = await tempFolder();
   const clock = { ahead: 0 };
   const now = () => Date.now() + clock.ahead;
   const student = async (pc: string) => {
-    const flow = new StudentFlow({ pc, examRoot: join(root, pc), bootId: `boot-${pc}`, remember: join(root, pc, 'exam.json'), discoveryPort: 0, now, lockdown: pc === 'PC-14' ? lockdown : undefined, installed: async () => INSTALLED[pc], timing: { beatMs: 40, retryMs: 40, clockMs: 20, graceMs: 40 } });
+    const flow = new StudentFlow({ pc, examRoot: join(root, pc), bootId: `boot-${pc}`, remember: join(root, pc, 'exam.json'), discoveryPort: 0, now, trust, lockdown: pc === 'PC-14' ? lockdown : undefined, installed: async () => INSTALLED[pc], timing: { beatMs: 40, retryMs: 40, clockMs: 20, graceMs: 40 } });
     await flow.start();
     later(() => flow.stop());
     return flow;

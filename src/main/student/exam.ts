@@ -5,6 +5,7 @@
  */
 import { receiptCode } from '@lib/files/receipt';
 import { fromTeacher, type FromTeacher } from '@lib/protocol/messages';
+import { checkUpload } from '../../trust/signed';
 import { ExamFiles, sendFiles, uploadOf } from './files';
 import type { Session } from './session';
 
@@ -83,7 +84,7 @@ export class StudentExam {
       const { files, sent } = await this.files.toBackUp();
       if (files.length === 0) return 0;
       const result = await this.send('backup', token, files);
-      if (!result?.ok) return -1;
+      if (!result?.ok || !this.believed(result.body, token, 'backup', files)) return -1;
       sent();
       this.emit({ type: 'backedUp', files: files.length });
       return files.length;
@@ -101,13 +102,13 @@ export class StudentExam {
         if (this.over || !token) return undefined;
         const files = await this.files.toHandIn();
         const result = await this.send('handIn', token, files);
-        if (result?.ok) {
+        if (result?.ok && this.believed(result.body, token, 'handIn', files)) {
           const receipt = fromTeacher.safeParse(result.body);
           const { runId, studentId } = this.session.seat;
           if (receipt.success && receipt.data.type === 'receipt' && receipt.data.code === await receiptCode(runId, studentId, files)) {
             return this.finished(receipt.data);
           }
-        } else if (result?.status === 401 || result?.status === 409) {
+        } else if (result && !result.ok && (result.status === 401 || result.status === 409)) {
           // no longer in the exam for the teacher's laptop (left, or kept out)
           this.emit({ type: 'handInRefused' });
           return undefined;
@@ -147,6 +148,13 @@ export class StudentExam {
   async removeFolder(): Promise<void> {
     await this.options.closeApps?.().catch(() => undefined);
     await this.files.remove().catch(() => undefined);
+  }
+
+  /** With a licensed teacher, an answer counts only when that teacher's laptop signed it: it has exactly these
+   *  files (F-44). Anyone else's "got them" is as good as no answer. */
+  private believed(body: unknown, token: string, kind: 'backup' | 'handIn', files: Receipt['files']): boolean {
+    const key = this.session.teacherKey;
+    return key === undefined || checkUpload((body as { sig?: unknown } | null)?.sig, token, kind, files, key);
   }
 
   private async send(kind: 'backup' | 'handIn', token: string, files: Receipt['files']) {

@@ -6,9 +6,20 @@
 import { createSocket, type Socket } from 'node:dgram';
 import { z } from 'zod';
 import { PROTOCOL_VERSION, beacon, type Beacon } from '@lib/protocol/messages';
+import type { Trust } from '@lib/trust/licence';
+import { teacherOf } from '../../trust/signed';
 
 /** An open exam, and the computer it is on. */
-export interface Found extends Beacon { host: string; heardAt: number }
+export interface Found extends Beacon { host: string; heardAt: number; /** the licensed teacher's key, which this exam's messages must be signed with (F-44); none: a development build's teacher */ teacherKey?: string }
+
+/** A development build's trust: any teacher, licensed or not. */
+export const ANYONE: Trust = { authorKeys: [], allowUnsigned: true };
+
+/** An announcement as an exam to list — only a licensed teacher's (F-44). */
+export function listed(b: Beacon, trust: Trust, host: string, heardAt: number): Found | undefined {
+  const key = teacherOf(b, trust);
+  return key === undefined ? undefined : { ...b, host, heardAt, ...(key ? { teacherKey: key } : {}) };
+}
 export interface Name { id: string; name: string; email?: string }
 
 /** An exam not heard of for this long is taken off the list: its beacon comes every 2 s. */
@@ -17,6 +28,8 @@ export const STALE_MS = 6000;
 export interface DiscoveryOptions {
   port?: number;
   staleMs?: number;
+  /** whose exams are listed; by default anyone's (a development build) */
+  trust?: Trust;
   now?: () => number;
 }
 
@@ -49,7 +62,9 @@ export class Discovery {
       }
       const parsed = beacon.safeParse(raw);
       if (!parsed.success || parsed.data.v !== PROTOCOL_VERSION) return;
-      this.heard.set(parsed.data.runId, { ...parsed.data, host: from.address, heardAt: this.now() });
+      const exam = listed(parsed.data, this.options.trust ?? ANYONE, from.address, this.now());
+      if (!exam) return;
+      this.heard.set(exam.runId, exam);
       this.tell();
     });
     await new Promise<void>((resolve, reject) => {
@@ -90,11 +105,11 @@ export class Discovery {
 }
 
 /** The exams open on a computer whose name or address was typed in (F-01's fallback). None if it can't be reached. */
-export async function examsAt(host: string, port = 47800, now: () => number = Date.now, get: typeof fetch = fetch): Promise<Found[]> {
+export async function examsAt(host: string, port = 47800, now: () => number = Date.now, get: typeof fetch = fetch, trust: Trust = ANYONE): Promise<Found[]> {
   try {
     const res = await get(`http://${host}:${port}/exams`, { signal: AbortSignal.timeout(3000) });
     const exams = z.array(beacon).safeParse(await res.json());
-    return exams.success ? exams.data.filter((e) => e.v === PROTOCOL_VERSION).map((e) => ({ ...e, host, heardAt: now() })) : [];
+    return exams.success ? exams.data.filter((e) => e.v === PROTOCOL_VERSION).flatMap((e) => listed(e, trust, host, now()) ?? []) : [];
   } catch {
     return [];
   }

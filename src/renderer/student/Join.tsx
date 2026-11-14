@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { Calm, Card } from './Calm';
+import { ImTeacher } from './ImTeacher';
 
 const WHY: Record<JoinError, string> = {
   codeWrong: 'That isn\'t the code on the board. Look again and type it once more.',
@@ -112,6 +113,7 @@ export function Join({ state, api }: { state: StudentState; api: StudentApi }) {
           </div>
         </form>
       </Card>
+      <ImTeacher api={api} />
     </Calm>
   );
 }

@@ -6,6 +6,7 @@
 import { z } from 'zod';
 import { examApp } from '../profiles/exam-apps';
 import { installedApp, MAX_APPS } from '../profiles/inventory';
+import { licence } from '../trust/licence';
 
 export const PROTOCOL_VERSION = 1;
 
@@ -19,9 +20,13 @@ export type FileMeta = z.infer<typeof fileMeta>;
 
 const logEntry = z.object({ at: time, kind: id, details: z.record(z.string(), z.unknown()) });
 
+/** A join's or a return's own random word: the teacher's signatures on this connection's messages are bound to it
+ *  (F-44). */
+const nonce = z.string().min(8).max(100).optional();
+
 export const fromStudent = z.discriminatedUnion('type', [
-  z.object({ v, type: z.literal('join'), runId: id, studentId: id, code: z.string().regex(/^\d{4}$/), pc: id, instanceId: id, bootId: id }),
-  z.object({ v, type: z.literal('resume'), token: id, instanceId: id, localLog: z.array(logEntry) }),
+  z.object({ v, type: z.literal('join'), runId: id, studentId: id, code: z.string().regex(/^\d{4}$/), pc: id, instanceId: id, bootId: id, nonce }),
+  z.object({ v, type: z.literal('resume'), token: id, instanceId: id, localLog: z.array(logEntry), nonce }),
   z.object({ v, type: z.literal('checks'), results: z.array(z.object({ check: id, ok: z.boolean() })) }),
   z.object({ v, type: z.literal('ready') }),
   z.object({ v, type: z.literal('beat'), seq: z.int().nonnegative(), front: z.string().optional() }),
@@ -58,9 +63,12 @@ export const fromTeacher = z.discriminatedUnion('type', [
 ]);
 export type FromTeacher = z.infer<typeof fromTeacher>;
 
-/** Finding exams (F-01): broadcast by the teacher's laptop every 2 s. The key's fingerprint comes with M7. */
-export const beacon = z.object({
+/** Finding exams (F-01): broadcast by the teacher's laptop every 2 s. A licensed teacher's carries the licence
+ *  and the teacher's signature on everything else in it (F-44) — parts this version doesn't know are kept, as
+ *  they were signed too. */
+export const beacon = z.looseObject({
   v, runId: id, title: id, teacher: id, class: id, minutes: z.int().positive().optional(), port: z.int().min(1).max(65_535), teacherKeyFp: z.string().nullable(),
+  licence: licence.optional(), sig: z.string().max(200).optional(),
 });
 export type Beacon = z.infer<typeof beacon>;
 

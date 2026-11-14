@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AppWindowIcon, CheckIcon, ExamIcon, FileIcon, FileTextIcon, FolderIcon, GlobeIcon, MinusIcon, PencilSimpleIcon, PlayIcon, PlusIcon, ShieldCheckIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
+import { AppWindowIcon, CheckIcon, ExamIcon, FileIcon, FileTextIcon, FolderIcon, GlobeIcon, MinusIcon, PencilSimpleIcon, PlayIcon, PlusIcon, SealCheckIcon, ShieldCheckIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
 import type { ExamForm, GivenFile, SavedExam, TeacherApi, TeacherState } from '@lib/app/state';
 import { parseRoster } from '@lib/exam/roster';
 import { BUILTIN } from '@lib/profiles/builtin';
@@ -216,6 +216,11 @@ export function MakeExam({ state, api, exam, page, onPage, onClose, cancel = fal
               ))}
             </ul>
           </Section>
+          <p className="px-1 text-[12px] leading-relaxed text-muted-foreground">
+            {state.licence
+              ? <><SealCheckIcon className="mr-1 inline size-3.5 align-[-2px] text-primary" />Licensed to <b className="text-text-2">{state.licence.name}</b> · {state.licence.school} · licence {state.licence.id}. Your students' computers trust only this laptop while an exam runs.</>
+              : <><WarningIcon className="mr-1 inline size-3.5 align-[-2px] text-warn" />No teacher licence: this is a development build. Only development builds of ExamMode find its exams.</>}
+          </p>
         </aside>
       </div>
     </div>

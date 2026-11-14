@@ -30,7 +30,9 @@ export function studentApi(state: StudentState = student()): StudentApi & { tell
   return {
     get: vi.fn(async () => state), onState: (l) => { listeners.add(l); return () => void listeners.delete(l); },
     tell: (next) => listeners.forEach((l) => l(next)),
-    pick: done(), lookAt: done(), join: done(), checkAgain: done(), lock: done(), backOut: done(), askHandIn: done(), keepWorking: done(), handIn: done(), askLeave: done(), leave: done(), giveUp: done(), finish: done(), showQuestions: done(), openApp: done(), openFolder: done(),
+    pick: done(), lookAt: done(), join: done(), checkAgain: done(), lock: done(), backOut: done(), askHandIn: done(), keepWorking: done(), handIn: done(), askLeave: done(), leave: done(), giveUp: done(), finish: done(), showQuestions: done(), openApp: done(), openFolder: done(), copyText: done(), emailRequest: done(), restart: done(),
+    teacherRequest: vi.fn(async () => ({ text: 'ExamMode teacher request\nName: Srey Leak\nKey: MCowBQYDK2VwAyEA', address: '', author: 'CodingSpaceKH' })),
+    loadLicence: vi.fn(async () => undefined),
   };
 }
 

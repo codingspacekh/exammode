@@ -3,12 +3,15 @@
  * the exam, the exam bar across the top of the screen (04) and — only if the exam has websites — the exam browser
  * under it. What they show is the student's flow (flow.ts). Electron glue: proven by the e2e tests.
  */
+import { AUTHOR, REQUEST_ADDRESS } from '@lib/trust/author';
+import type { RequestForm } from '../teacher/licence';
+import { teacherLicence, trust } from './trust';
 import { readFile } from 'node:fs/promises';
 import type { Installed } from '@lib/profiles/inventory';
 import { mkdirSync } from 'node:fs';
 import { hostname, uptime } from 'node:os';
 import { dirname, join } from 'node:path';
-import { app, clipboard, screen, shell, type BrowserWindow } from 'electron';
+import { app, clipboard, dialog, screen, shell, type BrowserWindow } from 'electron';
 import type { BrowserState, StudentState } from '@lib/app/state';
 import { StudentFlow } from '../student/flow';
 import type { WindowsLockdown } from '../student/lockdown-win';
@@ -60,6 +63,7 @@ export async function runStudent(): Promise<void> {
     bootId: String(Math.round((Date.now() - uptime() * 1000) / 60_000)),
     discoveryPort: number(env.EXAMMODE_BEACON_PORT),
     teacherPort: number(env.EXAMMODE_PORT),
+    trust: trust(env),
     remember: join(app.getPath('userData'), 'exam.json'),
     // what this computer has installed, for the teacher's Add an app; (development: from a file)
     installed: env.EXAMMODE_INSTALLED && !app.isPackaged
@@ -98,6 +102,30 @@ export async function runStudent(): Promise<void> {
     finish: () => flow.finish(),
     showQuestions: () => browser?.window.show(),
     openApp: (id: string) => flow.openApp(id),
+    // ── I'm a teacher… (F-44): only from the first screen, never during an exam ──
+    teacherRequest: async (form: RequestForm) => {
+      if (flow.state().screen !== 'join') return { error: 'Not during an exam.' };
+      try {
+        const made = await teacherLicence(env).request(form, `ExamMode ${app.getVersion()} · ${process.platform === 'darwin' ? 'macOS' : process.platform === 'win32' ? 'Windows' : process.platform}`);
+        return 'text' in made ? { ...made, address: REQUEST_ADDRESS, author: AUTHOR } : made;
+      } catch (error) {
+        return { error: error instanceof Error ? error.message : String(error) };
+      }
+    },
+    copyText: (text: string) => clipboard.writeText(String(text).slice(0, 4000)),
+    emailRequest: (text: string) => (REQUEST_ADDRESS ? shell.openExternal(`mailto:${REQUEST_ADDRESS}?subject=${encodeURIComponent('ExamMode teacher request')}&body=${encodeURIComponent(String(text).slice(0, 4000))}`) : undefined),
+    loadLicence: async () => {
+      if (flow.state().screen !== 'join') return undefined;
+      const [path] = env.EXAMMODE_LICENCE_FILE && !app.isPackaged ? [env.EXAMMODE_LICENCE_FILE] : (await dialog.showOpenDialog(main, { title: 'Your teacher licence', properties: ['openFile'], filters: [{ name: 'ExamMode teacher licence', extensions: ['emlicence'] }] })).filePaths;
+      if (!path) return undefined;
+      const loaded = await teacherLicence(env).load(path);
+      return loaded.ok ? { ok: true, name: loaded.licence.name, school: loaded.licence.school, id: loaded.licence.id } : { ok: false, why: loaded.why };
+    },
+    restart: () => {
+      if (flow.state().screen !== 'join') return;
+      app.relaunch({ args: process.argv.slice(1).filter((a) => a !== '--student') });
+      app.exit(0);
+    },
     // M3: the computer isn't locked, so the Exam folder opens in the system's own file manager (its own list: M5)
     openFolder: () => {
       if (!flow.folder) return;

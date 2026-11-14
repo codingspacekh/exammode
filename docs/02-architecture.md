@@ -315,7 +315,16 @@ As in MicroLab (its Rev 16, §1.16), reusing its author key and `npm run licence
 2. *I'm a teacher…* makes a key pair on the teacher's laptop and sends a request. The author signs a **teacher licence** (`.emlicence`).
 3. The teacher's laptop **signs its beacon and its replies**. A student's ExamMode checks the author's signature on the licence and the teacher's signature on the messages, and **pins the teacher's key for the run**, so another laptop can't take over a run halfway through (F-44).
 
-This comes in a late milestone (M7). Until then, development builds accept an unsigned teacher behind a build flag.
+*As built (M7):* MicroLab's tool and key didn't exist yet, so these are ExamMode's own (`scripts/licence/`, `src/lib/trust/`); the author's public keys, the withdrawn licences and the request address are build settings in `src/lib/trust/author.json`.
+
+- **Keys:** Ed25519. A signature is over `what\n` + the value's canonical JSON (keys in order), so a signature made for one kind of message can't be shown as another.
+- **The teacher's key** is made by *I'm a teacher…* and kept in the settings folder, its private half sealed by the system's keychain (Electron's `safeStorage`) — no passcode. The request is text for an email; the licence (`.emlicence`) is JSON: `{ v, app, id, name, school, key, issuedAt, sig }`.
+- **Teacher mode** is having a licence for this computer's key: ExamMode then starts as the teacher's.
+- **The beacon** (and `GET /exams`) carries the licence and the teacher's signature on everything else in it. A lab computer lists an exam only when the author signed the licence and the licence's key signed the beacon; that key is pinned for the run.
+- **Messages to a student** carry a count `n` and a signature over `{ nonce, msg }`, where `nonce` is the random word the student sent with that connection's `join` or `resume`. A message that isn't the pinned key's, for this connection, with a higher count, is ignored — whatever it says.
+- **The answer to `POST /upload`** carries a signature over `{ token, kind, files }`: without it nothing counts as backed up or handed in.
+- **Not signed:** the class list; anything a student's ExamMode sends (R7).
+- **A development build** takes a teacher with no licence and can be one (`--teacher`); `EXAMMODE_REQUIRE_LICENCE=1` makes it as strict as an installed ExamMode, and `EXAMMODE_AUTHOR_KEYS` gives it a test's own author. An installed ExamMode has neither.
 
 ## 2.13 Project structure
 
@@ -361,7 +370,7 @@ exammode/
 
 | Command | Does |
 |---|---|
-| `npm run dev` | ExamMode in development, as a lab computer; `EXAMMODE_MODE=teacher npm run dev` in teacher mode (until the licence, M7). Nothing is locked before M4 |
+| `npm run dev` | ExamMode in development, as a lab computer; `EXAMMODE_MODE=teacher npm run dev` in teacher mode with no licence (a development build only; an ExamMode with a licence is the teacher's by itself, M7). Nothing is locked before M4 |
 | `npm run class -- --students 30 --minutes 10 --speed 20` | a **simulated classroom**: a teacher's side and 30 fake students joining, working, losing the network, crashing, handing in; it prints the log as it happens |
 | `npm run db:generate` | after changing a table in `schema.ts`: writes the next migration |
 | `npm test` | unit tests |

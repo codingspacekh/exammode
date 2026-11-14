@@ -103,6 +103,8 @@ export interface TeacherState {
   run?: RunView;
   students: StudentView[];
   /** what's happening, newest first, without what the lists already show */
+  /** the teacher's licence: who the author says this is (F-44); none: a development build's teacher */
+  licence?: { name: string; school: string; id: string };
   feed: FeedItem[];
   /** every event of the run, oldest first: the students' timelines (13b) */
   events: FeedItem[];
@@ -146,7 +148,7 @@ export interface TeacherApi {
 // ── the student's side ──────────────────────────────────────────────────────────────────────────────────────────
 
 /** An exam that is open on the classroom network (01). */
-export interface FoundExam { runId: string; title: string; teacher: string; class: string; minutes?: number; host: string; port: number }
+export interface FoundExam { runId: string; title: string; teacher: string; class: string; minutes?: number; host: string; port: number; /** the licensed teacher's key (F-44) */ teacherKey?: string }
 export interface Name { id: string; name: string; email?: string }
 export interface FileLine { name: string; bytes: number; modified: number }
 export type JoinError = 'codeWrong' | 'nameTaken' | 'notInClass' | 'left' | 'keptOut' | 'handedIn' | 'notJoined' | 'ended' | 'update' | 'unreachable';
@@ -191,6 +193,12 @@ export interface StudentState {
 /** One of the exam's apps, as the exam bar shows it. */
 export interface BarApp { id: string; name: string; badge?: { text: string; color: string }; running: boolean; front: boolean; /** a file of it that isn't saved (09) */ unsaved?: string }
 
+/** What a teacher says about themselves when asking for a licence (F-44). */
+export interface TeacherRequestForm { name: string; school: string; email: string; check: string; note?: string }
+export type LicenceLoaded =
+  | { ok: true; name: string; school: string; id: string }
+  | { ok: false; why: 'invalid' | 'notFromAuthor' | 'withdrawn' | 'otherComputer' | 'unreadable' | 'noRequest' };
+
 export interface StudentApi {
   get(): Promise<StudentState>;
   onState(listener: (state: StudentState) => void): () => void;
@@ -221,6 +229,15 @@ export interface StudentApi {
   /** opens one of the exam's apps under the bar, or brings it to the front (F-11) */
   openApp(id: string): Promise<void>;
   openFolder(): Promise<void>;
+  /** I'm a teacher… (F-44): the request to send to the author, as text — or what is missing, in words */
+  teacherRequest(form: TeacherRequestForm): Promise<{ text: string; address: string; author: string } | { error: string }>;
+  copyText(text: string): Promise<void>;
+  /** opens the request in the computer's email app, when the author's address is known */
+  emailRequest(text: string): Promise<void>;
+  /** the licence file the author sent; nothing: no file was chosen */
+  loadLicence(): Promise<LicenceLoaded | undefined>;
+  /** starts ExamMode again: with a licence, in teacher mode */
+  restart(): Promise<void>;
 }
 
 // ── the exam browser ────────────────────────────────────────────────────────────────────────────────────────────
