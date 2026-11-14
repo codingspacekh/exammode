@@ -3,10 +3,12 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { StudentApp } from '@/App';
 import { BrowserShell } from '@/student/BrowserShell';
+import { CantJoin } from '@/student/CantJoin';
 import { ExamBar } from '@/student/ExamBar';
 import { HandedIn } from '@/student/HandedIn';
 import { HandIn } from '@/student/HandIn';
 import { Join } from '@/student/Join';
+import { Leave } from '@/student/Leave';
 import { Waiting } from '@/student/Waiting';
 import { at, browserApi, joined, student, studentApi } from './fakes';
 
@@ -149,9 +151,76 @@ describe('04 The exam bar (F-09)', () => {
     expect(api.showQuestions).toHaveBeenCalledOnce();
   });
 
+  it('10b with no contact a strip under the bar says so, and counts how long', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(at('09:45:42'));
+    render(<ExamBar state={inExam({ contact: false, lostAt: at('09:45') })} api={studentApi()} />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Can\'t reach the teacher\'s computer. Keep working — your work is saved on this computer. Trying again · 0:42');
+  });
+
+  it('F-15 the door at the end of the bar asks about leaving', async () => {
+    const api = studentApi();
+    render(<ExamBar state={inExam()} api={api} />);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Leave the exam…' }));
+    expect(api.askLeave).toHaveBeenCalledOnce();
+  });
+
   it('while Hand in is open, the bar\'s Hand in… can\'t be pressed again', () => {
     render(<ExamBar state={inExam({ screen: 'handIn' })} api={studentApi()} />);
     expect(screen.getByRole('button', { name: 'Hand in…' })).toBeDisabled();
+  });
+});
+
+describe('08 Leave the exam? (F-15)', () => {
+  const FILES = [{ name: 'Report.docx', bytes: 24_576, modified: at('09:57') }];
+  const asking = (over = {}) => joined({ screen: 'leave', handIn: { files: FILES, unchanged: [] }, ...over });
+
+  it('says it can\'t be undone, and lists the work that is handed in as it is', () => {
+    render(<Leave state={asking()} api={studentApi()} />);
+    const dialog = screen.getByRole('alertdialog', { name: 'Leave the exam?' });
+    expect(dialog).toHaveTextContent('you can\'t come back into this exam — not on this computer and not on another one. Only Ms Srey Leak can let you back in.');
+    expect(within(screen.getByRole('list', { name: 'Your work so far' })).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Report.docxsaved 09:57']);
+  });
+
+  it('Leave stays greyed out until the box is ticked; Stay is the button already chosen', async () => {
+    const api = studentApi();
+    const user = userEvent.setup();
+    render(<Leave state={asking()} api={api} />);
+    const leave = screen.getByRole('button', { name: 'Leave the exam' });
+    expect(leave).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Stay in the exam' })).toHaveFocus();
+    await user.click(screen.getByRole('checkbox', { name: 'I understand I can\'t come back into this exam' }));
+    expect(leave).toBeEnabled();
+    await user.click(leave);
+    expect(api.leave).toHaveBeenCalledOnce();
+    await user.click(screen.getByRole('button', { name: 'Stay in the exam' }));
+    expect(api.keepWorking).toHaveBeenCalledOnce();
+  });
+
+  it('while leaving, nothing can be pressed twice', () => {
+    render(<Leave state={asking({ handingIn: true, handIn: { files: [], unchanged: [] } })} api={studentApi()} />);
+    expect(screen.getByRole('button', { name: 'Leaving…' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Stay in the exam' })).toBeDisabled();
+    expect(screen.getByText('There is nothing in your Exam folder.')).toBeInTheDocument();
+  });
+});
+
+describe('10 Can\'t join again (F-18, F-20)', () => {
+  it('says when, where and how the student left, that the teacher was told, and waits', async () => {
+    const api = studentApi();
+    render(<CantJoin state={joined({ screen: 'cantJoin', pc: 'PC-02', left: { at: at('09:58'), how: 'stoppedSuddenly', pc: 'PC-07' } })} api={api} />);
+    expect(screen.getByRole('heading', { name: 'You can\'t join this exam again' })).toBeInTheDocument();
+    expect(screen.getAllByRole('definition').map((dd) => dd.textContent)).toEqual(['Sokha Chan', '09:58 on PC-07', 'ExamMode stopped suddenly', 'Handed in as it was at 09:58']);
+    expect(screen.getByRole('note')).toHaveTextContent('Ms Srey Leak has been told you\'d like to come back.');
+    expect(screen.getByRole('status')).toHaveTextContent('Waiting for Ms Srey Leak…');
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(api.giveUp).toHaveBeenCalledOnce();
+  });
+
+  it('a student who pressed Leave on this computer is told so', () => {
+    render(<CantJoin state={joined({ screen: 'cantJoin', left: { at: at('10:05'), how: 'pressedLeave', pc: 'PC-14' } })} api={studentApi()} />);
+    expect(screen.getAllByRole('definition').map((dd) => dd.textContent).slice(1, 3)).toEqual(['10:05 on this computer', 'You pressed Leave']);
   });
 });
 
@@ -267,5 +336,9 @@ describe('the lab computer\'s window follows what the main process says', () => 
     expect(screen.getByRole('dialog', { name: 'Hand in your work' })).toBeInTheDocument();
     act(() => api.tell(joined({ screen: 'handedIn', receipt: { code: 'HX7-29Q', at: at('10:42'), byItself: false, files: [] } })));
     expect(screen.getByRole('heading', { name: 'Handed in' })).toBeInTheDocument();
+    act(() => api.tell(joined({ screen: 'leave', handIn: { files: [], unchanged: [] } })));
+    expect(screen.getByRole('alertdialog', { name: 'Leave the exam?' })).toBeInTheDocument();
+    act(() => api.tell(joined({ screen: 'cantJoin' })));
+    expect(screen.getByRole('heading', { name: 'You can\'t join this exam again' })).toBeInTheDocument();
   });
 });

@@ -218,7 +218,7 @@ describe('M3 an exam from the lobby to the receipts', () => {
     await eventually(() => expect(card(desk, 'Sokha Chan')).toMatchObject({ handedInHow: 'timeUp' }));
   });
 
-  it('F-18 a student who is refused is back on the join screen, told why', async () => {
+  it('F-18 F-20 a student who left is told so on any computer, and waits for the teacher (10)', async () => {
     const { desk, flows, sit } = await lab();
     const [sokha, other] = flows as [StudentFlow, StudentFlow];
     await desk.openExam(FORM);
@@ -230,11 +230,73 @@ describe('M3 an exam from the lobby to the receipts', () => {
     Object.assign(other, { options: { ...other['options'], teacherPort: desk.port, pc: 'PC-14' } });
     await other.lookAt('127.0.0.1');
     await sit(other, 'Sokha Chan');
-    expect(other.state()).toMatchObject({ screen: 'join', joinError: 'left' });
+    expect(other.state()).toMatchObject({ screen: 'cantJoin', student: { name: 'Sokha Chan' }, exam: { title: FORM.title }, left: { how: 'stoppedSuddenly', pc: 'PC-14' } });
+    await eventually(() => expect(desk.state().students.find((s) => s.name === 'Sokha Chan')).toMatchObject({ state: 'left', asksBackFrom: 'PC-14' }));
     // … and the first one finds that out when it hands in
     await sokha.askHandIn();
     await sokha.handIn();
     await eventually(() => expect(sokha.state()).toMatchObject({ screen: 'join', joinError: 'left' }));
+
+    // F-40 Keep out: the waiting ExamMode is told, and is back on the join screen
+    await desk.keepOut(desk.state().students.find((s) => s.name === 'Sokha Chan')!.id, ' was seen with a phone ');
+    await eventually(() => expect(other.state()).toMatchObject({ screen: 'join', joinError: 'keptOut' }));
+    expect(desk.state().events.at(-1)).toMatchObject({ kind: 'keptOut', student: 'Sokha Chan', details: { reason: 'was seen with a phone' } });
+
+    // asking again, then giving up, is back on the join screen with nothing said
+    await sit(other, 'Sokha Chan');
+    expect(other.state().screen).toBe('cantJoin');
+    other.giveUp();
+    expect(other.state().screen).toBe('join');
+    expect(other.state().joinError).toBeUndefined();
+  });
+
+  it('F-15 F-18 F-40 Leave is asked first; after it the student can\'t join again until the teacher lets them back in — then the exam opens by itself', async () => {
+    const { desk, sokha, sit, card } = await lab();
+    await desk.openExam(FORM);
+    await sit(sokha, 'Sokha Chan');
+    await eventually(() => expect(card(desk, 'Sokha Chan').state).toBe('ready'));
+    await desk.start();
+    await eventually(() => expect(sokha.state().screen).toBe('exam'));
+    await sokha.exam!.begin();
+    const folder = sokha.folder!;
+    await writeFile(join(folder, 'Report.docx'), 'half done');
+
+    await sokha.leave();
+    await sokha.askLeave();
+    expect(sokha.state()).toMatchObject({ screen: 'leave', handIn: { files: [{ name: 'Report.docx' }] } });
+    sokha.keepWorking();
+    expect(sokha.state().screen).toBe('exam');
+    await sokha.askLeave();
+    await sokha.leave();
+    expect(sokha.state()).toMatchObject({ screen: 'join', handingIn: false });
+    await eventually(() => expect(card(desk, 'Sokha Chan')).toMatchObject({ state: 'left', leftHow: 'pressedLeave', files: 1 }));
+    expect(readFileSync(join(desk.folder!, 'Sokha Chan', 'Report.docx'), 'utf8')).toBe('half done');
+    expect(existsSync(folder)).toBe(false);
+    expect(desk.state().files[card(desk, 'Sokha Chan').id]).toEqual([{ name: 'Report.docx', bytes: 9, kind: 'backup' }]);
+
+    // joining again: refused; the teacher sees the request and lets them back in
+    await sit(sokha, 'Sokha Chan');
+    expect(sokha.state()).toMatchObject({ screen: 'cantJoin', left: { how: 'pressedLeave', pc: 'PC-14' } });
+    await desk.letBackIn(card(desk, 'Sokha Chan').id, 'Pressed Leave by mistake');
+    await eventually(() => expect(sokha.state()).toMatchObject({ screen: 'exam', endsAt: desk.state().run!.endsAt }));
+    expect(sokha.state().left).toBeUndefined();
+    await eventually(() => expect(card(desk, 'Sokha Chan')).toMatchObject({ state: 'inExam', connected: true }));
+    expect(desk.state().events.filter((e) => e.student === 'Sokha Chan').map((e) => e.kind)).toEqual(['joined', 'ready', 'started', 'left', 'asksBack', 'letBackIn', 'cameBack']);
+
+    // F-41 more time, for this student and then for everyone
+    await desk.addTime(10, card(desk, 'Sokha Chan').id);
+    await desk.addTime(5);
+    await desk.addTime(0);
+    await eventually(() => expect(sokha.state().endsAt).toBe(desk.state().run!.startedAt! + 105 * 60_000));
+    expect(card(desk, 'Sokha Chan').extraMinutes).toBe(10);
+
+    // F-42 after the end: the screen is the list of hand-ins, and the log is a spreadsheet
+    await desk.end();
+    await eventually(() => expect(desk.state().screen).toBe('ended'));
+    const csv = desk.logCsv().split('\r\n');
+    expect(csv[0]).toContain('Time,Student,Computer,What happened,Details');
+    expect(csv.some((row) => row.includes(',Sokha Chan,PC-14,letBackIn,reason: Pressed Leave by mistake'))).toBe(true);
+    expect(desk.folderOf(card(desk, 'Sokha Chan').id)).toBe(join(desk.folder!, 'Sokha Chan'));
   });
 
   it('F-19 with no contact the exam bar says so, and says so no longer when contact is back', async () => {

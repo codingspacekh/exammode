@@ -4,7 +4,8 @@
  * the live view (13).
  */
 import { parseSite, type Website } from '@lib/browser/sites';
-import type { ExamForm, FeedItem, TeacherState } from '@lib/app/state';
+import type { ExamForm, FeedItem, KeptFile, TeacherState } from '@lib/app/state';
+import { logCsv } from '@lib/exam/log';
 import { BeaconSender, type BeaconOptions } from './beacon';
 import { Classroom } from './classroom';
 import { ClassroomServer } from './server';
@@ -32,7 +33,7 @@ const MAX_MINUTES = 600;
 export class TeacherDesk {
   private room?: Classroom;
   private unwatch?: () => void;
-  private current: TeacherState = { screen: 'make', classes: [], defaults: { teacher: '' }, students: [], feed: [] };
+  private current: TeacherState = { screen: 'make', classes: [], defaults: { teacher: '' }, students: [], feed: [], events: [], files: {} };
   private readonly listeners = new Set<(state: TeacherState) => void>();
   private refreshing?: Promise<void>;
   private again = false;
@@ -114,6 +115,30 @@ export class TeacherDesk {
     await this.room?.end();
   }
 
+  /** Let back in (F-40): the reason goes in the log. */
+  async letBackIn(studentId: string, reason: string): Promise<void> {
+    await this.room?.letBackIn(studentId, reason.trim());
+  }
+
+  async keepOut(studentId: string, reason: string): Promise<void> {
+    await this.room?.keepOut(studentId, reason.trim());
+  }
+
+  /** More time, for one student or for everyone (F-41). */
+  async addTime(minutes: number, studentId?: string): Promise<void> {
+    if (Number.isInteger(minutes) && minutes > 0 && minutes <= MAX_MINUTES) await this.room?.addTime(minutes, studentId);
+  }
+
+  /** A student's folder in the open run's hand-ins. */
+  folderOf(studentId: string): string | undefined {
+    return this.room?.folderOf(studentId);
+  }
+
+  /** The open run's log as a spreadsheet (F-42). */
+  logCsv(): string {
+    return logCsv(this.current.events);
+  }
+
   /** After the end: the run is put away, and another exam can be opened. */
   async done(): Promise<void> {
     if (!this.room || this.room.view().run.endedAt === undefined) return;
@@ -159,13 +184,15 @@ export class TeacherDesk {
     const classes = await this.store.classes();
     const last = await this.store.lastExam();
     const defaults = { teacher: last?.teacher ?? '', classId: last?.classId };
-    if (!this.room) return { screen: 'make', classes, defaults, students: [], feed: [] };
+    if (!this.room) return { screen: 'make', classes, defaults, students: [], feed: [], events: [], files: {} };
     const { run, students } = this.room.view();
     const names = new Map(students.map((s) => [s.id, s.name]));
-    const feed: FeedItem[] = (await this.store.events(run.id))
-      .filter((e) => !QUIET.includes(e.kind))
-      .slice(-FEED).reverse()
-      .map((e) => ({ id: e.id, at: e.at, kind: e.kind, student: e.studentId ? names.get(e.studentId) : undefined, pc: e.pc ?? undefined, details: e.details }));
-    return { screen: run.startedAt === undefined ? 'lobby' : 'live', classes, defaults, run, students, feed };
+    const events: FeedItem[] = (await this.store.events(run.id))
+      .map((e) => ({ id: e.id, at: e.at, kind: e.kind, studentId: e.studentId ?? undefined, student: e.studentId ? names.get(e.studentId) : undefined, pc: e.pc ?? undefined, details: e.details }));
+    const feed = events.filter((e) => !QUIET.includes(e.kind)).slice(-FEED).reverse();
+    const files: Record<string, KeptFile[]> = {};
+    for (const [studentId, kept] of await this.store.runFiles(run.id)) files[studentId] = kept.map(({ name, bytes, kind }) => ({ name, bytes, kind }));
+    const screen = run.endedAt !== undefined ? 'ended' : run.startedAt === undefined ? 'lobby' : 'live';
+    return { screen, classes, defaults, run, students, feed, events, files };
   }
 }

@@ -116,6 +116,16 @@ export class Store {
     return found;
   }
 
+  /** The files kept from each student of a run, by student. */
+  async runFiles(runId: string): Promise<Map<string, FileRow[]>> {
+    const rows = await this.db.select({ studentId: schema.attempts.studentId, file: schema.handinFiles })
+      .from(schema.handinFiles).innerJoin(schema.attempts, eq(schema.attempts.id, schema.handinFiles.attemptId))
+      .where(eq(schema.attempts.runId, runId)).orderBy(asc(schema.handinFiles.name));
+    const files = new Map<string, FileRow[]>();
+    for (const r of rows) files.set(r.studentId, [...(files.get(r.studentId) ?? []), r.file]);
+    return files;
+  }
+
   /** How many files the teacher's laptop has from each student of a run. */
   async fileCounts(runId: string): Promise<Map<string, number>> {
     const rows = await this.db.select({ studentId: schema.attempts.studentId, kind: schema.handinFiles.kind })

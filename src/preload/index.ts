@@ -21,7 +21,7 @@ function side(name: string, calls: string[]): Record<string, unknown> {
 contextBridge.exposeInMainWorld('exammode', {
   platform: process.platform,
   view: new URLSearchParams(location.search).get('view') ?? 'student',
-  student: side('student', ['pick', 'lookAt', 'join', 'askHandIn', 'keepWorking', 'handIn', 'finish', 'showQuestions', 'openFolder']),
-  teacher: side('teacher', ['open', 'start', 'end', 'done', 'openFolder']),
+  student: side('student', ['pick', 'lookAt', 'join', 'askHandIn', 'keepWorking', 'handIn', 'askLeave', 'leave', 'giveUp', 'finish', 'showQuestions', 'openFolder']),
+  teacher: side('teacher', ['open', 'start', 'end', 'letBackIn', 'keepOut', 'addTime', 'done', 'openFolder', 'exportLog']),
   browser: side('browser', ['select', 'close', 'back', 'forward', 'reload', 'toQuestions']),
 });

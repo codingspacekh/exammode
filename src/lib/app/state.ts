@@ -48,7 +48,10 @@ export interface RunView {
 }
 
 /** A line of *What's happening* (13). */
-export interface FeedItem { id: number; at: number; kind: string; student?: string; pc?: string; details: Record<string, unknown> }
+export interface FeedItem { id: number; at: number; kind: string; studentId?: string; student?: string; pc?: string; details: Record<string, unknown> }
+
+/** A file the teacher's laptop has from a student: from the hand-in, or the latest backup. */
+export interface KeptFile { name: string; bytes: number; kind: 'backup' | HandInHow }
 
 export interface ClassChoice { id: string; name: string; students: number }
 
@@ -66,13 +69,18 @@ export interface ExamForm {
 }
 
 export interface TeacherState {
-  screen: 'make' | 'lobby' | 'live';
+  screen: 'make' | 'lobby' | 'live' | 'ended';
   classes: ClassChoice[];
   /** what the form starts with: the last exam's teacher and class */
   defaults: Pick<ExamForm, 'teacher' | 'classId'>;
   run?: RunView;
   students: StudentView[];
+  /** what's happening, newest first, without what the lists already show */
   feed: FeedItem[];
+  /** every event of the run, oldest first: the students' timelines (13b) */
+  events: FeedItem[];
+  /** the files kept from each student, by student id (14) */
+  files: Record<string, KeptFile[]>;
 }
 
 export interface TeacherApi {
@@ -82,9 +90,17 @@ export interface TeacherApi {
   open(form: ExamForm): Promise<string | undefined>;
   start(): Promise<void>;
   end(): Promise<void>;
+  /** Let back in / Keep out (F-40), with the reason for the log */
+  letBackIn(studentId: string, reason: string): Promise<void>;
+  keepOut(studentId: string, reason: string): Promise<void>;
+  /** more time for one student, or for everyone (F-41) */
+  addTime(minutes: number, studentId?: string): Promise<void>;
   /** back to *open an exam*, once the run has ended */
   done(): Promise<void>;
-  openFolder(): Promise<void>;
+  /** the run's folder in Hand-ins, or one student's */
+  openFolder(studentId?: string): Promise<void>;
+  /** Export the log (CSV): asks where to save it. Answers with the file, if one was written */
+  exportLog(): Promise<string | undefined>;
 }
 
 // ── the student's side ──────────────────────────────────────────────────────────────────────────────────────────
@@ -96,7 +112,8 @@ export interface FileLine { name: string; bytes: number; modified: number }
 export type JoinError = 'codeWrong' | 'nameTaken' | 'notInClass' | 'left' | 'keptOut' | 'handedIn' | 'notJoined' | 'ended' | 'update' | 'unreachable';
 
 export interface StudentState {
-  screen: 'join' | 'waiting' | 'exam' | 'handIn' | 'handedIn';
+  /** `leave`: 08 · `cantJoin`: 10, waiting for the teacher */
+  screen: 'join' | 'waiting' | 'exam' | 'handIn' | 'leave' | 'handedIn' | 'cantJoin';
   /** this computer's name */
   pc: string;
   found: FoundExam[];
@@ -110,9 +127,12 @@ export interface StudentState {
   /** the end, on the teacher's clock; `clockOffset` is what to add to this computer's clock to get it */
   endsAt?: number;
   clockOffset: number;
-  /** false: the teacher's computer can't be reached (10b) */
+  /** false: the teacher's computer can't be reached (10b); `lostAt`: since when, on this computer's clock */
   contact: boolean;
-  /** 09: what will go, and what was given and left alone */
+  lostAt?: number;
+  /** 10: when and how this student left, and on which computer */
+  left?: { at: number; how: 'pressedLeave' | 'stoppedSuddenly'; pc: string };
+  /** 09 and 08: what will go, and what was given and left alone */
   handIn?: { files: FileLine[]; unchanged: FileLine[] };
   handingIn: boolean;
   receipt?: { code: string; files: { name: string; bytes: number }[]; at: number; byItself: boolean };
@@ -127,8 +147,15 @@ export interface StudentApi {
   join(studentId: string, code: string): Promise<void>;
   /** Hand in… : lists the files (09) */
   askHandIn(): Promise<void>;
+  /** back to the exam from Hand in (09) or Leave (08) */
   keepWorking(): Promise<void>;
   handIn(): Promise<void>;
+  /** ⋯ Leave the exam: asks first (08) */
+  askLeave(): Promise<void>;
+  /** Leave, confirmed (F-15) */
+  leave(): Promise<void>;
+  /** Close on *You can't join this exam again* (10): stop asking */
+  giveUp(): Promise<void>;
   /** Finish (09b): back to how it was */
   finish(): Promise<void>;
   showQuestions(): Promise<void>;

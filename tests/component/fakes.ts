@@ -30,7 +30,7 @@ export function studentApi(state: StudentState = student()): StudentApi & { tell
   return {
     get: vi.fn(async () => state), onState: (l) => { listeners.add(l); return () => void listeners.delete(l); },
     tell: (next) => listeners.forEach((l) => l(next)),
-    pick: done(), lookAt: done(), join: done(), askHandIn: done(), keepWorking: done(), handIn: done(), finish: done(), showQuestions: done(), openFolder: done(),
+    pick: done(), lookAt: done(), join: done(), askHandIn: done(), keepWorking: done(), handIn: done(), askLeave: done(), leave: done(), giveUp: done(), finish: done(), showQuestions: done(), openFolder: done(),
   };
 }
 
@@ -39,7 +39,7 @@ export function card(name: string, over: Partial<StudentView> = {}): StudentView
 }
 
 export function teacher(over: Partial<TeacherState> = {}): TeacherState {
-  return { screen: 'make', classes: [], defaults: { teacher: '' }, students: [], feed: [], ...over };
+  return { screen: 'make', classes: [], defaults: { teacher: '' }, students: [], feed: [], events: [], files: {}, ...over };
 }
 
 export const RUN = {
@@ -49,7 +49,7 @@ export const RUN = {
 
 export function teacherApi(state: TeacherState = teacher(), openAnswer?: string): TeacherApi {
   const done = () => vi.fn(async () => undefined);
-  return { get: vi.fn(async () => state), onState: () => () => undefined, open: vi.fn(async () => openAnswer), start: done(), end: done(), done: done(), openFolder: done() };
+  return { get: vi.fn(async () => state), onState: () => () => undefined, open: vi.fn(async () => openAnswer), start: done(), end: done(), letBackIn: done(), keepOut: done(), addTime: done(), done: done(), openFolder: done(), exportLog: vi.fn(async () => '/Hand-ins/Log.csv') };
 }
 
 export function browserApi(state: BrowserState): BrowserApi {

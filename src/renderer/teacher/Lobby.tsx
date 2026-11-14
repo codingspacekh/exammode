@@ -1,4 +1,5 @@
-import { CheckIcon, PlayIcon, UserIcon } from '@phosphor-icons/react';
+import { useEffect, useState } from 'react';
+import { CheckIcon, MonitorIcon, PlayIcon, UserIcon } from '@phosphor-icons/react';
 import type { StudentView, TeacherApi, TeacherState } from '@lib/app/state';
 import { formatClock, formatMinutes } from '@lib/session/time';
 import { Pill } from '@/components/brand';
@@ -15,6 +16,12 @@ function State({ s }: { s: StudentView }) {
 
 /** 12 · Students joining (F-36, F-37): the code for the board, who is ready, and Start. */
 export function Lobby({ state, api }: { state: TeacherState; api: TeacherApi }) {
+  const [big, setBig] = useState(false);
+  useEffect(() => {
+    const close = (e: KeyboardEvent) => e.key === 'Escape' && setBig(false);
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, []);
   const { run, students } = state;
   if (!run) return null;
   const ready = students.filter((s) => s.state === 'ready').length;
@@ -23,6 +30,15 @@ export function Lobby({ state, api }: { state: TeacherState; api: TeacherApi }) 
   const listed = [...students].sort((a, b) => (a.joinedAt ?? Infinity) - (b.joinedAt ?? Infinity) || a.name.localeCompare(b.name));
   return (
     <div className="flex h-screen flex-col">
+      {big && (
+        // for the projector: nothing but the exam and its code
+        <div role="dialog" aria-label="The exam code, full screen" className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-[4vh] bg-xbar text-white">
+          <p className="text-[3.2vw] font-semibold">{run.title}</p>
+          <div className="flex gap-[2vw]">{run.code.split('').map((digit, i) => <b key={i} className="grid h-[34vh] w-[16vw] place-items-center rounded-[2vw] bg-white font-mono text-[22vh] font-semibold text-foreground">{digit}</b>)}</div>
+          <p className="text-[1.8vw] text-xbar-muted">Open ExamMode, choose this exam, pick your name, type the code.</p>
+          <Button variant="outline" className="border-xbar-3 bg-transparent text-white hover:bg-xbar-3 hover:text-white" onClick={() => setBig(false)}>Back to the list</Button>
+        </div>
+      )}
       <TeacherBar teacher={run.teacher}>
         <ExamName title={run.title} sub={`${run.className} · ${formatMinutes(run.minutes)} · not started`} />
         <Pill tone="wait">Students joining</Pill>
@@ -37,6 +53,7 @@ export function Lobby({ state, api }: { state: TeacherState; api: TeacherApi }) 
             </div>
             <p className="text-[12.5px] text-text-2">On each lab computer: open ExamMode, choose this exam, type the code.</p>
           </section>
+          <Button variant="outline" onClick={() => setBig(true)}><MonitorIcon /> Show the code full screen</Button>
           <Section title="Ready">
             <div className="flex items-baseline gap-2.5"><b className="text-[26px]">{ready}</b><span className="text-muted-foreground">of {students.length} students</span></div>
             <Progress value={students.length === 0 ? 0 : (ready / students.length) * 100} aria-label="Students ready" className="mt-2 h-2 bg-secondary [&>div]:bg-ok" />

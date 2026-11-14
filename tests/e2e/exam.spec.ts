@@ -97,7 +97,7 @@ test('a teacher and two students: join, start, a blocked page, hand in, the rece
   const handIns = join(home, 'Hand-ins');
 
   // ── the teacher opens the exam ────────────────────────────────────────────────────────────────────────────────
-  const teacherApp = await launch('teacher', { EXAMMODE_PORT: String(port), EXAMMODE_BEACON_PORT: String(beacon), EXAMMODE_BEACON_TO: '127.0.0.1', EXAMMODE_HANDINS: handIns }, '--teacher');
+  const teacherApp = await launch('teacher', { EXAMMODE_PORT: String(port), EXAMMODE_BEACON_PORT: String(beacon), EXAMMODE_BEACON_TO: '127.0.0.1', EXAMMODE_HANDINS: handIns, EXAMMODE_EXPORT: join(home, 'Log.csv') }, '--teacher');
   const teacher = await windowOf(teacherApp, 'teacher');
   await expect(teacher).toHaveTitle('ExamMode');
   await teacher.getByRole('textbox', { name: 'Title' }).fill('Year 10 ICT — Term 1 practical exam');
@@ -146,7 +146,7 @@ test('a teacher and two students: join, start, a blocked page, hand in, the rece
 
   // ── Start: the exam bar and the exam browser open on both ─────────────────────────────────────────────────────
   await teacher.getByRole('button', { name: 'Start the exam' }).click();
-  await expect(teacher.getByRole('article', { name: 'Sokha Chan' })).toContainText('In the exam');
+  await expect(teacher.getByRole('button', { name: 'Sokha Chan' })).toContainText('In the exam');
   const bar = await windowOf(sokhaApp, 'bar');
   await expect(bar.getByText('Sokha Chan · PC-14 · set by Ms Srey Leak')).toBeVisible();
   await expect(bar.getByRole('timer')).toHaveText(/^1:(29|30):\d\d$/);
@@ -183,25 +183,72 @@ test('a teacher and two students: join, start, a blocked page, hand in, the rece
   await shot(sokha, '09b-handed-in');
   const receipt = (await sokha.locator('dd .font-mono').textContent())!;
   expect(receipt).toMatch(/^[2-9A-Z]{3}-[2-9A-Z]{3}$/);
-  await expect(teacher.getByRole('article', { name: 'Sokha Chan' })).toContainText(`1 file · ${receipt}`);
+  await expect(teacher.getByRole('button', { name: 'Sokha Chan' })).toContainText(`1 file · ${receipt}`);
   const run = readdirSync(handIns).find((name) => !name.startsWith('.'))!;
   expect(readFileSync(join(handIns, run, 'Sokha Chan', 'Report.docx'), 'utf8')).toBe('Sokha\'s report');
   // the exam bar and the browser are gone from Sokha's computer
   await expect.poll(() => sokhaApp.windows().filter((w) => /view=(bar|browser)/.test(w.url())).length).toBe(0);
 
-  // ── the teacher ends the exam: Dara's work is handed in by itself ─────────────────────────────────────────────
+  // ── Dara leaves, asks to come back, and the teacher lets her back in (F-15, F-18, F-40) ────────────────────────
   const daraRoot = join(home, 'PC-03', 'Exam');
-  writeFileSync(join(daraRoot, readdirSync(daraRoot)[0]!, 'Dara Kim', 'sales.xlsx'), 'numbers');
+  const daraFolder = join(daraRoot, readdirSync(daraRoot)[0]!, 'Dara Kim');
+  writeFileSync(join(daraFolder, 'sales.xlsx'), 'numbers');
+  const daraBar = await windowOf(daraApp, 'bar');
+  await daraBar.getByRole('button', { name: 'Leave the exam…' }).click();
+  const leave = dara.getByRole('button', { name: 'Leave the exam' });
+  await expect(leave).toBeDisabled();
+  await shot(dara, '08-leave');
+  await dara.getByRole('checkbox', { name: /I understand/ }).click();
+  await leave.click();
+  await expect(dara.getByRole('heading', { name: 'Join your exam' })).toBeVisible();
+  await expect(teacher.getByRole('button', { name: 'Dara Kim' })).toContainText('Left');
+  expect(readFileSync(join(handIns, run, 'Dara Kim', 'sales.xlsx'), 'utf8')).toBe('numbers');
+
+  await dara.getByRole('radio', { name: /Term 1 practical exam/ }).click();
+  await dara.getByRole('combobox', { name: 'Your name' }).click();
+  await dara.getByRole('option', { name: 'Dara Kim' }).click();
+  await dara.getByRole('textbox', { name: 'Exam code' }).fill(code);
+  await dara.getByRole('button', { name: /^Join/ }).click();
+  await expect(dara.getByRole('heading', { name: 'You can\'t join this exam again' })).toBeVisible();
+  await expect(dara.getByText('You pressed Leave')).toBeVisible();
+  await shot(dara, '10-cant-join');
+
+  await teacher.getByRole('button', { name: 'Look' }).click();
+  const panel = teacher.getByRole('region', { name: 'Dara Kim' });
+  await expect(panel.getByRole('list', { name: 'Timeline' })).toContainText('Asked to come back in on PC-03');
+  await shot(teacher, '13b-student');
+  await panel.getByRole('combobox', { name: 'Reason (for the log)' }).click();
+  await teacher.getByRole('option', { name: 'Pressed Leave by mistake' }).click();
+  await panel.getByRole('button', { name: 'Let back in' }).click();
+  // the exam opens on her computer by itself
+  await expect.poll(() => daraApp.windows().some((w) => w.url().includes('view=bar')), { timeout: 15_000 }).toBe(true);
+  await expect(teacher.getByRole('button', { name: 'Dara Kim', exact: true })).toContainText('In the exam');
+  await expect(panel.getByRole('list', { name: 'Timeline' })).toContainText('You let them back inReason: Pressed Leave by mistake');
+  await panel.getByRole('button', { name: '10 min' }).click();
+  await expect((await windowOf(daraApp, 'bar')).getByRole('timer')).toHaveText(/^1:3\d:\d\d$/);
+
+  // ── the teacher ends the exam: Dara's work is handed in by itself ─────────────────────────────────────────────
+  writeFileSync(join(daraFolder, 'sales.xlsx'), 'more numbers');
   await teacher.getByRole('button', { name: 'End the exam…' }).click();
   await teacher.getByRole('button', { name: 'End the exam', exact: true }).click();
   await expect(dara.getByRole('heading', { name: 'Handed in' })).toBeVisible();
   await expect(dara.getByText(/by itself when the exam ended/)).toBeVisible();
   const daraReceipt = (await dara.locator('dd .font-mono').textContent())!;
-  await expect(teacher.getByRole('article', { name: 'Dara Kim' })).toContainText(`1 file · ${daraReceipt}`);
   expect(daraReceipt).not.toBe(receipt);
+
+  // ── 14 After the exam: every hand-in with its receipt; the log as a spreadsheet ───────────────────────────────
+  await expect(teacher.getByRole('heading', { name: 'Hand-ins' })).toBeVisible();
   await expect(teacher.getByText(/Ended \d\d:\d\d/)).toBeVisible();
-  await expect(teacher.getByRole('article', { name: 'Vannak Sok' })).toContainText('Not joined');
-  await shot(teacher, '13-ended');
+  await expect(teacher.getByRole('row', { name: /Sokha Chan PC-14 .*Handed in .* Pressed Hand in Report\.docx/ })).toContainText(receipt);
+  await expect(teacher.getByRole('row', { name: /Dara Kim PC-03 .*Ended .* sales\.xlsx/ })).toContainText(daraReceipt);
+  await expect(teacher.getByRole('row', { name: /Vannak Sok/ })).toContainText('Didn\'t join');
+  expect(readFileSync(join(handIns, run, 'Dara Kim', 'sales.xlsx'), 'utf8')).toBe('more numbers');
+  await shot(teacher, '14-after');
+  await teacher.getByRole('button', { name: 'Export the log (CSV)' }).click();
+  await expect(teacher.getByRole('status')).toContainText('Log.csv');
+  const log = readFileSync(join(home, 'Log.csv'), 'utf8');
+  expect(log).toContain('Dara Kim,PC-03,letBackIn,reason: Pressed Leave by mistake');
+  expect(log).toContain('Sokha Chan,PC-14,pageBlocked');
 
   // Finish: ExamMode is as it was
   await sokha.getByRole('button', { name: 'Finish' }).click();

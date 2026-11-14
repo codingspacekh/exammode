@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FeedItem } from '@lib/app/state';
 import { TeacherApp } from '@/App';
-import { feedLine } from '@/teacher/feed';
+import { After } from '@/teacher/After';
+import { feedLine, timelineLine } from '@/teacher/feed';
 import { Live, lookOf } from '@/teacher/Live';
 import { Lobby } from '@/teacher/Lobby';
 import { MakeExam } from '@/teacher/MakeExam';
@@ -101,6 +102,18 @@ describe('12 Students joining (F-36, F-37)', () => {
     ]);
   });
 
+  it('F-36 the code can be shown full screen, for the projector', async () => {
+    const user = userEvent.setup();
+    render(<Lobby state={lobby} api={teacherApi()} />);
+    await user.click(screen.getByRole('button', { name: 'Show the code full screen' }));
+    expect(screen.getByRole('dialog', { name: 'The exam code, full screen' })).toHaveTextContent('Year 10 ICT — Term 1 practical exam4817');
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Show the code full screen' }));
+    await user.click(screen.getByRole('button', { name: 'Back to the list' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('F-08 Start the exam starts it', async () => {
     const api = teacherApi();
     render(<Lobby state={lobby} api={api} />);
@@ -132,12 +145,12 @@ describe('13 The exam, live (F-38, F-39, F-41)', () => {
     vi.useFakeTimers();
     vi.setSystemTime(at('09:57:45'));
     render(<Live state={live} api={teacherApi()} />);
-    const tiles = screen.getAllByRole('definition').map((dd) => `${dd.previousSibling?.textContent}:${dd.textContent}`);
-    expect(tiles).toEqual(['In the exam:2', 'Warnings:1', 'No contact:1', 'Left:1', 'Handed in:1', 'Not joined:2']);
+    const tiles = within(screen.getByRole('group', { name: 'Students by state' })).getAllByRole('button').map((b) => b.textContent);
+    expect(tiles).toEqual(['In the exam2', 'Warnings1', 'No contact1', 'Left1', 'Handed in1', 'Not joined2']);
     expect(screen.getByRole('timer')).toHaveTextContent('1:02:15');
     expect(screen.getByText('Year 10 A · started 09:30 · ends 11:00')).toBeInTheDocument();
     expect(students.map(lookOf)).toEqual(['ok', 'warn', 'left', 'lost', 'done', 'wait', 'wait']);
-    const text = (name: string) => screen.getByRole('article', { name }).textContent;
+    const text = (name: string) => screen.getByRole('button', { name }).textContent;
     expect(text('Sokha Chan')).toBe('Sokha ChanPC-14In the exam2 files backed up');
     expect(text('Dara Kim')).toBe('Dara KimPC-03 Warning 2Excel · sales.xlsx');
     expect(text('Vannak Sok')).toBe('Vannak SokPC-07 LeftLeft 09:58 · asks to come back');
@@ -169,17 +182,214 @@ describe('13 The exam, live (F-38, F-39, F-41)', () => {
     expect(api.end).toHaveBeenCalledOnce();
   });
 
-  it('after the end: the hand-in folder, and Done', async () => {
-    const api = teacherApi();
-    render(<Live state={teacher({ screen: 'live', run: { ...run, endedAt: at('10:40') }, students })} api={api} />);
-    expect(screen.getByText('Ended 10:40')).toBeInTheDocument();
-    expect(screen.queryByRole('timer')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Open the hand-in folder' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Done' }));
-    expect(api.openFolder).toHaveBeenCalledOnce();
-    expect(api.done).toHaveBeenCalledOnce();
+  const names = () => within(screen.getByRole('group', { name: 'Students' })).getAllByRole('button').map((b) => b.getAttribute('aria-label'));
+
+  it('F-38 the counts filter the cards; so do Needs a look, Handed in, and the search', async () => {
+    const user = userEvent.setup();
+    render(<Live state={live} api={teacherApi()} />);
+    expect(names()).toHaveLength(7);
+    await user.click(screen.getByRole('button', { name: /^Left/ }));
+    expect(names()).toEqual(['Vannak Sok']);
+    await user.click(screen.getByRole('button', { name: /^Left/ }));
+    expect(names()).toHaveLength(7);
+    await user.click(screen.getByRole('button', { name: /^In the exam/ }));
+    expect(names()).toEqual(['Sokha Chan', 'Dara Kim']);
+    await user.click(screen.getByRole('radio', { name: 'Needs a look · 3' }));
+    expect(names()).toEqual(['Dara Kim', 'Vannak Sok', 'Mealea Chea']);
+    await user.click(screen.getByRole('radio', { name: 'Handed in · 1' }));
+    expect(names()).toEqual(['Rithy Heng']);
+    await user.click(screen.getByRole('radio', { name: 'Everyone · 7' }));
+    await user.type(screen.getByRole('searchbox', { name: 'Find a student or computer' }), 'pc-0');
+    expect(names()).toEqual(['Dara Kim', 'Vannak Sok', 'Rithy Heng']);
+    await user.type(screen.getByRole('searchbox', { name: 'Find a student or computer' }), 'zzz');
+    expect(screen.getByText('No student matches.')).toBeInTheDocument();
   });
 
+  it('F-38 the same students as a list', async () => {
+    render(<Live state={live} api={teacherApi()} />);
+    await userEvent.click(screen.getByRole('radio', { name: 'A list' }));
+    const rows = within(screen.getByRole('table', { name: 'Students' })).getAllByRole('row').slice(1).map((r) => within(r).getAllByRole('cell').map((c) => c.textContent?.trim()));
+    expect(rows[1]).toEqual(['Dara Kim', 'PC-03', 'Warning', 'Excel · sales.xlsx', '2']);
+    expect(rows[5]).toEqual(['Visal Long', '—', 'Not joined', 'Not here', '—']);
+  });
+
+  it('F-41 Add time for everyone: 5, 10 or 15 minutes', async () => {
+    const api = teacherApi();
+    const user = userEvent.setup();
+    render(<Live state={live} api={api} />);
+    await user.click(screen.getByRole('button', { name: 'Add time' }));
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(api.addTime).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Add time' }));
+    await user.click(within(screen.getByRole('group', { name: 'More time for everyone' })).getByRole('button', { name: '10 min' }));
+    expect(api.addTime).toHaveBeenCalledWith(10);
+  });
+
+  it('the sound for what needs a look can be switched off', async () => {
+    render(<Live state={live} api={teacherApi()} />);
+    const sound = screen.getByRole('button', { name: 'sound on' });
+    expect(sound).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(sound);
+    expect(screen.getByRole('button', { name: 'sound off' })).toHaveAttribute('aria-pressed', 'false');
+  });
+});
+
+describe('13b One student — let back in? (F-18, F-20, F-40)', () => {
+  const run = { ...RUN, startedAt: at('09:30'), endsAt: at('11:00') };
+  const vannak = card('Vannak Sok', { state: 'left', pc: 'PC-07', joinedAt: at('09:26'), leftAt: at('09:58'), leftHow: 'stoppedSuddenly', asksBackFrom: 'PC-02', warnings: 1, files: 2 });
+  const sokha = card('Sokha Chan', { state: 'inExam', pc: 'PC-14', joinedAt: at('09:24') });
+  const event = (id: number, clock: string, kind: string, details = {}, pc = 'PC-07'): FeedItem => ({ id, at: at(clock), kind, studentId: 'Vannak Sok', student: 'Vannak Sok', pc, details });
+  const events = [
+    event(1, '09:26', 'joined'), event(2, '09:27', 'ready'), event(3, '09:30', 'started'), event(4, '09:44', 'appClosed', { app: 'Notepad' }),
+    event(5, '09:58:12', 'stoppedSuddenly'), event(6, '09:59', 'asksBack', {}, 'PC-02'),
+    { id: 7, at: at('09:59'), kind: 'handedIn', studentId: 'Sokha Chan', student: 'Sokha Chan', details: { how: 'handIn' } },
+  ];
+  const files = { 'Vannak Sok': [{ name: 'Report.docx', bytes: 9000, kind: 'backup' as const }, { name: 'sales.xlsx', bytes: 4000, kind: 'backup' as const }] };
+  const live = teacher({ screen: 'live', run, students: [sokha, vannak], events, files, feed: [events[5]!] });
+
+  it('a card opens the student\'s own timeline in the place of What\'s happening; Look in the feed does the same', async () => {
+    const user = userEvent.setup();
+    render(<Live state={live} api={teacherApi()} />);
+    await user.click(screen.getByRole('button', { name: 'Look' }));
+    const panel = within(screen.getByRole('region', { name: 'Vannak Sok' }));
+    expect(screen.queryByRole('list', { name: 'What\'s happening' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Vannak Sok' })).toHaveAttribute('aria-pressed', 'true');
+    expect(panel.getAllByRole('definition').map((dd) => `${dd.previousSibling?.textContent}: ${dd.textContent}`)).toEqual([
+      'Computer: PC-07 → PC-02', 'In the exam: 09:30 – 09:58', 'Warnings: 1', 'Files collected: 2',
+    ]);
+    expect(within(panel.getByRole('list', { name: 'Timeline' })).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
+      'Joined on PC-0709:26', 'Ready: the computer passed its checks09:27', 'Exam started09:30', 'Opened Notepad — closed09:44',
+      'ExamMode stopped suddenlyNo goodbye from PC-07 — closed from Task Manager or it crashed.09:58', 'Asked to come back in on PC-02Refused — waiting for you09:59',
+    ]);
+    expect(panel.getByText(/The exam opens on PC-02 by itself, with Vannak's files\. Time out of the exam: \d+ min\./)).toBeInTheDocument();
+    await user.click(panel.getByRole('button', { name: 'Close' }));
+    expect(screen.getByRole('list', { name: 'What\'s happening' })).toBeInTheDocument();
+    // pressing the card again closes it too
+    await user.click(screen.getByRole('button', { name: 'Vannak Sok' }));
+    await user.click(screen.getByRole('button', { name: 'Vannak Sok' }));
+    expect(screen.queryByRole('region', { name: 'Vannak Sok' })).not.toBeInTheDocument();
+  });
+
+  it('F-40 Let back in and Keep out go with a reason for the log', async () => {
+    const api = teacherApi();
+    const user = userEvent.setup();
+    render(<Live state={live} api={api} />);
+    await user.click(screen.getByRole('button', { name: 'Vannak Sok' }));
+    await user.click(screen.getByRole('button', { name: 'Let back in' }));
+    expect(api.letBackIn).toHaveBeenCalledWith('Vannak Sok', 'The computer crashed');
+
+    await user.click(screen.getByRole('combobox', { name: 'Reason (for the log)' }));
+    await user.click(screen.getByRole('option', { name: 'Another reason…' }));
+    // a reason has to be given
+    expect(screen.getByRole('button', { name: 'Keep out' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Let back in' })).toBeDisabled();
+    await user.type(screen.getByRole('textbox', { name: 'The reason' }), 'Was seen with a phone');
+    await user.click(screen.getByRole('button', { name: 'Keep out' }));
+    expect(api.keepOut).toHaveBeenCalledWith('Vannak Sok', 'Was seen with a phone');
+    await user.click(screen.getByRole('button', { name: 'Open Vannak\'s folder' }));
+    expect(api.openFolder).toHaveBeenCalledWith('Vannak Sok');
+  });
+
+  it('a student who left but hasn\'t asked yet can be let back in ahead of time', async () => {
+    render(<Live state={teacher({ ...live, students: [{ ...vannak, asksBackFrom: undefined }] })} api={teacherApi()} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Vannak Sok' }));
+    expect(screen.getByText('Vannak hasn\'t asked to come back yet. If you let them back in now, their next join is accepted.')).toBeInTheDocument();
+  });
+
+  it('F-41 a student in the exam can be given more time; there is nothing to decide about them', async () => {
+    const api = teacherApi();
+    render(<Live state={live} api={api} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Sokha Chan' }));
+    expect(screen.queryByRole('button', { name: 'Let back in' })).not.toBeInTheDocument();
+    expect(within(screen.getByRole('list', { name: 'Timeline' })).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Handed in09:59']);
+    await userEvent.click(within(screen.getByRole('group', { name: 'More time for Sokha Chan' })).getByRole('button', { name: '15 min' }));
+    expect(api.addTime).toHaveBeenCalledWith(15, 'Sokha Chan');
+  });
+
+  it('every kind of event has its line in a timeline', () => {
+    const line = (kind: string, details: Record<string, unknown> = {}, pc?: string) => {
+      const l = timelineLine({ id: 1, at: 0, kind, pc, details });
+      return l.detail ? `${l.title} | ${l.detail}` : l.title;
+    };
+    expect(line('joined')).toBe('Joined');
+    expect(line('joinedLate')).toBe('Started late, with the time that was left');
+    expect(line('left')).toBe('Pressed Leave | Confirmed on the Leave screen. The work so far was collected as it was.');
+    expect(line('stoppedSuddenly', { restarted: true })).toBe('ExamMode stopped suddenly | The computer was restarted.');
+    expect(line('stoppedSuddenly')).toBe('ExamMode stopped suddenly | No goodbye — closed from Task Manager or it crashed.');
+    expect(line('letBackIn', { reason: 'The computer crashed' })).toBe('You let them back in | Reason: The computer crashed');
+    expect(line('letBackIn')).toBe('You let them back in');
+    expect(line('keptOut', { reason: 'A phone' })).toBe('You kept them out | Reason: A phone');
+    expect(line('keptOut')).toBe('You kept them out');
+    expect(line('cameBack', { secondsOut: 420 }, 'PC-02')).toBe('Back in the exam on PC-02 | Out of the exam for 7 min');
+    expect(line('cameBack')).toBe('Back in the exam | Out of the exam for 1 min');
+    expect(line('noContact')).toBe('No contact | The computer couldn\'t be reached. Not leaving: it stays as it is.');
+    expect(line('gap', { seconds: 45, localLog: [{}, {}, {}] })).toBe('Back in contact after 45 s | 2 things happened meanwhile, reported by the computer');
+    expect(line('gap', { seconds: 12, localLog: [{}] })).toBe('Back in contact after 12 s');
+    expect(line('timeAdded', { minutes: 10 })).toBe('10 minutes added');
+    expect(line('handedIn', { how: 'timeUp' })).toBe('Handed in when the time ran out');
+    expect(line('handedIn', { how: 'ended' })).toBe('Handed in when you ended the exam');
+    expect(line('pageBlocked', { url: 'https://stackoverflow.com/q' })).toBe('Clicked a site that isn\'t allowed — stackoverflow.com');
+    expect(line('checkFailed', { check: 'oneScreen' })).toBe('This computer can\'t start: oneScreen');
+    expect(line('something-new')).toBe('Something-new');
+  });
+});
+
+describe('14 After the exam (F-17, F-42)', () => {
+  const run = { ...RUN, startedAt: at('09:30'), endsAt: at('11:00'), endedAt: at('11:00') };
+  const students = [
+    card('Sokha Chan', { state: 'handedIn', pc: 'PC-14', handedInAt: at('10:58'), handedInHow: 'handIn', receipt: 'HX7-29Q' }),
+    card('Dara Kim', { state: 'handedIn', pc: 'PC-03', handedInAt: at('11:00'), handedInHow: 'timeUp', receipt: 'K3M-8PD', warnings: 2 }),
+    card('Bopha Ouk', { state: 'handedIn', pc: 'PC-12', handedInAt: at('10:40'), handedInHow: 'ended', receipt: 'ZZ2-4QW' }),
+    card('Vannak Sok', { state: 'left', pc: 'PC-07', leftAt: at('09:58'), leftHow: 'stoppedSuddenly', warnings: 1 }),
+    card('Mealea Chea', { state: 'noContact', pc: 'PC-11' }),
+    card('Kosal Meas', { state: 'inExam', pc: 'PC-19' }),
+    card('Visal Long'),
+  ];
+  const file = (name: string, kind: 'backup' | 'handIn' | 'timeUp' = 'handIn') => ({ name, bytes: 10_240, kind });
+  const files = {
+    'Sokha Chan': [file('Report.docx'), file('grades.py'), file('scrap.txt', 'backup')], 'Dara Kim': [file('sales.xlsx', 'timeUp')],
+    'Vannak Sok': [file('Report.docx', 'backup')], 'Mealea Chea': [file('Report.docx', 'backup')],
+  };
+  const ended = teacher({ screen: 'ended', run, students, files });
+
+  it('counts how each exam ended, and lists every student with when, how, their files and receipt', () => {
+    render(<After state={ended} api={teacherApi()} />);
+    expect(screen.getAllByRole('definition').map((dd) => `${dd.previousSibling?.textContent}: ${dd.textContent}`)).toEqual([
+      'Handed in: 1', 'Handed in when time ran out: 2', 'Left — work up to then: 1', 'Students with warnings: 2',
+    ]);
+    expect(screen.getByText('Year 10 A · 09:30 – 11:00')).toBeInTheDocument();
+    expect(screen.getByText('7 students · 5 files · 50 KB')).toBeInTheDocument();
+    const rows = screen.getAllByRole('row').slice(1).map((r) => within(r).getAllByRole('cell').slice(0, 8).map((c) => c.textContent?.trim()));
+    expect(rows).toEqual([
+      // a backup that isn't in the hand-in isn't listed with it
+      ['Sokha Chan', 'PC-14', 'Handed in', '10:58', 'Pressed Hand in', 'Report.docxgrades.py', 'HX7-29Q', '—'],
+      ['Dara Kim', 'PC-03', 'Time up', '11:00', 'Handed in by itself', 'sales.xlsx', 'K3M-8PD', '2'],
+      ['Bopha Ouk', 'PC-12', 'Ended', '10:40', 'Handed in when you ended the exam', '—', 'ZZ2-4QW', '—'],
+      ['Vannak Sok', 'PC-07', 'Left 09:58', '09:58', 'Files up to 09:58', 'Report.docx', '—', '1'],
+      ['Mealea Chea', 'PC-11', 'No hand-in', '—', 'No contact at the end — the latest backup', 'Report.docx', '—', '—'],
+      ['Kosal Meas', 'PC-19', 'No hand-in', '—', 'No contact at the end — nothing received', '—', '—', '—'],
+      ['Visal Long', '—', 'Didn\'t join', '—', '—', '—', '—', '—'],
+    ]);
+  });
+
+  it('opens the hand-in folder or one student\'s, exports the log, and is done', async () => {
+    const api = teacherApi();
+    const user = userEvent.setup();
+    render(<After state={ended} api={api} />);
+    await user.click(screen.getByRole('button', { name: 'Open the hand-in folder' }));
+    expect(api.openFolder).toHaveBeenLastCalledWith();
+    await user.click(screen.getByRole('button', { name: 'Open Vannak Sok\'s folder' }));
+    expect(api.openFolder).toHaveBeenLastCalledWith('Vannak Sok');
+    await user.click(screen.getByRole('button', { name: 'Export the log (CSV)' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('The log was saved as /Hand-ins/Log.csv');
+    await user.type(screen.getByRole('searchbox', { name: 'Find a student' }), 'kim');
+    expect(screen.getAllByRole('row')).toHaveLength(2);
+    await user.click(screen.getByRole('button', { name: 'Done' }));
+    expect(api.done).toHaveBeenCalledOnce();
+  });
+});
+
+describe('13 the feed\'s words', () => {
   it('every kind of event has its line', () => {
     const line = (kind: string, details: Record<string, unknown> = {}, student: string | null = 'Dara Kim', pc: string | null = 'PC-03') => {
       const l = feedLine({ id: 1, at: 0, kind, student: student ?? undefined, pc: pc ?? undefined, details });
@@ -224,5 +434,7 @@ describe('the teacher\'s window follows what the main process says', () => {
     expect(screen.getByRole('button', { name: 'Start the exam' })).toBeInTheDocument();
     act(() => listeners.forEach((l) => l(teacher({ screen: 'live', run: { ...RUN, startedAt: at('09:30'), endsAt: at('11:00') }, students: [card('Sokha Chan', { state: 'inExam' })] }))));
     expect(screen.getByRole('button', { name: 'End the exam…' })).toBeInTheDocument();
+    act(() => listeners.forEach((l) => l(teacher({ screen: 'ended', run: { ...RUN, startedAt: at('09:30'), endsAt: at('11:00'), endedAt: at('10:40') }, students: [card('Sokha Chan')] }))));
+    expect(screen.getByRole('heading', { name: 'Hand-ins' })).toBeInTheDocument();
   });
 });

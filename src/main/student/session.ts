@@ -53,6 +53,8 @@ export class Session {
   endsAt?: number;
   /** the exam, as the teacher's laptop described it when this ExamMode joined */
   exam?: ExamInfo;
+  /** refused because the student left: when, how and on which computer */
+  left?: { at: number; how: 'pressedLeave' | 'stoppedSuddenly'; pc: string };
   /** the app in front, sent with every beat */
   front?: string;
 
@@ -248,6 +250,7 @@ export class Session {
           return this.ask();
         }
         if (msg.reason !== 'left') return this.finish('refused', msg.reason);
+        this.left = msg.left;
         this.become('waiting', 'left');
         return this.reply('left');
       }

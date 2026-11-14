@@ -214,7 +214,8 @@ export class Classroom {
       if (reason !== 'left') return refuse(reason);
       if (seat.waiting !== link) seat.waiting?.close();
       seat.waiting = link;
-      link.send({ v: PROTOCOL_VERSION, type: 'refused', reason });
+      const a = seat.attempt;
+      link.send({ v: PROTOCOL_VERSION, type: 'refused', reason, left: { at: a.leftAt ?? this.now(), how: a.leftHow ?? 'stoppedSuddenly', pc: a.pc ?? msg.pc } });
     });
   }
 

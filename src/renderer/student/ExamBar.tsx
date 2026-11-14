@@ -1,4 +1,4 @@
-import { ExamIcon, FolderIcon, LockIcon, UploadSimpleIcon } from '@phosphor-icons/react';
+import { DoorOpenIcon, ExamIcon, FolderIcon, LockIcon, UploadSimpleIcon, WifiSlashIcon } from '@phosphor-icons/react';
 import type { StudentApi, StudentState } from '@lib/app/state';
 import { formatClock, formatLeft } from '@lib/session/time';
 import { Brand } from '@/components/brand';
@@ -10,7 +10,8 @@ import { cn } from '@/lib/utils';
 const LOW_MS = 10 * 60_000;
 
 /** 04 · The exam bar (F-09): across the top of the screen for the whole exam. M3: an ordinary always-on-top
- *  window; the apps' buttons come with M5, Leave with M6. */
+ *  window; the apps' buttons come with M5. Leave is the door at the end (08): a menu can't open inside a window
+ *  this low. With no contact, a strip under the bar says so (10b). */
 export function ExamBar({ state, api }: { state: StudentState; api: StudentApi }) {
   const now = useNow();
   const { exam, student } = state;
@@ -18,7 +19,9 @@ export function ExamBar({ state, api }: { state: StudentState; api: StudentApi }
   const left = state.endsAt === undefined ? undefined : state.endsAt - (now + state.clockOffset);
   const sep = <div className="h-7 w-px flex-none bg-xbar-3" />;
   const button = 'h-[34px] gap-[7px] rounded-[7px] border border-xbar-3 bg-transparent px-3 text-[13px] font-medium text-xbar-foreground hover:bg-xbar-3 hover:text-white';
+  const lost = state.lostAt === undefined ? 0 : Math.max(0, now - state.lostAt);
   return (
+    <>
     <header className="flex h-[54px] items-center gap-3.5 overflow-hidden bg-xbar pr-3.5 pl-4 text-xbar-foreground">
       <Brand dark />
       <span className="inline-flex h-6 items-center gap-[5px] rounded-md bg-xtag px-[9px] text-[11.5px] font-bold tracking-[.06em] text-white"><LockIcon className="size-3" /> EXAM</span>
@@ -49,6 +52,15 @@ export function ExamBar({ state, api }: { state: StudentState; api: StudentApi }
       {sep}
       <Button variant="ghost" className={button} onClick={() => void api.openFolder()}><FolderIcon /> Exam folder</Button>
       <Button className={cn(button, 'border-[#6366f1] bg-[#6366f1] text-white hover:bg-[#5558e6]')} disabled={state.screen !== 'exam'} onClick={() => void api.askHandIn()}><UploadSimpleIcon /> Hand in…</Button>
+      <Button variant="ghost" size="icon" aria-label="Leave the exam…" title="Leave the exam…" className="size-[34px] rounded-[7px] text-xbar-foreground hover:bg-xbar-3 hover:text-white" disabled={state.screen !== 'exam'} onClick={() => void api.askLeave()}><DoorOpenIcon /></Button>
     </header>
+    {!state.contact && (
+      // 10b: not leaving — the computer stays as it is, the clock keeps going, the work is saved here
+      <div role="alert" className="flex h-11 items-center justify-center gap-3 border-b border-warn-line bg-[#fffbeb] px-4 text-[13px] whitespace-nowrap text-warn-ink">
+        <WifiSlashIcon className="size-[18px]" />
+        <span><b className="text-[#5b3d08]">Can't reach the teacher's computer.</b> Keep working — your work is saved on this computer. Trying again · {Math.floor(lost / 60_000)}:{String(Math.floor(lost / 1000) % 60).padStart(2, '0')}</span>
+      </div>
+    )}
+    </>
   );
 }

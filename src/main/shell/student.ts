@@ -14,6 +14,8 @@ import { createWindow, serve } from './windows';
 
 /** The exam bar's height (design/src/styles.css, .xbar). */
 const BAR = 54;
+/** … and of the strip under it when the teacher's computer can't be reached (10b). */
+const BANNER = 44;
 const number = (text: string | undefined): number | undefined => (text ? Number(text) : undefined);
 
 export async function runStudent(): Promise<void> {
@@ -49,6 +51,9 @@ export async function runStudent(): Promise<void> {
     askHandIn: () => flow.askHandIn(),
     keepWorking: () => flow.keepWorking(),
     handIn: () => flow.handIn(),
+    askLeave: () => flow.askLeave(),
+    leave: () => flow.leave(),
+    giveUp: () => flow.giveUp(),
     finish: () => flow.finish(),
     showQuestions: () => browser?.window.show(),
     // M3: the computer isn't locked, so the Exam folder opens in the system's own file manager (its own list: M5)
@@ -61,7 +66,7 @@ export async function runStudent(): Promise<void> {
 
   /** The windows that go with a screen. */
   function arrange(state: StudentState): void {
-    const inExam = state.screen === 'exam' || state.screen === 'handIn';
+    const inExam = state.screen === 'exam' || state.screen === 'handIn' || state.screen === 'leave';
     const area = screen.getPrimaryDisplay().workArea;
     if (inExam && !bar) {
       bar = createWindow('bar', {
@@ -84,15 +89,23 @@ export async function runStudent(): Promise<void> {
       browser = undefined;
     }
     if (state.screen === 'exam') return main.hide();
-    // Hand in… comes up over whatever the student has open
-    main.setAlwaysOnTop(state.screen === 'handIn', 'screen-saver');
+    // Hand in… and Leave come up over whatever the student has open
+    const asking = state.screen === 'handIn' || state.screen === 'leave';
+    main.setAlwaysOnTop(asking, 'screen-saver');
     main.show();
-    if (state.screen === 'handIn') main.focus();
+    if (asking) main.focus();
   }
 
   let shown: StudentState['screen'] = 'join';
+  let contact = true;
   flow.onState((state) => {
     tell(state);
+    // with no contact the bar grows by a strip that says so (10b)
+    if (state.contact !== contact && bar && !bar.isDestroyed()) {
+      const area = screen.getPrimaryDisplay().workArea;
+      bar.setBounds({ x: area.x, y: area.y, width: area.width, height: state.contact ? BAR : BAR + BANNER });
+    }
+    contact = state.contact;
     if (state.screen === shown) return;
     shown = state.screen;
     arrange(state);

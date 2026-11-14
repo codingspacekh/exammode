@@ -2,7 +2,7 @@
  * ExamMode in teacher mode: one window (11 minimal, 12, 13) showing the teacher's desk (desk.ts). Electron glue:
  * proven by the e2e tests.
  */
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { app, BrowserWindow, dialog, shell } from 'electron';
 import type { ExamForm } from '@lib/app/state';
@@ -56,8 +56,22 @@ export async function runTeacher(): Promise<void> {
     open: (form: ExamForm) => desk.openExam(form),
     start: () => desk.start(),
     end: () => desk.end(),
+    letBackIn: (studentId: string, reason: string) => desk.letBackIn(studentId, reason),
+    keepOut: (studentId: string, reason: string) => desk.keepOut(studentId, reason),
+    addTime: (minutes: number, studentId?: string) => desk.addTime(minutes, studentId),
     done: () => desk.done(),
-    openFolder: () => shell.openPath(desk.folder ?? handIns),
+    openFolder: (studentId?: string) => {
+      const folder = (studentId ? desk.folderOf(studentId) : desk.folder) ?? handIns;
+      mkdirSync(folder, { recursive: true });
+      return shell.openPath(folder);
+    },
+    exportLog: async () => {
+      // (tests say where; a teacher is asked)
+      const path = env.EXAMMODE_EXPORT ?? (await dialog.showSaveDialog(win, { title: 'Export the log', defaultPath: join(desk.folder ?? handIns, 'Log.csv'), filters: [{ name: 'Spreadsheet (CSV)', extensions: ['csv'] }] })).filePath;
+      if (!path) return undefined;
+      writeFileSync(path, desk.logCsv());
+      return path;
+    },
   }, () => [win]);
   desk.onState(tell);
   app.on('before-quit', () => void desk.close());

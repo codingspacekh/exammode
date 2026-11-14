@@ -1,11 +1,14 @@
 import type { BrowserApi, StudentApi, TeacherApi } from '@lib/app/state';
 import { useRemote } from '@/lib/remote';
 import { BrowserShell } from './student/BrowserShell';
+import { CantJoin } from './student/CantJoin';
 import { ExamBar } from './student/ExamBar';
 import { HandedIn } from './student/HandedIn';
 import { HandIn } from './student/HandIn';
 import { Join } from './student/Join';
+import { Leave } from './student/Leave';
 import { Waiting } from './student/Waiting';
+import { After } from './teacher/After';
 import { Live } from './teacher/Live';
 import { Lobby } from './teacher/Lobby';
 import { MakeExam } from './teacher/MakeExam';
@@ -17,6 +20,8 @@ export function StudentApp({ api }: { api: StudentApi }) {
   switch (state.screen) {
     case 'join': return <Join state={state} api={api} />;
     case 'handIn': return <HandIn state={state} api={api} />;
+    case 'leave': return <Leave state={state} api={api} />;
+    case 'cantJoin': return <CantJoin state={state} api={api} />;
     case 'handedIn': return <HandedIn state={state} api={api} />;
     // during the exam this window is hidden: the exam bar is the screen
     default: return <Waiting state={state} />;
@@ -38,6 +43,7 @@ export function TeacherApp({ api }: { api: TeacherApi }) {
   if (!state) return null;
   if (state.screen === 'lobby') return <Lobby state={state} api={api} />;
   if (state.screen === 'live') return <Live state={state} api={api} />;
+  if (state.screen === 'ended') return <After state={state} api={api} />;
   // a new form for every exam: it starts from the last one's teacher and class
   return <MakeExam key={state.classes.length} state={state} api={api} />;
 }

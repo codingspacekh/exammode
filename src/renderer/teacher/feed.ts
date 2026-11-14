@@ -37,3 +37,33 @@ export function feedLine(item: FeedItem): { tone: Tone; who?: string; text: stri
     default: return undefined;
   }
 }
+
+/** A line of a student's own timeline (13b): what happened, and a second line where it helps. */
+export function timelineLine(item: FeedItem): { tone: Tone; title: string; detail?: string } {
+  const d = item.details;
+  const on = item.pc ? ` on ${item.pc}` : '';
+  switch (item.kind) {
+    case 'joined': return { tone: 'ok', title: `Joined${on}` };
+    case 'ready': return { tone: 'ok', title: 'Ready: the computer passed its checks' };
+    case 'started': return { tone: 'ok', title: 'Exam started' };
+    case 'joinedLate': return { tone: 'ok', title: 'Started late, with the time that was left' };
+    case 'left': return { tone: 'danger', title: 'Pressed Leave', detail: 'Confirmed on the Leave screen. The work so far was collected as it was.' };
+    case 'stoppedSuddenly': return {
+      tone: 'danger', title: 'ExamMode stopped suddenly',
+      detail: d.restarted ? 'The computer was restarted.' : `No goodbye${item.pc ? ` from ${item.pc}` : ''} — closed from Task Manager or it crashed.`,
+    };
+    case 'asksBack': return { tone: 'danger', title: `Asked to come back in${on}`, detail: 'Refused — waiting for you' };
+    case 'letBackIn': return { tone: 'ok', title: 'You let them back in', detail: d.reason ? `Reason: ${String(d.reason)}` : undefined };
+    case 'keptOut': return { tone: 'danger', title: 'You kept them out', detail: d.reason ? `Reason: ${String(d.reason)}` : undefined };
+    case 'cameBack': return { tone: 'ok', title: `Back in the exam${on}`, detail: `Out of the exam for ${Math.max(1, Math.round(Number(d.secondsOut ?? 0) / 60))} min` };
+    case 'noContact': return { tone: 'lost', title: 'No contact', detail: 'The computer couldn\'t be reached. Not leaving: it stays as it is.' };
+    case 'gap': return { tone: 'lost', title: `Back in contact after ${String(d.seconds)} s`, detail: Array.isArray(d.localLog) && d.localLog.length > 1 ? `${d.localLog.length - 1} things happened meanwhile, reported by the computer` : undefined };
+    case 'timeAdded': return { tone: 'done', title: `${String(d.minutes)} minutes added` };
+    case 'handedIn': return { tone: 'done', title: d.how === 'handIn' ? 'Handed in' : d.how === 'timeUp' ? 'Handed in when the time ran out' : 'Handed in when you ended the exam' };
+    default: {
+      const line = feedLine(item);
+      const text = line?.text.replace(/^— /, '') ?? item.kind;
+      return { tone: line?.tone ?? 'wait', title: text.charAt(0).toUpperCase() + text.slice(1) };
+    }
+  }
+}

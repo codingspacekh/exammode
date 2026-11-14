@@ -332,7 +332,8 @@ describe('F-15 F-18 F-20 F-40 leaving, stopping suddenly, and coming back', () =
     await say(dara, { type: 'leave' });
     clock.now = at('09:25');
     const asks = await join('Dara Kim', { pc: 'PC-12', instanceId: 'i-12', bootId: 'b-12' });
-    expect(asks.last).toEqual({ v, type: 'refused', reason: 'left' });
+    // refused, and told when and how they left: what screen 10 shows
+    expect(asks.last).toEqual({ v, type: 'refused', reason: 'left', left: { at: at('09:20'), how: 'pressedLeave', pc: 'PC-07' } });
     expect(asks.closed).toBe(false);
     expect(state('Dara Kim')).toMatchObject({ state: 'left', asksBackFrom: 'PC-12' });
 
@@ -400,7 +401,7 @@ describe('F-15 F-18 F-20 F-40 leaving, stopping suddenly, and coming back', () =
   it('F-20 a new ExamMode joins for a student in the exam: the old one had stopped; the join waits for the teacher', async () => {
     const { join, state, kinds } = await inExam();
     const asks = await join('Dara Kim', { instanceId: 'i-2', bootId: 'b-2' });
-    expect(asks.last).toEqual({ v, type: 'refused', reason: 'left' });
+    expect(asks.last).toMatchObject({ type: 'refused', reason: 'left', left: { how: 'stoppedSuddenly', pc: 'PC-07' } });
     expect(state('Dara Kim')).toMatchObject({ state: 'left', leftHow: 'stoppedSuddenly', asksBackFrom: 'PC-07' });
     expect((await kinds('Dara Kim')).slice(-2)).toEqual(['stoppedSuddenly', 'asksBack']);
   });

@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { folderName } from '@lib/files/names';
 import type { FoundExam, JoinError, StudentState } from '@lib/app/state';
+import type { ExamInfo } from '@lib/protocol/messages';
 import { Discovery, examsAt, namesOf, type Found } from './discovery';
 import { StudentExam, type Receipt } from './exam';
 import { listFiles } from './files';
@@ -40,6 +41,8 @@ export class StudentFlow {
   private typed: FoundExam[] = [];
   /** the hand-in was started by the clock or by the teacher, not by the student */
   private byItself = false;
+  /** the exam that was joined, as it was found */
+  private found?: FoundExam;
   private readonly now: () => number;
 
   constructor(private readonly options: FlowOptions) {
@@ -122,15 +125,20 @@ export class StudentFlow {
       if (work === this.exam && e.type === 'handInRefused') this.backToJoin('left');
     });
 
+    this.found = exam;
     const reply = await session.join();
     if (session !== this.session) return;
-    if (reply !== 'joined') return this.backToJoin(reply);
-    const info = session.exam;
-    this.set({
-      joining: false, student, contact: true, clockOffset: session.clockOffset,
-      exam: { runId: exam.runId, title: info?.title ?? exam.title, teacher: info?.teacher ?? exam.teacher, minutes: info?.minutes ?? exam.minutes ?? 0, hasQuestions: (info?.websites.length ?? 0) > 0 },
-    });
+    if (reply !== 'joined' && reply !== 'left') return this.backToJoin(reply);
+    // `left`: refused, and the teacher was told; the join waits for Let back in or Keep out (10)
+    this.set({ joining: false, student, contact: true, clockOffset: session.clockOffset, exam: this.examOf(session.exam) });
     this.sessionIs(session);
+  }
+
+  /** The exam as the screens show it: as the lab computer found it, then as the teacher's laptop described it. */
+  private examOf(info?: ExamInfo): StudentState['exam'] {
+    const found = this.found;
+    if (!found) return undefined;
+    return { runId: found.runId, title: info?.title ?? found.title, teacher: info?.teacher ?? found.teacher, minutes: info?.minutes ?? found.minutes ?? 0, hasQuestions: (info?.websites.length ?? 0) > 0 };
   }
 
   /** Something for the teacher's log (a blocked page …). */
@@ -145,8 +153,37 @@ export class StudentFlow {
     if (this.current.screen === 'exam') this.set({ screen: 'handIn', handIn: { files, unchanged: [] } });
   }
 
+  /** Back to the exam from Hand in (09) or Leave (08). */
   keepWorking(): void {
-    if (this.current.screen === 'handIn' && !this.current.handingIn) this.set({ screen: 'exam', handIn: undefined });
+    const asking = this.current.screen === 'handIn' || this.current.screen === 'leave';
+    if (asking && !this.current.handingIn) this.set({ screen: 'exam', handIn: undefined });
+  }
+
+  /** ⋯ Leave the exam: what would be handed in as it is (08). */
+  async askLeave(): Promise<void> {
+    if (this.current.screen !== 'exam' || !this.exam) return;
+    const files = await listFiles(this.exam.files.folder).catch(() => []);
+    if (this.current.screen === 'exam') this.set({ screen: 'leave', handIn: { files, unchanged: [] } });
+  }
+
+  /** Leave, confirmed (F-15): the work so far goes to the teacher, and this computer is as it was. */
+  async leave(): Promise<void> {
+    const { exam } = this;
+    if (this.current.screen !== 'leave' || !exam || this.current.handingIn) return;
+    this.set({ handingIn: true });
+    await exam.leave();
+    if (exam !== this.exam) return;
+    this.leaveSession();
+    this.current = { ...this.fresh(), found: this.current.found };
+    this.tell();
+  }
+
+  /** Close on *You can't join this exam again* (10): stop asking. */
+  giveUp(): void {
+    if (this.current.screen !== 'cantJoin') return;
+    this.leaveSession();
+    this.current = { ...this.fresh(), found: this.current.found };
+    this.tell();
   }
 
   /** Hand in now. It keeps trying until the teacher's laptop has the work (F-19). */
@@ -194,18 +231,20 @@ export class StudentFlow {
 
   /** The session's state, as a screen. */
   private sessionIs(session: Session): void {
-    const during = this.current.screen === 'handIn' || this.current.screen === 'handedIn';
+    const during = ['handIn', 'leave', 'handedIn'].includes(this.current.screen);
     switch (session.state) {
       case 'checking':
         // M3: nothing is checked or locked yet (M4), so the computer is ready at once — also when the teacher's
         // laptop took this student back as a new arrival after a long gap in the lobby
         session.checks([]);
         session.ready();
-        return this.set({ screen: 'waiting', contact: true });
-      case 'ready': return this.set({ screen: 'waiting', contact: true });
-      case 'inExam': return this.set({ screen: during ? this.current.screen : 'exam', contact: true });
-      case 'noContact': return this.set({ contact: false });
-      case 'waiting': case 'refused': return this.backToJoin(session.reason ?? 'left');
+        return this.set({ screen: 'waiting', contact: true, lostAt: undefined });
+      case 'ready': return this.set({ screen: 'waiting', contact: true, lostAt: undefined });
+      // also after Let back in: the exam opens here by itself (F-18)
+      case 'inExam': return this.set({ screen: during ? this.current.screen : 'exam', contact: true, lostAt: undefined, left: undefined, exam: this.examOf(session.exam) });
+      case 'noContact': return this.set({ contact: false, lostAt: this.current.lostAt ?? this.now() });
+      case 'waiting': return this.set({ screen: 'cantJoin', left: session.left, contact: true });
+      case 'refused': return this.backToJoin(session.reason ?? 'left');
       default:
     }
   }
