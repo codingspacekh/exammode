@@ -6,6 +6,8 @@ How ExamMode is built, **in what order**, and **how each part is proven to work*
 - System design (processes, lockdown, protocol, profiles): [`02-architecture.md`](02-architecture.md)
 - UI prototype: [`../design/screens/index.html`](../design/screens/index.html) — approved 2026-11-10
 
+*Revision 12 (2026-11-14): **M5 was built on GitHub's Windows computers too** (the teacher: *"continue"*). They have none of the ten apps: the launcher and the lock were proven with Windows' Character Map as an app without a profile; the profiles themselves wait for the lab's app matrix. Office's save before the hand-in was left out until there is an Office to build it against.*
+
 *Revision 11 (2026-11-14): **M4 was built on GitHub's Windows computers** (the teacher: *"start M4"*), with no lab computer: a `windows` workflow runs the Windows tests and a lock e2e on Windows Server 2022 and 2025 for every change to the Windows side. The service and the installer stay in M8; what only a lab computer can show is listed in `docs/acceptance/M4.md` §4.*
 
 *Revision 10 (2026-11-14): **M6 before M4 and M5, as far as it goes without them** (the teacher: *"continue"*): the lock can only be tried on a lab computer, and the teacher's and student's remaining screens can be tried on the Mac today. What M6 needs from the lock (the checks) and the apps (choosing them) waits.*
@@ -425,7 +427,7 @@ Each milestone lists: **goal · build order (TDD slices) · tests written first 
 | M2 The classroom network | 🔨 built; waiting for the teacher and the lab | | All six slices, test first: the six stories and 40 simulated students pass (`docs/acceptance/M2.md`); **waiting: a lab computer hears the beacon and joins (R3); the teacher's yes or no to M2.md §3** |
 | M3 Walking skeleton | 🔨 built; waiting for the teacher and the lab | | The first usable app, unlocked: screens 01, 03, 04, 07b, 09, 09b, 11 (minimal), 12, 13; e2e with a teacher and two students (`docs/acceptance/M3.md`); **waiting: the teacher's look at the screens and yes or no to M3.md §3; the 10-minute trial on lab computers** |
 | M4 Locking a lab computer | 🔨 built and proven on GitHub's Windows; waiting for a lab computer | | The Guard, the executors, the checks, the process guard, the keyboard hook, the kiosk and the bar: a real Windows computer is locked for an exam and put back, also after ExamMode is killed (`docs/acceptance/M4.md`). **Waiting: every way out tried by hand on a lab computer; the service and installer (M8)** |
-| M5 The apps | | | |
+| M5 The apps | 🔨 built; proven on GitHub's Windows with a stand-in app; waiting for a lab computer with the apps | | The ten profiles, the launcher, the bar's apps, the apps closed before the Exam folder is removed, the inventory and 11b Add an app (`docs/acceptance/M5.md`). **Waiting: the app matrix — no profile has met its app yet; Office's own save before the hand-in isn't built; the teacher's yes or no to M5.md §5** |
 | M6 The teacher's whole exam | 🔨 built ahead of M4 and M5; waiting for the teacher | | 08, 10, 10b, 13b, Add time, 13 in full, the code full screen, 14 and the log, kept exams, classes, files to give; the 26-student story ends with screen 14's counts (`docs/acceptance/M6.md`). **Waiting: the teacher's look (two screens were never drawn), N-13, yes or no to M6.md §3.** The apps and the checks join these screens with M5 and M4 |
 | M7 Teacher licence & trust | | | |
 | M8 Hardening & v1.0 | | | |

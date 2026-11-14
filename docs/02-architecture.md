@@ -258,6 +258,7 @@ The **students' clocks aren't trusted.** `endsAt` comes from the teacher, and ea
 - **Exam folder:** `C:\Users\<shared user>\Documents\ExamMode\<run>\<student>\`, made at Start and filled with the given files. Allowed apps open in it (profiles pass it as the working folder or argument). *Exam folder* in the bar opens a read-only list of it inside ExamMode, not File Explorer.
 - **Backups (F-22):** every 2 minutes ExamMode sends the files that changed (by size + modified time, then SHA-256) to the teacher's laptop. The teacher keeps the latest copy per file.
 - **Hand-in (F-16):** ExamMode asks each open allowed app to save (Office through its profile's save command; otherwise a prompt in 09). It sends every made or changed file. The teacher's laptop checks every SHA-256, stores the files in `Hand-ins\<exam and date>\<student>\`, and answers with a **receipt**: 6 characters from the hash of (run, student, file hashes), shown as `HX7-29Q`.
+  *As built (M5):* Office's save command isn't built; 09 tells the student which apps are still open and which file a window's title marks as not saved. Once the teacher's laptop has the work, the exam's apps are closed, then the Exam folder is removed: an app open in the folder keeps Windows from removing it.
 - **Leaving / stopped suddenly:** the latest backup *is* the hand-in, marked as such (14). On *Leave*, ExamMode sends a last backup first.
 - **Backups that aren't in the hand-in** (a file deleted since, or put back as it was given) are moved to `Earlier backups\` in the student's folder: kept, but apart.
 - **A file's name** comes from a lab computer, so it is checked before it is written: inside the student's folder, and storable on Windows and macOS (`src/lib/files/names.ts`). An app's lock files (`~$Report.docx`) are never sent.
@@ -288,7 +289,7 @@ Data files in `profiles/*.json`, checked by a zod schema in `src/lib/profiles`:
 | OneEditor, MicroLab | update checks; MicroLab's PyPI installs; later an `--exam` argument (Q10) |
 | *no profile* | only allowed to run: matched by its .exe path and signer; no policies |
 
-**The app inventory (F-31a):** each lab computer's ExamMode reports its installed apps (the uninstall registry keys and App Paths) when it starts. The teacher's laptop keeps the last report per computer, which gives *on 24 of 26 computers*.
+**The app inventory (F-31a):** each lab computer's ExamMode reads its installed apps (the uninstall registry keys and App Paths) and tells each teacher's laptop it finds (`POST /inventory`): the exam profiles whose app is there, and the other apps with their program's place — never a browser, a remote tool, an AI app or a recorder. The teacher's laptop keeps the last report per computer, which gives *on 24 of 26 computers*.
 
 ## 2.11 The teacher's data
 

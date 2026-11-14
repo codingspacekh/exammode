@@ -47,6 +47,9 @@ const WHY: Record<string, string> = {
   secret: 'ExamMode Guard refused. Tell your teacher.',
 };
 
+/** How many looks at the processes (one each half second) an app just opened is brought to the front for. */
+const FRONT_TRIES = 10;
+
 export class WindowsLockdown implements Lockdown {
   private readonly client: GuardClient;
   private readonly keyboard = new KeyboardHook();
@@ -57,7 +60,7 @@ export class WindowsLockdown implements Lockdown {
   private open = new Map<string, number[]>();
   private told = '';
   /** the app that was just opened from the bar, until its window is there */
-  private bringForward?: string;
+  private bringForward?: { id: string; tries: number };
 
   constructor(private readonly options: WindowsLockdownOptions) {
     this.client = new GuardClient(options.endpoint ?? GUARD);
@@ -129,11 +132,14 @@ export class WindowsLockdown implements Lockdown {
       this.open.set(app.id, procs.map((p) => p.pid));
       // an app that was just opened from the bar comes to the front, maximised: Windows doesn't give the front
       // to a program by itself when it wasn't started by a click in the window in front
-      if (this.bringForward === app.id) {
-        this.bringForward = undefined;
-        if (!windowed.some((p) => p.pid === front)) {
+      if (this.bringForward?.id === app.id) {
+        // (Windows may refuse once, or the window may not be ready: tried at each look until it is in front, for
+        // a few seconds at most — never against a student who has gone to another app since)
+        if (windowed.some((p) => p.pid === front) || ++this.bringForward.tries > FRONT_TRIES) this.bringForward = undefined;
+        else {
           await focus(windowed.map((p) => p.pid));
           front = await foregroundPid();
+          if (windowed.some((p) => p.pid === front)) this.bringForward = undefined;
         }
       }
       const inFront = windowed.find((p) => p.pid === front);
@@ -151,7 +157,7 @@ export class WindowsLockdown implements Lockdown {
     if (!info || !app) return 'failed';
     const running = this.open.get(id);
     if (running?.length) return (await focus(running)) ? undefined : 'failed';
-    this.bringForward = id;
+    this.bringForward = { id, tries: 0 };
     return launch(app, { examFolder: info.examFolder, examProfile: join(this.options.profiles, info.runId, id.replace(/[^\w.-]/g, '_')) }, {
       env: process.env as Record<string, string>,
       exists: (path) => access(path).then(() => true, () => false),
