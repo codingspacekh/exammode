@@ -164,7 +164,8 @@ export async function runStudent(): Promise<void> {
   /** The bar's height: with a strip under it while there is something to say. */
   function resize(state: StudentState): void {
     if (!bar || bar.isDestroyed()) return;
-    const strip = !state.contact || (state.closed !== undefined && Date.now() - state.closed.at < CLOSED_MS);
+    const recent = (said?: { at: number }) => said !== undefined && Date.now() - said.at < CLOSED_MS;
+    const strip = !state.contact || recent(state.closed) || recent(state.appMissing);
     // (locked, the bar itself holds the top of the screen: the work area starts under it)
     const display = screen.getPrimaryDisplay();
     const area = state.locked ? display.bounds : display.workArea;
@@ -174,12 +175,13 @@ export async function runStudent(): Promise<void> {
     tell(state);
     // with no contact the bar grows by a strip that says so (10b)
     // … and for a few seconds when an app was closed (07)
-    if (state.closed?.at !== closedAt) {
-      closedAt = state.closed?.at;
+    const saidAt = Math.max(state.closed?.at ?? 0, state.appMissing?.at ?? 0) || undefined;
+    if (saidAt !== closedAt) {
+      closedAt = saidAt;
       clearTimeout(closedTimer);
       if (closedAt) closedTimer = setTimeout(() => resize(flow.state()), CLOSED_MS + 200);
     }
-    if (state.contact !== contact || state.closed) resize(state);
+    if (state.contact !== contact || saidAt) resize(state);
     contact = state.contact;
     // F-07: locked, ExamMode fills the screen — there is nothing else to go to
     if (state.locked !== locked) {

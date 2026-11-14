@@ -218,6 +218,38 @@ describe('04 The exam bar (F-09)', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Can\'t reach the teacher\'s computer. Keep working — your work is saved on this computer. Trying again · 0:42');
   });
 
+  it('05 06 the exam\'s apps are buttons on the bar: pressed, one opens; a dot says it is open; the one in front stands out', async () => {
+    const api = studentApi();
+    const apps = [
+      { id: 'word', name: 'Word', badge: { text: 'W', color: '#2b579a' }, running: true, front: true },
+      { id: 'excel', name: 'Excel', badge: { text: 'X', color: '#217346' }, running: true, front: false },
+      { id: 'app:gimp', name: 'GIMP', running: false, front: false },
+    ];
+    const { rerender } = render(<ExamBar state={inExam({ apps })} api={api} />);
+    const buttons = within(screen.getByRole('toolbar', { name: 'The exam\'s apps' })).getAllByRole('button');
+    expect(buttons.map((b) => b.textContent)).toEqual(['WWord', 'XExcel', 'GGIMP']);
+    expect(buttons.map((b) => b.getAttribute('aria-pressed'))).toEqual(['true', 'false', 'false']);
+    expect(buttons.map((b) => within(b).queryByRole('img', { name: 'open' }) !== null)).toEqual([true, true, false]);
+    await userEvent.click(screen.getByRole('button', { name: /GIMP/ }));
+    expect(api.openApp).toHaveBeenCalledWith('app:gimp');
+    // with the questions on a website, Questions is the first of them, and stands out while no app is in front
+    const state = inExam({ apps: apps.map((a) => ({ ...a, front: false })) });
+    rerender(<ExamBar state={{ ...state, exam: { ...state.exam!, hasQuestions: true } }} api={api} />);
+    expect(within(screen.getByRole('toolbar', { name: 'The exam\'s apps' })).getAllByRole('button').map((b) => b.textContent?.replace(/^./, ''))).toEqual(['uestions', 'Word', 'Excel', 'GIMP']);
+    // while Hand in is open the apps can't be pressed
+    rerender(<ExamBar state={inExam({ apps, screen: 'handIn' })} api={api} />);
+    expect(screen.getByRole('button', { name: /Word/ })).toBeDisabled();
+  });
+
+  it('an app of the exam that isn\'t on this computer: the bar says so', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(at('09:40:02'));
+    render(<ExamBar state={inExam({ appMissing: { name: 'VS Code', at: at('09:40') } })} api={studentApi()} />);
+    expect(screen.getByRole('alert')).toHaveTextContent('VS Code couldn\'t be opened on this computer. Tell Ms Srey Leak.');
+    act(() => void vi.advanceTimersByTime(CLOSED_MS));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('07 an app that isn\'t part of the exam was closed: the bar says so for a few seconds', () => {
     vi.useFakeTimers();
     vi.setSystemTime(at('09:52:03'));

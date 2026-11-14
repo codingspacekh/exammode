@@ -28,6 +28,8 @@ const out = (file: string, args: string[]): string => {
   }
 };
 const explorerRuns = (): boolean => /explorer\.exe/i.test(out('tasklist.exe', ['/fi', 'imagename eq explorer.exe', '/nh']));
+const CHARMAP = `${process.env.SystemRoot ?? 'C:\\Windows'}\\System32\\charmap.exe`;
+const charmapRuns = (): boolean => /charmap\.exe/i.test(out('tasklist.exe', ['/fi', 'imagename eq charmap.exe', '/nh']));
 const notepadRuns = (): boolean => /notepad\.exe/i.test(out('tasklist.exe', ['/fi', 'imagename eq notepad.exe', '/nh']));
 /** Can a program that isn't ExamMode reach the internet? */
 const curlReaches = (): boolean => /^[23]\d\d$/.test(out('curl.exe', ['-s', '-m', '8', '-o', 'NUL', '-w', '%{http_code}', 'https://example.com']).trim());
@@ -74,6 +76,7 @@ test.afterEach(async () => {
   guard?.kill();
   guard = undefined;
   if (!explorerRuns()) spawn('explorer.exe', [], { detached: true, stdio: 'ignore' }).unref();
+  out('taskkill.exe', ['/f', '/im', 'charmap.exe']);
   rmSync(home, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
 });
 
@@ -87,6 +90,9 @@ async function classroom() {
   await teacher.getByRole('textbox', { name: 'Your name' }).fill('Ms Srey Leak');
   await teacher.getByRole('textbox', { name: 'The class\'s name' }).fill('Year 10 A');
   await teacher.getByRole('textbox', { name: /Students/ }).fill('Sokha Chan\nDara Kim');
+  // F-31 one app for this exam, by its program's place: Character Map, which every Windows has
+  await teacher.getByRole('textbox', { name: /Another app/ }).fill(CHARMAP);
+  await teacher.getByRole('button', { name: 'Add the app' }).click();
   await teacher.getByRole('button', { name: 'Open for students…' }).click();
   const code = (await teacher.getByLabel(/^Exam code \d/).textContent({ timeout: 30_000 }))!;
 
@@ -133,12 +139,20 @@ test('F-07 F-12 F-21 F-23 a lab computer is locked for the exam, closes an app t
   // D6 the bar holds the top of the screen: the work area starts under it
   await expect.poll(workAreaTop, { timeout: 20_000 }).toBeGreaterThanOrEqual(50);
 
+  // F-11 the exam's app is on the bar: pressed, it opens and may stay; the teacher's card says it is in front
+  await bar.getByRole('button', { name: /charmap/i }).click();
+  await expect.poll(charmapRuns, { timeout: 20_000 }).toBe(true);
+  await expect(bar.getByRole('button', { name: /charmap/i }).getByRole('img', { name: 'open' })).toBeVisible({ timeout: 15_000 });
+  await expect(teacher.getByRole('button', { name: 'Sokha Chan' })).toContainText(/charmap/i, { timeout: 15_000 });
+
   // F-12 Notepad is started: closed, said on the bar, and a warning on the teacher's card
   spawn('notepad.exe', [], { detached: true, stdio: 'ignore' }).unref();
   await expect(teacher.getByRole('list', { name: 'What\'s happening' })).toContainText(/Sokha Chan opened notepad — closed/i, { timeout: 30_000 });
   await expect(bar.getByRole('alert')).toContainText(/notepad isn't part of this exam/i);
   await expect(teacher.getByRole('button', { name: 'Sokha Chan' })).toContainText('Warning');
   await expect.poll(notepadRuns, { timeout: 10_000 }).toBe(false);
+  // … while the exam's own app is still there
+  expect(charmapRuns()).toBe(true);
 
   // the work is handed in; Finish puts the computer back
   const root = join(home, 'Exam');
@@ -153,6 +167,8 @@ test('F-07 F-12 F-21 F-23 a lab computer is locked for the exam, closes an app t
   await expect.poll(() => existsSync(join(home, 'journal.json')), { timeout: 60_000 }).toBe(false);
   await expect.poll(explorerRuns, { timeout: 30_000 }).toBe(true);
   expect(taskManagerOff()).toBe(false);
+  // the exam's apps were closed with the exam
+  expect(charmapRuns()).toBe(false);
   await expect.poll(curlReaches, { timeout: 30_000 }).toBe(true);
   expect(await studentApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().some((w) => w.isKiosk()))).toBe(false);
   // the top of the screen was given back

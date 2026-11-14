@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { CheckIcon, ExamIcon, FileIcon, FileTextIcon, FolderIcon, GlobeIcon, MinusIcon, PencilSimpleIcon, PlayIcon, PlusIcon, ShieldCheckIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
+import { AppWindowIcon, CheckIcon, ExamIcon, FileIcon, FileTextIcon, FolderIcon, GlobeIcon, MinusIcon, PencilSimpleIcon, PlayIcon, PlusIcon, ShieldCheckIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
 import type { ExamForm, GivenFile, SavedExam, TeacherApi, TeacherState } from '@lib/app/state';
 import { parseRoster } from '@lib/exam/roster';
+import { BUILTIN } from '@lib/profiles/builtin';
+import { appLabel, type ExamApp } from '@lib/profiles/exam-apps';
 import { formatMinutes } from '@lib/session/time';
 import { Note, size } from '@/components/brand';
 import { Button } from '@/components/ui/button';
@@ -26,7 +28,7 @@ const RULES: [string, string][] = [
 ];
 
 /** 11 · Make an exam (F-30, F-32, F-33, F-35): the title, the class, the time, where the questions are, the
- *  files to give. `exam`: the kept exam that is being changed. The exam's apps come with M5. */
+ *  files to give, the apps (F-31). `exam`: the kept exam that is being changed. */
 export function MakeExam({ state, api, exam, page, onPage, onClose, cancel = false }: { state: TeacherState; api: TeacherApi; exam?: SavedExam; page?: Page; onPage?: (page: Page) => void; /** back to the list: after Save, or by Cancel when there is a list to go back to */ onClose?: () => void; cancel?: boolean }) {
   const lastClass = exam?.classId ?? state.defaults.classId;
   const [teacher, setTeacher] = useState(exam?.teacher ?? state.defaults.teacher);
@@ -38,6 +40,8 @@ export function MakeExam({ state, api, exam, page, onPage, onClose, cancel = fal
   const [where, setWhere] = useState<'paper' | 'website'>(exam && exam.websites.length > 0 ? 'website' : 'paper');
   const [websites, setWebsites] = useState(exam && exam.websites.length > 0 ? exam.websites : ['']);
   const [files, setFiles] = useState<GivenFile[]>(exam?.files ?? []);
+  const [apps, setApps] = useState<ExamApp[]>(exam?.apps ?? []);
+  const [program, setProgram] = useState('');
   const [error, setError] = useState<string>();
   const [opening, setOpening] = useState(false);
 
@@ -46,13 +50,23 @@ export function MakeExam({ state, api, exam, page, onPage, onClose, cancel = fal
   const sites = where === 'website' ? websites.map((w) => w.trim()).filter(Boolean) : [];
   const site = (i: number, value: string) => setWebsites(websites.map((w, at) => (at === i ? value : w)));
 
-  const form = (): ExamForm => ({ id: exam?.id, teacher, title, classId: kept?.id, className, studentNames, minutes, websites: sites, files });
+  const form = (): ExamForm => ({ id: exam?.id, teacher, title, classId: kept?.id, className, studentNames, minutes, websites: sites, files, apps });
   async function send(how: 'open' | 'saveExam') {
     setOpening(true);
     const wrong = await api[how](form());
     setError(wrong);
     setOpening(false);
     if (!wrong && how === 'saveExam') onClose?.();
+  }
+  const has = (id: string) => apps.some((a) => 'profile' in a && a.profile === id);
+  const toggle = (id: string) => setApps(has(id) ? apps.filter((a) => !('profile' in a && a.profile === id)) : [...apps, { profile: id }]);
+  const others = apps.filter((a): a is Extract<ExamApp, { custom: unknown }> => 'custom' in a);
+  /** An app without a profile: by where its program is on the lab computers. */
+  function addProgram() {
+    const image = program.trim();
+    if (image === '' || others.some((a) => a.custom.image.toLowerCase() === image.toLowerCase())) return;
+    setApps([...apps, { custom: { image } }]);
+    setProgram('');
   }
   /** The files just chosen take the place of ones with the same name. */
   async function addFiles() {
@@ -101,6 +115,36 @@ export function MakeExam({ state, api, exam, page, onPage, onClose, cancel = fal
                   </div>
                 </>
               )}
+            </div>
+          </Section>
+          <Section title={<><AppWindowIcon /> Apps students can use</>} sub="Chosen for each exam. Every other app is closed. An app with an exam profile also has its own ways out turned off.">
+            <div role="group" aria-label="Apps with an exam profile" className="grid grid-cols-3 gap-2">
+              {BUILTIN.map((p) => (
+                <button key={p.id} type="button" role="checkbox" aria-checked={has(p.id)} onClick={() => toggle(p.id)}
+                  className={`flex items-center gap-2.5 rounded-[10px] border px-3 py-2.5 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30 ${has(p.id) ? 'border-primary bg-accent' : 'border-input'}`}>
+                  <span className="grid size-7 flex-none place-items-center rounded-[7px] text-[11px] font-bold text-white" style={{ background: p.badge?.color }}>{p.badge?.text}</span>
+                  <span className="min-w-0"><b className="block truncate text-[12.5px]">{p.name}</b><span className="block truncate text-[11.5px] text-muted-foreground">{p.publisher}</span></span>
+                  <span className={`ml-auto grid size-[18px] flex-none place-items-center rounded-[5px] border-[1.5px] text-white ${has(p.id) ? 'border-primary bg-primary' : 'border-input bg-card'}`}>{has(p.id) && <CheckIcon weight="bold" className="size-3" />}</span>
+                </button>
+              ))}
+            </div>
+            {others.length > 0 && (
+              <ul aria-label="Other apps" className="mt-2.5 overflow-hidden rounded-[10px] border border-border">
+                {others.map((a, i) => (
+                  <li key={a.custom.image} className={`flex items-center gap-2.5 px-3 py-[7px] text-[12.5px] ${i > 0 ? 'border-t border-border' : ''}`}>
+                    <b className="flex-none">{appLabel(a)}</b><span className="truncate font-mono text-[11.5px] text-muted-foreground">{a.custom.image}</span>
+                    <span className="ml-auto flex-none text-[11.5px] text-muted-foreground">only allowed to run</span>
+                    <Button type="button" variant="ghost" size="icon-sm" aria-label={`Take ${appLabel(a)} off`} onClick={() => setApps(apps.filter((x) => x !== a))}><TrashIcon /></Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="mt-2.5 flex items-end gap-2">
+              <div className="flex-1">
+                <Label htmlFor="program" className={label}>Another app — its program's place on the lab computers</Label>
+                <Input id="program" value={program} onChange={(e) => setProgram(e.target.value)} placeholder="C:\\Program Files\\GIMP 2\\bin\\gimp-2.10.exe" className="h-9 font-mono text-[12.5px]" />
+              </div>
+              <Button type="button" variant="outline" disabled={program.trim() === ''} onClick={addProgram}><PlusIcon /> Add the app</Button>
             </div>
           </Section>
           <Section title={<><ExamIcon /> Questions</>} sub="On paper is the usual: students get no browser and no internet at all. On a website: the exam browser opens only these.">
@@ -155,6 +199,7 @@ export function MakeExam({ state, api, exam, page, onPage, onClose, cancel = fal
                 [title.trim() !== '', title.trim() || 'A title'],
                 [students > 0, students > 0 ? `${students} students${kept ? ` in ${kept.name}` : ''}` : 'A class with its students'],
                 [true, formatMinutes(minutes)],
+                [true, apps.length === 0 ? 'No apps: only the questions' : `${apps.length === 1 ? '1 app' : `${apps.length} apps`}: ${apps.map(appLabel).join(', ')}`],
                 [where === 'paper' || sites.length > 0, where === 'paper' ? 'Questions on paper — no browser, no internet' : sites.length === 1 ? '1 website' : `${sites.length} websites`],
                 [true, files.length === 0 ? 'No files to give' : `${files.length === 1 ? '1 file' : `${files.length} files`} to give · ${size(files.reduce((sum, f) => sum + f.bytes, 0))}`],
               ].map(([ok, text], i) => (
@@ -166,7 +211,7 @@ export function MakeExam({ state, api, exam, page, onPage, onClose, cancel = fal
             </ul>
           </Section>
           <Section title="What comes later" className="p-4">
-            <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">This version doesn't lock the lab computers yet, and the exam's apps aren't chosen here yet. Both come in the next versions.</p>
+            <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">The list of the apps that are installed on the lab computers, with how many computers have each, comes next. Until then an app without a profile is added by its program's place.</p>
           </Section>
         </aside>
       </div>

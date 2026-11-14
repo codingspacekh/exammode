@@ -28,6 +28,7 @@ export function feedLine(item: FeedItem): { tone: Tone; who?: string; text: stri
     case 'noContact': return { tone: 'lost', who, text: `— no contact${item.pc ? ` with ${item.pc}` : ''}` };
     case 'gap': return { tone: 'lost', who, text: `is back in contact after ${String(d.seconds)} s` };
     case 'appClosed': return { tone: 'warn', who, text: `opened ${String(d.app ?? 'an app that isn\'t allowed')} — closed` };
+    case 'appMissing': return { tone: 'lost', who, text: `— ${String(d.app ?? 'an app of the exam')} ${d.why === 'notInstalled' ? 'isn\'t on' : 'couldn\'t be opened on'} ${item.pc ?? 'their computer'}` };
     case 'pageBlocked': return { tone: 'lost', who, text: `clicked a site that isn't allowed — ${host()}` };
     case 'displayAdded': return { tone: 'warn', who, text: 'plugged in a second screen' };
     case 'checkFailed': return { tone: 'warn', who, text: `— this computer can't start: ${String(d.check)}` };

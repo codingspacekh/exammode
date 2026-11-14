@@ -32,7 +32,7 @@ describe('11 Make an exam — the minimal form (F-30, F-32)', () => {
     await user.click(screen.getByRole('button', { name: 'Open for students…' }));
     expect(api.open).toHaveBeenCalledWith({
       teacher: 'Ms Srey Leak', title: 'Year 10 ICT — Term 1 practical exam', classId: undefined, className: 'Year 10 A',
-      studentNames: 'Sokha Chan\nDara Kim\nDara Kim', minutes: 85, websites: [], files: [],
+      studentNames: 'Sokha Chan\nDara Kim\nDara Kim', minutes: 85, websites: [], files: [], apps: [],
     });
   });
 
@@ -96,6 +96,45 @@ describe('11 Make an exam — files to give, saving, changing (F-33, F-35)', () 
     expect(api.saveExam).toHaveBeenCalledWith(expect.objectContaining({ title: 'Term 1', files: [{ name: 'marks.csv', bytes: 1024, path: '/Users/teacher/marks.csv' }] }));
     await user.click(screen.getByRole('button', { name: 'Take marks.csv off' }));
     expect(screen.queryByRole('list', { name: 'Files to give' })).not.toBeInTheDocument();
+  });
+
+  it('F-31 the apps for this exam are chosen each time: the ones with a profile by a tick, any other by its program\'s place', async () => {
+    const api = teacherApi();
+    const user = userEvent.setup();
+    render(<MakeExam state={teacher({ classes, defaults: { teacher: 'Ms Srey Leak', classId: 'c-1' } })} api={api} />);
+    const profiles = within(screen.getByRole('group', { name: 'Apps with an exam profile' })).getAllByRole('checkbox');
+    expect(profiles.map((b) => b.querySelector('b')?.textContent)).toEqual(['Word', 'Excel', 'PowerPoint', 'Access', 'Project', 'VS Code', 'Python IDLE', 'Thonny', 'OneEditor', 'MicroLab']);
+    expect(profiles.every((b) => b.getAttribute('aria-checked') === 'false')).toBe(true);
+    expect(screen.getByText('No apps: only the questions')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('checkbox', { name: /^.*Word/ }));
+    await user.click(screen.getByRole('checkbox', { name: /VS Code/ }));
+    await user.click(screen.getByRole('checkbox', { name: /Excel/ }));
+    await user.click(screen.getByRole('checkbox', { name: /Excel/ }));
+    expect(screen.getByRole('checkbox', { name: /VS Code/ })).toBeChecked();
+
+    const add = screen.getByRole('button', { name: 'Add the app' });
+    expect(add).toBeDisabled();
+    await user.type(screen.getByRole('textbox', { name: /Another app/ }), 'C:\\Program Files\\GIMP 2\\bin\\gimp-2.10.exe');
+    await user.click(add);
+    // the same program twice is one app
+    await user.type(screen.getByRole('textbox', { name: /Another app/ }), 'c:\\program files\\GIMP 2\\bin\\gimp-2.10.exe');
+    await user.click(add);
+    expect(within(screen.getByRole('list', { name: 'Other apps' })).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['gimp-2.10C:\\Program Files\\GIMP 2\\bin\\gimp-2.10.exeonly allowed to run']);
+    expect(screen.getByText('3 apps: Word, VS Code, gimp-2.10')).toBeInTheDocument();
+
+    await user.type(screen.getByRole('textbox', { name: 'Title' }), 'Term 1');
+    await user.click(screen.getByRole('button', { name: 'Open for students…' }));
+    expect(api.open).toHaveBeenCalledWith(expect.objectContaining({ apps: [{ profile: 'word' }, { profile: 'vscode' }, { custom: { image: 'C:\\Program Files\\GIMP 2\\bin\\gimp-2.10.exe' } }] }));
+    await user.click(screen.getByRole('button', { name: 'Take gimp-2.10 off' }));
+    expect(screen.queryByRole('list', { name: 'Other apps' })).not.toBeInTheDocument();
+  });
+
+  it('a kept exam opens with its apps ticked', () => {
+    render(<MakeExam state={teacher({ classes, exams: [{ ...kept, apps: [{ profile: 'excel' }, { custom: { image: 'C:\\Scratch\\Scratch 3.exe', name: 'Scratch 3' } }] }] })} api={teacherApi()} exam={{ ...kept, apps: [{ profile: 'excel' }, { custom: { image: 'C:\\Scratch\\Scratch 3.exe', name: 'Scratch 3' } }] }} />);
+    expect(screen.getByRole('checkbox', { name: /Excel/ })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /^.*Word/ })).not.toBeChecked();
+    expect(screen.getByRole('list', { name: 'Other apps' })).toHaveTextContent('Scratch 3');
   });
 
   it('the rules are said, not switched', () => {
@@ -564,6 +603,8 @@ describe('13 the feed\'s words', () => {
     expect(line('gap', { seconds: 45 })).toBe('Dara Kim|is back in contact after 45 s');
     expect(line('appClosed')).toBe('Dara Kim|opened an app that isn\'t allowed — closed');
     expect(line('pageBlocked', { url: 'https://stackoverflow.com/questions/1' })).toBe('Dara Kim|clicked a site that isn\'t allowed — stackoverflow.com');
+    expect(line('appMissing', { app: 'VS Code', why: 'notInstalled' })).toBe('Dara Kim|— VS Code isn\'t on PC-03');
+    expect(line('appMissing', { why: 'failed' }, 'Dara Kim', null)).toBe('Dara Kim|— an app of the exam couldn\'t be opened on their computer');
     expect(line('pageBlocked', { url: 'somewhere' })).toBe('Dara Kim|clicked a site that isn\'t allowed — somewhere');
     expect(line('pageBlocked')).toBe('Dara Kim|clicked a site that isn\'t allowed — a website');
     expect(line('displayAdded')).toBe('Dara Kim|plugged in a second screen');
