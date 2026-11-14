@@ -111,6 +111,7 @@ describe('F-30 opening an exam (the minimal form of M3)', () => {
     // a page that isn't part of the exam is a note in the teacher's feed (F-13)
     await desk.start();
     await eventually(() => expect(sokha.state().screen).toBe('exam'));
+    await sokha.exam!.begin();
     sokha.report('pageBlocked', { url: 'https://stackoverflow.com/questions/1' });
     await eventually(() => expect(desk.state().feed[0]).toMatchObject({ kind: 'pageBlocked', student: 'Sokha Chan', pc: 'PC-14', details: { url: 'https://stackoverflow.com/questions/1' } }));
     expect(desk.state().students.find((s) => s.name === 'Sokha Chan')!.warnings).toBe(0);
@@ -157,6 +158,8 @@ describe('M3 an exam from the lobby to the receipts', () => {
 
     await desk.start();
     await eventually(() => expect([sokha.state().screen, dara.state().screen]).toEqual(['exam', 'exam']));
+    // (the Exam folders are there)
+    await Promise.all([sokha.exam!.begin(), dara.exam!.begin()]);
     const { run } = desk.state();
     expect(desk.state().screen).toBe('live');
     expect(sokha.state().endsAt).toBe(run!.endsAt);
@@ -206,6 +209,7 @@ describe('M3 an exam from the lobby to the receipts', () => {
     await sit(sokha, 'Sokha Chan');
     await desk.start();
     await eventually(() => expect(sokha.state().screen).toBe('exam'));
+    await sokha.exam!.begin();
     await writeFile(join(sokha.folder!, 'answer.txt'), '42');
     await sokha.askHandIn();
     clock.ahead = 61_000;
@@ -221,6 +225,7 @@ describe('M3 an exam from the lobby to the receipts', () => {
     await sit(sokha, 'Sokha Chan');
     await desk.start();
     await eventually(() => expect(sokha.state().screen).toBe('exam'));
+    await sokha.exam!.begin();
     // someone starts another ExamMode as Sokha on the same computer: the first had stopped, for the teacher's laptop
     Object.assign(other, { options: { ...other['options'], teacherPort: desk.port, pc: 'PC-14' } });
     await other.lookAt('127.0.0.1');
@@ -238,6 +243,7 @@ describe('M3 an exam from the lobby to the receipts', () => {
     await sit(sokha, 'Sokha Chan');
     await desk.start();
     await eventually(() => expect(sokha.state().screen).toBe('exam'));
+    await sokha.exam!.begin();
     sokha.session!.drop();
     await eventually(() => expect(sokha.state().contact).toBe(false));
     await eventually(() => expect(sokha.state()).toMatchObject({ contact: true, screen: 'exam' }));
@@ -249,6 +255,7 @@ describe('M3 an exam from the lobby to the receipts', () => {
     await sit(sokha, 'Sokha Chan');
     await desk.start();
     await eventually(() => expect(sokha.state().screen).toBe('exam'));
+    await sokha.exam!.begin();
     const port = desk.port;
     await desk.close();
     await eventually(() => expect(sokha.state().contact).toBe(false));
