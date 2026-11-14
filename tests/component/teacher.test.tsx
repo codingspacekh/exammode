@@ -227,6 +227,7 @@ describe('12 Students joining (F-36, F-37)', () => {
     card('Vannak Sok'),
     card('Sokha Chan', { state: 'ready', pc: 'PC-14', joinedAt: at('09:24'), connected: true }),
     card('Sophea Lim', { state: 'checking', pc: 'PC-09', joinedAt: at('09:26'), connected: true }),
+    card('Mealea Chea', { state: 'checking', pc: 'PC-11', joinedAt: at('09:27'), connected: true, failed: ['oneScreen', 'noRemote'] }),
     card('Dara Kim', { state: 'ready', pc: 'PC-03', joinedAt: at('09:25'), connected: true }),
   ];
   const lobby = teacher({ screen: 'lobby', run: RUN, students });
@@ -235,7 +236,9 @@ describe('12 Students joining (F-36, F-37)', () => {
     render(<Lobby state={lobby} api={teacherApi()} />);
     expect(screen.getByLabelText('Exam code 4 8 1 7')).toHaveTextContent('4817');
     expect(screen.getByText('Year 10 A · 1 h 30 min · not started')).toBeInTheDocument();
-    expect(screen.getByText('of 4 students')).toBeInTheDocument();
+    expect(screen.getByText('of 5 students')).toBeInTheDocument();
+    // F-04 a computer that can't start says why
+    expect(screen.getByText('1 computer can\'t start — see the list')).toBeInTheDocument();
     expect(screen.getByRole('progressbar', { name: 'Students ready' })).toBeInTheDocument();
     expect(screen.getByText('1 student not here yet')).toBeInTheDocument();
   });
@@ -245,7 +248,8 @@ describe('12 Students joining (F-36, F-37)', () => {
     const rows = screen.getAllByRole('row').slice(1).map((r) => within(r).getAllByRole('cell').map((c) => c.textContent?.trim()));
     expect(rows).toEqual([
       ['Sokha Chan', 'PC-14', '09:24', 'Ready'], ['Dara Kim', 'PC-03', '09:25', 'Ready'],
-      ['Sophea Lim', 'PC-09', '09:26', 'Checking the computer…'], ['Vannak Sok', '—', '—', 'Not joined yet'],
+      ['Sophea Lim', 'PC-09', '09:26', 'Checking the computer…'], ['Mealea Chea', 'PC-11', '09:27', 'Can\'t start: a second screen is plugged in; remote control is on'],
+      ['Vannak Sok', '—', '—', 'Not joined yet'],
     ]);
   });
 

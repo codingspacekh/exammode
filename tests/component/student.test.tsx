@@ -4,7 +4,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { StudentApp } from '@/App';
 import { BrowserShell } from '@/student/BrowserShell';
 import { CantJoin } from '@/student/CantJoin';
-import { ExamBar } from '@/student/ExamBar';
+import { Checks } from '@/student/Checks';
+import { CLOSED_MS, ExamBar } from '@/student/ExamBar';
 import { HandedIn } from '@/student/HandedIn';
 import { HandIn } from '@/student/HandIn';
 import { Join } from '@/student/Join';
@@ -94,6 +95,65 @@ describe('01 Join an exam (F-01, F-02, F-03)', () => {
   });
 });
 
+describe('02 Getting this computer ready (F-04, F-05, F-06)', () => {
+  const passed = [{ check: 'guard' as const, ok: true }, { check: 'oneScreen' as const, ok: true }, { check: 'noRemote' as const, ok: true }, { check: 'realComputer' as const, ok: true }];
+  const apps = [{ name: 'Discord', pids: [30], windows: 1 }, { name: 'Google Chrome', pids: [10, 11], windows: 2 }, { name: 'notepad', pids: [20], windows: 1, unsaved: 'notes.txt' }];
+  const checking = (over = {}) => joined({ screen: 'checks', checks: { checks: passed, ok: true, toClose: apps, locking: false, ...over } });
+  const rows = () => within(screen.getByRole('list', { name: 'Checks' })).getAllByRole('listitem').map((li) => li.querySelector('b')?.textContent);
+
+  it('says each check plainly, and lists the apps that will be closed, with a file that isn\'t saved', () => {
+    render(<Checks state={checking()} api={studentApi()} />);
+    expect(screen.getByRole('heading', { name: 'Getting this computer ready' })).toBeInTheDocument();
+    expect(rows().filter(Boolean)).toEqual(['Connected to Ms Srey Leak\'s computer', 'One screen', 'No remote-control apps', 'A real computer', '3 apps will be closed', 'The clipboard is emptied']);
+    expect(within(screen.getByRole('list', { name: 'Apps that will be closed' })).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
+      'DDiscord', 'GGoogle Chrome· 2 windows', 'Nnotepad not saved — notes.txt',
+    ]);
+    expect(screen.queryByRole('button', { name: 'Check again' })).not.toBeInTheDocument();
+  });
+
+  it('Close the apps and continue locks the computer; Back goes back', async () => {
+    const api = studentApi();
+    const { rerender } = render(<Checks state={checking()} api={api} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Close the 3 apps and continue' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(api.lock).toHaveBeenCalledOnce();
+    expect(api.backOut).toHaveBeenCalledOnce();
+    rerender(<Checks state={checking({ locking: true })} api={api} />);
+    expect(screen.getByRole('button', { name: 'Getting ready…' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Back' })).toBeDisabled();
+    rerender(<Checks state={checking({ toClose: [apps[0]!] })} api={api} />);
+    expect(screen.getByRole('button', { name: 'Close the app and continue' })).toBeEnabled();
+    rerender(<Checks state={checking({ toClose: [] })} api={api} />);
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled();
+    expect(rows()).not.toContain('3 apps will be closed');
+  });
+
+  it('F-04 a check that fails says how to fix it; the exam can\'t start until Check again passes', async () => {
+    const api = studentApi();
+    const failed = [
+      { check: 'guard' as const, ok: false }, { check: 'oneScreen' as const, ok: false, found: '2 screens' },
+      { check: 'noRemote' as const, ok: false, found: 'AnyDesk' }, { check: 'realComputer' as const, ok: false, found: 'VMware' },
+    ];
+    render(<Checks state={checking({ checks: failed, ok: false })} api={api} />);
+    const list = screen.getByRole('list', { name: 'Checks' });
+    expect(list).toHaveTextContent('This computer can\'t be lockedExamMode Guard isn\'t running on it. Tell your teacher.');
+    expect(list).toHaveTextContent('More than one screen2 screens: unplug the second screen or the projector, then check again.');
+    expect(list).toHaveTextContent('Remote control is onAnyDesk — close it, then check again.');
+    expect(list).toHaveTextContent('A virtual machineThis is VMware. An exam is taken on the lab computer itself.');
+    expect(screen.getByRole('button', { name: 'Close the 3 apps and continue' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Check again' }));
+    expect(api.checkAgain).toHaveBeenCalledOnce();
+  });
+
+  it('while the computer is being looked at it says so; a lock that fails says why', () => {
+    const { rerender } = render(<Checks state={checking({ checks: [], ok: false, toClose: [] })} api={studentApi()} />);
+    expect(rows()).toEqual(['Connected to Ms Srey Leak\'s computer', 'Looking at this computer…']);
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
+    rerender(<Checks state={checking({ error: 'ExamMode Guard didn\'t answer.' })} api={studentApi()} />);
+    expect(screen.getByRole('alert')).toHaveTextContent('ExamMode Guard didn\'t answer.');
+  });
+});
+
 describe('03 Waiting for the teacher (F-08)', () => {
   it('says who is waited for, the time, the name and the computer, and that leaving can\'t be undone', () => {
     render(<Waiting state={joined()} />);
@@ -156,6 +216,15 @@ describe('04 The exam bar (F-09)', () => {
     vi.setSystemTime(at('09:45:42'));
     render(<ExamBar state={inExam({ contact: false, lostAt: at('09:45') })} api={studentApi()} />);
     expect(screen.getByRole('alert')).toHaveTextContent('Can\'t reach the teacher\'s computer. Keep working — your work is saved on this computer. Trying again · 0:42');
+  });
+
+  it('07 an app that isn\'t part of the exam was closed: the bar says so for a few seconds', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(at('09:52:03'));
+    render(<ExamBar state={inExam({ closed: { name: 'Google Chrome', at: at('09:52') } })} api={studentApi()} />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Google Chrome isn\'t part of this exam. It was closed. Ms Srey Leak can see that it was opened at 09:52.');
+    act(() => void vi.advanceTimersByTime(CLOSED_MS));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('F-15 the door at the end of the bar asks about leaving', async () => {
