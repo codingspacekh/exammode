@@ -22,6 +22,7 @@ export type FileKind = FileRow['kind'];
 
 export interface NewStudent { name: string; email?: string; number?: number }
 export interface NewExam { title: string; teacher: string; classId: string; minutes: number; websites?: Website[] }
+export type ExamFileRow = typeof schema.examFiles.$inferSelect;
 export interface RunInfo { run: RunRow; exam: ExamRow; className: string }
 export interface LogEntry { studentId?: string; pc?: string; at: number; kind: string; details: Record<string, unknown> }
 /** An attempt as it is kept: the rules' attempt, and what the classroom adds to it. */
@@ -93,6 +94,39 @@ export class Store {
     return { id, students: rows };
   }
 
+  /** Changes a class: its name and its list. A student who is still on the list keeps their place in earlier
+   *  exams; one who was taken off stays in the class only if an exam's records hang on them. Answers with how
+   *  many were kept for that reason. */
+  async changeClass(classId: string, name: string, students: NewStudent[]): Promise<number> {
+    await this.db.update(schema.classes).set({ name }).where(eq(schema.classes.id, classId));
+    const now = await this.students(classId);
+    const same = (a: { name: string; email?: string | null }, b: { name: string; email?: string | null }) => (a.email && b.email ? a.email === b.email : a.name === b.name);
+    const staying = new Set<string>();
+    for (const s of students) {
+      const was = now.find((n) => !staying.has(n.id) && same(n, s));
+      if (was) {
+        staying.add(was.id);
+        await this.db.update(schema.students).set({ name: s.name, email: s.email ?? null, number: s.number ?? null }).where(eq(schema.students.id, was.id));
+      } else await this.db.insert(schema.students).values({ id: randomUUID(), classId, name: s.name, email: s.email ?? null, number: s.number ?? null });
+    }
+    let kept = 0;
+    for (const gone of now.filter((n) => !staying.has(n.id))) {
+      const used = await this.db.select({ id: schema.attempts.id }).from(schema.attempts).where(eq(schema.attempts.studentId, gone.id)).limit(1);
+      if (used.length > 0) kept++;
+      else await this.db.delete(schema.students).where(eq(schema.students.id, gone.id));
+    }
+    return kept;
+  }
+
+  /** Deletes a class that no exam uses. False: an exam still does. */
+  async deleteClass(classId: string): Promise<boolean> {
+    const used = await this.db.select({ id: schema.exams.id }).from(schema.exams).where(eq(schema.exams.classId, classId)).limit(1);
+    if (used.length > 0) return false;
+    await this.db.delete(schema.students).where(eq(schema.students.classId, classId));
+    await this.db.delete(schema.classes).where(eq(schema.classes.id, classId));
+    return true;
+  }
+
   students(classId: string): Promise<StudentRow[]> {
     return this.db.select().from(schema.students).where(eq(schema.students.classId, classId)).orderBy(asc(schema.students.name));
   }
@@ -101,6 +135,39 @@ export class Store {
     const row: ExamRow = { id: randomUUID(), ...exam, apps: [], websites: exam.websites ?? [], rules: {}, updatedAt: at };
     await this.db.insert(schema.exams).values(row);
     return row;
+  }
+
+  /** Changes a kept exam. */
+  async changeExam(examId: string, exam: NewExam, at: number): Promise<void> {
+    await this.db.update(schema.exams).set({ ...exam, websites: exam.websites ?? [], updatedAt: at }).where(eq(schema.exams.id, examId));
+  }
+
+  /** Every kept exam, the one changed last first, with its class's name and how often it was run. */
+  async exams(): Promise<(ExamRow & { className: string; runs: number; files: ExamFileRow[] })[]> {
+    const rows = await this.db.select({ exam: schema.exams, className: schema.classes.name }).from(schema.exams)
+      .innerJoin(schema.classes, eq(schema.classes.id, schema.exams.classId)).orderBy(desc(schema.exams.updatedAt));
+    const runs = await this.db.select({ examId: schema.runs.examId }).from(schema.runs);
+    const files = await this.db.select().from(schema.examFiles).orderBy(asc(schema.examFiles.name));
+    return rows.map(({ exam, className }) => ({ ...exam, className, runs: runs.filter((r) => r.examId === exam.id).length, files: files.filter((f) => f.examId === exam.id) }));
+  }
+
+  /** Deletes an exam that was never run. False: it was, and its hand-ins hang on it. */
+  async deleteExam(examId: string): Promise<boolean> {
+    const run = await this.db.select({ id: schema.runs.id }).from(schema.runs).where(eq(schema.runs.examId, examId)).limit(1);
+    if (run.length > 0) return false;
+    await this.db.delete(schema.examFiles).where(eq(schema.examFiles.examId, examId));
+    await this.db.delete(schema.exams).where(eq(schema.exams.id, examId));
+    return true;
+  }
+
+  /** The files an exam gives every student (F-33). */
+  examFiles(examId: string): Promise<ExamFileRow[]> {
+    return this.db.select().from(schema.examFiles).where(eq(schema.examFiles.examId, examId)).orderBy(asc(schema.examFiles.name));
+  }
+
+  async setExamFiles(examId: string, files: FileMeta[]): Promise<void> {
+    await this.db.delete(schema.examFiles).where(eq(schema.examFiles.examId, examId));
+    if (files.length > 0) await this.db.insert(schema.examFiles).values(files.map((f) => ({ examId, ...f })));
   }
 
   /** Every class, with how many students it has. */

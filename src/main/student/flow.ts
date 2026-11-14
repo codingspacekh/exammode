@@ -10,7 +10,6 @@ import type { FoundExam, JoinError, StudentState } from '@lib/app/state';
 import type { ExamInfo } from '@lib/protocol/messages';
 import { Discovery, examsAt, namesOf, type Found } from './discovery';
 import { StudentExam, type Receipt } from './exam';
-import { listFiles } from './files';
 import { Session, type SessionOptions } from './session';
 
 export interface FlowOptions {
@@ -149,8 +148,8 @@ export class StudentFlow {
   /** Hand in…: the files that will go (09). */
   async askHandIn(): Promise<void> {
     if (this.current.screen !== 'exam' || !this.exam) return;
-    const files = await listFiles(this.exam.files.folder).catch(() => []);
-    if (this.current.screen === 'exam') this.set({ screen: 'handIn', handIn: { files, unchanged: [] } });
+    const handIn = await this.exam.files.view().catch(() => ({ files: [], unchanged: [] }));
+    if (this.current.screen === 'exam') this.set({ screen: 'handIn', handIn });
   }
 
   /** Back to the exam from Hand in (09) or Leave (08). */
@@ -162,8 +161,8 @@ export class StudentFlow {
   /** ⋯ Leave the exam: what would be handed in as it is (08). */
   async askLeave(): Promise<void> {
     if (this.current.screen !== 'exam' || !this.exam) return;
-    const files = await listFiles(this.exam.files.folder).catch(() => []);
-    if (this.current.screen === 'exam') this.set({ screen: 'leave', handIn: { files, unchanged: [] } });
+    const handIn = await this.exam.files.view().catch(() => ({ files: [], unchanged: [] }));
+    if (this.current.screen === 'exam') this.set({ screen: 'leave', handIn });
   }
 
   /** Leave, confirmed (F-15): the work so far goes to the teacher, and this computer is as it was. */

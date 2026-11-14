@@ -22,6 +22,6 @@ contextBridge.exposeInMainWorld('exammode', {
   platform: process.platform,
   view: new URLSearchParams(location.search).get('view') ?? 'student',
   student: side('student', ['pick', 'lookAt', 'join', 'askHandIn', 'keepWorking', 'handIn', 'askLeave', 'leave', 'giveUp', 'finish', 'showQuestions', 'openFolder']),
-  teacher: side('teacher', ['open', 'start', 'end', 'letBackIn', 'keepOut', 'addTime', 'done', 'openFolder', 'exportLog']),
+  teacher: side('teacher', ['open', 'saveExam', 'openSaved', 'copyExam', 'deleteExam', 'chooseFiles', 'saveClass', 'deleteClass', 'readListFile', 'start', 'end', 'letBackIn', 'keepOut', 'addTime', 'done', 'openFolder', 'exportLog']),
   browser: side('browser', ['select', 'close', 'back', 'forward', 'reload', 'toQuestions']),
 });

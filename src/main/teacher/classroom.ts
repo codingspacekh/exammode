@@ -9,7 +9,7 @@ import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { folderName, isSafeName, studentFolders } from '@lib/files/names';
 import { receiptCode } from '@lib/files/receipt';
-import { PROTOCOL_VERSION, type FromStudent, type FromTeacher, type RefusedReason, type Stopped, type Upload } from '@lib/protocol/messages';
+import { PROTOCOL_VERSION, type FileMeta, type FromStudent, type FromTeacher, type RefusedReason, type Stopped, type Upload } from '@lib/protocol/messages';
 import {
   addTime, onBeat, onChecks, onEvent, onHandIn, onJoin, onKeepOut, onLeave, onLetBackIn, onReady, onResume, onStart, onStopped, onTick,
   type Attempt, type HandInHow, type Result,
@@ -40,6 +40,8 @@ export interface ClassroomOptions {
   handIns: string;
   /** the teacher's clock */
   now?: () => number;
+  /** where an exam's files to give are kept */
+  given?: (examId: string) => string;
 }
 
 interface Seat {
@@ -91,6 +93,8 @@ export class Classroom {
   private readonly folders: Map<string, string>;
   private readonly roster: Map<string, StudentRow>;
   private readonly now: () => number;
+  /** the files every student is given (F-33) */
+  private given: FileMeta[] = [];
   private queue: Promise<unknown> = Promise.resolve();
   private flushing?: Promise<void>;
 
@@ -130,6 +134,7 @@ export class Classroom {
       if (was?.token) room.tokens.set(was.token, s.id);
     }
     for (const [studentId, files] of await store.fileCounts(runId)) room.seats.get(studentId)!.files = files;
+    room.given = (await store.examFiles(found.exam.id)).map(({ name, bytes, sha256 }) => ({ name, bytes, sha256 }));
     await mkdir(room.folder, { recursive: true });
     return room;
   }
@@ -276,6 +281,15 @@ export class Classroom {
   }
 
   // ── files ─────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  /** Where a file to give is, for a student of this run who is in it (or about to be); nothing otherwise. */
+  givenFile(token: string, name: string): string | undefined {
+    const studentId = this.tokens.get(token);
+    const folder = this.options.given?.(this.exam.id);
+    if (!studentId || !folder || !this.given.some((f) => f.name === name)) return undefined;
+    const { state } = this.seat(studentId).attempt;
+    return ['checking', 'ready', 'inExam', 'noContact'].includes(state) ? join(folder, name) : undefined;
+  }
 
   /** Is this the token of one of this run's attempts? */
   knows(token: string): boolean {
@@ -502,7 +516,7 @@ export class Classroom {
     const { title, teacher, minutes, websites } = this.exam;
     link.send({
       v: PROTOCOL_VERSION, type: 'joined', token: seat.token!, now: this.now(), state, endsAt: state === 'inExam' ? this.endsAt(seat.attempt) : undefined,
-      exam: { title, teacher, class: this.className, minutes, websites },
+      exam: { title, teacher, class: this.className, minutes, websites, files: this.given },
     });
     this.changed(studentId);
   }

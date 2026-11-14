@@ -56,10 +56,18 @@ export class StudentExam {
 
   /** In the exam: the Exam folder is there, and the backups begin. */
   begin(): Promise<void> {
-    this.begun ??= this.files.begin().then(() => {
+    this.begun ??= this.files.begin().then(() => this.fetchGiven()).then(() => {
       if (!this.over) this.timer = setInterval(() => void this.backUp(), this.options.backupMs ?? BACKUP_MS);
     });
     return this.begun;
+  }
+
+  /** The teacher's files into the Exam folder (F-33). What couldn't be fetched now is tried again later. */
+  private async fetchGiven(): Promise<void> {
+    const { token, exam, base, seat } = this.session;
+    if (!token || !exam?.files?.length) return;
+    const send = this.options.send ?? fetch;
+    await this.files.give(exam.files, (name) => send(`${base}/runs/${encodeURIComponent(seat.runId)}/files/${encodeURIComponent(name)}`, { headers: { 'x-exammode-token': token } }));
   }
 
   /** Sends the files that changed since the last backup. Answers how many went; -1 if the teacher's laptop
@@ -69,6 +77,7 @@ export class StudentExam {
       const token = this.session.token;
       if (!this.begun || this.over || !token) return -1;
       await this.begun;
+      await this.fetchGiven();
       const { files, sent } = await this.files.toBackUp();
       if (files.length === 0) return 0;
       const result = await this.send('backup', token, files);

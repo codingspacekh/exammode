@@ -3,6 +3,7 @@
  * process owns the state; a screen only shows it and passes on what was pressed. Types only.
  */
 import type { Website } from '../browser/sites';
+import type { RosterStudent } from '../exam/roster';
 import type { AttemptState, HandInHow, LeftHow } from '../session/attempt';
 
 // ── the teacher's side ──────────────────────────────────────────────────────────────────────────────────────────
@@ -53,10 +54,23 @@ export interface FeedItem { id: number; at: number; kind: string; studentId?: st
 /** A file the teacher's laptop has from a student: from the hand-in, or the latest backup. */
 export interface KeptFile { name: string; bytes: number; kind: 'backup' | HandInHow }
 
-export interface ClassChoice { id: string; name: string; students: number }
+export interface ClassChoice { id: string; name: string; students: number; roster: RosterStudent[] }
+
+/** A file to give every student: one the exam already has, or (with `path`) one just chosen on this computer. */
+export interface GivenFile { name: string; bytes: number; path?: string }
+
+/** An exam that is kept: it can be opened again, changed or copied (F-35). */
+export interface SavedExam {
+  id: string; title: string; teacher: string; classId: string; className: string; minutes: number;
+  websites: string[]; files: GivenFile[]; updatedAt: number;
+  /** how many times it has been run: an exam that was run can't be deleted, its hand-ins hang on it */
+  runs: number;
+}
 
 /** The minimal *open an exam* of M3: a title, a class, the time, and where the questions are. */
 export interface ExamForm {
+  /** the exam that is being changed; none: a new one */
+  id?: string;
   teacher: string;
   title: string;
   /** a class that is already kept; or a new one, by name with its students one a line */
@@ -66,11 +80,15 @@ export interface ExamForm {
   minutes: number;
   /** empty: the questions are on paper (no exam browser) */
   websites: string[];
+  /** the files to give every student (F-33) */
+  files?: GivenFile[];
 }
 
 export interface TeacherState {
   screen: 'make' | 'lobby' | 'live' | 'ended';
   classes: ClassChoice[];
+  /** the exams that are kept, the one changed last first */
+  exams: SavedExam[];
   /** what the form starts with: the last exam's teacher and class */
   defaults: Pick<ExamForm, 'teacher' | 'classId'>;
   run?: RunView;
@@ -86,8 +104,21 @@ export interface TeacherState {
 export interface TeacherApi {
   get(): Promise<TeacherState>;
   onState(listener: (state: TeacherState) => void): () => void;
-  /** Opens the exam for students. Answers with what is wrong with the form, if anything. */
+  /** Saves the form and opens the exam for students. Answers with what is wrong with the form, if anything. */
   open(form: ExamForm): Promise<string | undefined>;
+  /** Saves an exam without opening it (F-35). */
+  saveExam(form: ExamForm): Promise<string | undefined>;
+  /** Opens a kept exam for students again. */
+  openSaved(examId: string): Promise<string | undefined>;
+  copyExam(examId: string): Promise<void>;
+  deleteExam(examId: string): Promise<string | undefined>;
+  /** Asks for files on this computer, to give with an exam. */
+  chooseFiles(): Promise<GivenFile[]>;
+  /** A class (F-43): its name and its list, as typed, pasted or read from a file. */
+  saveClass(change: { id?: string; name: string; list: string }): Promise<string | undefined>;
+  deleteClass(classId: string): Promise<string | undefined>;
+  /** Asks for a spreadsheet file (CSV) and answers with its text, for the class's list. */
+  readListFile(): Promise<string | undefined>;
   start(): Promise<void>;
   end(): Promise<void>;
   /** Let back in / Keep out (F-40), with the reason for the log */

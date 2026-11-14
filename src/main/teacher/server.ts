@@ -5,10 +5,13 @@
  *   GET  /exams                the open runs, as the beacon announces them (F-01, for a typed-in computer name)
  *   GET  /runs/<run>/students  the class list to pick a name from (F-02)
  *   WS   /ws                   join or resume first, then the rest of the protocol
+ *   GET  /runs/<run>/files/<f>  a file the teacher gives every student, with the attempt's token (F-33)
  *   POST /stopped              the Guard: ExamMode's process ended without unlocking (F-20)
  *   POST /upload               a backup or a hand-in: `meta` first, then the files as f0, f1 … (F-16, F-22)
  */
+import { createReadStream } from 'node:fs';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import { pipeline } from 'node:stream/promises';
 import type { AddressInfo } from 'node:net';
 import busboy from 'busboy';
 import { WebSocketServer, type WebSocket } from 'ws';
@@ -149,6 +152,15 @@ export class ClassroomServer {
     if (req.method === 'GET' && students) {
       const room = this.rooms.get(decodeURIComponent(students[1]!));
       return room?.listing() ? json(res, 200, { v: PROTOCOL_VERSION, students: room.names() }) : json(res, 404, { error: 'noSuchRun' });
+    }
+    const given = /^\/runs\/([^/]+)\/files\/([^/]+)$/.exec(path);
+    if (req.method === 'GET' && given) {
+      // a file the teacher gives every student: only for one of the run's students, by their token
+      const token = req.headers['x-exammode-token'];
+      const file = typeof token === 'string' ? this.rooms.get(decodeURIComponent(given[1]!))?.givenFile(token, decodeURIComponent(given[2]!)) : undefined;
+      if (!file) return json(res, 404, { error: 'notFound' });
+      res.writeHead(200, { 'content-type': 'application/octet-stream' });
+      return void (await pipeline(createReadStream(file), res).catch(() => res.destroy()));
     }
     if (req.method === 'POST' && path === '/stopped') return this.stopped(req, res);
     if (req.method === 'POST' && path === '/upload') return this.upload(req, res);

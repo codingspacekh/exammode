@@ -37,7 +37,7 @@ describe('11 Make an exam — the minimal form (F-30, F-32)', () => {
 
   it('the next exam starts with your name and the class you used last', async () => {
     const api = teacherApi();
-    const classes = [{ id: 'c-1', name: 'Year 10 A', students: 26 }, { id: 'c-2', name: 'Year 11 B', students: 24 }];
+    const classes = [{ id: 'c-1', name: 'Year 10 A', students: 26, roster: [] }, { id: 'c-2', name: 'Year 11 B', students: 24, roster: [] }];
     render(<MakeExam state={teacher({ classes, defaults: { teacher: 'Ms Srey Leak', classId: 'c-2' } })} api={api} />);
     expect(screen.getByRole('textbox', { name: 'Your name' })).toHaveValue('Ms Srey Leak');
     expect(screen.getByRole('combobox', { name: 'Class' })).toHaveTextContent('Year 11 B · 24 students');

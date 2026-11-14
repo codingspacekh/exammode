@@ -2,8 +2,8 @@
  * ExamMode in teacher mode: one window (11 minimal, 12, 13) showing the teacher's desk (desk.ts). Electron glue:
  * proven by the e2e tests.
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { basename, join } from 'node:path';
 import { app, BrowserWindow, dialog, shell } from 'electron';
 import type { ExamForm } from '@lib/app/state';
 import { hostOf } from '@lib/browser/sites';
@@ -54,6 +54,24 @@ export async function runTeacher(): Promise<void> {
   win.once('ready-to-show', () => win.show());
   const tell = serve('teacher', () => desk.state(), {
     open: (form: ExamForm) => desk.openExam(form),
+    saveExam: async (form: ExamForm) => {
+      const saved = await desk.saveExam(form);
+      return 'error' in saved ? saved.error : undefined;
+    },
+    openSaved: (examId: string) => desk.openSaved(examId),
+    copyExam: (examId: string) => desk.copyExam(examId),
+    deleteExam: (examId: string) => desk.deleteExam(examId),
+    // (tests say which files; a teacher is asked)
+    chooseFiles: async () => {
+      const paths = env.EXAMMODE_CHOOSE?.split(',') ?? (await dialog.showOpenDialog(win, { title: 'Files to give every student', properties: ['openFile', 'multiSelections'] })).filePaths;
+      return paths.map((path) => ({ name: basename(path), bytes: statSync(path).size, path }));
+    },
+    saveClass: (change: { id?: string; name: string; list: string }) => desk.saveClass(change),
+    deleteClass: (classId: string) => desk.deleteClass(classId),
+    readListFile: async () => {
+      const [path] = env.EXAMMODE_LIST_FILE ? [env.EXAMMODE_LIST_FILE] : (await dialog.showOpenDialog(win, { title: 'A class list', properties: ['openFile'], filters: [{ name: 'Spreadsheet or text (CSV, TXT)', extensions: ['csv', 'tsv', 'txt'] }] })).filePaths;
+      return path ? readFileSync(path, 'utf8') : undefined;
+    },
     start: () => desk.start(),
     end: () => desk.end(),
     letBackIn: (studentId: string, reason: string) => desk.letBackIn(studentId, reason),

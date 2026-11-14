@@ -70,7 +70,8 @@ describe('F-30 opening an exam (the minimal form of M3)', () => {
     expect(state.run!.code).toMatch(/^\d{4}$/);
     // empty lines and a name typed twice are left out
     expect(state.students.map((s) => `${s.name}:${s.state}`)).toEqual(['Dara Kim:notJoined', 'Sokha Chan:notJoined', 'Vannak Sok:notJoined']);
-    expect(state.classes).toEqual([{ id: expect.any(String), name: 'Year 10 A', students: 3 }]);
+    expect(state.classes).toEqual([{ id: expect.any(String), name: 'Year 10 A', students: 3, roster: [{ name: 'Dara Kim' }, { name: 'Sokha Chan' }, { name: 'Vannak Sok' }] }]);
+    expect(state.exams).toMatchObject([{ title: FORM.title, className: 'Year 10 A', minutes: 90, websites: [], files: [], runs: 1 }]);
     expect(seen).toContain('lobby');
     expect(existsSync(desk.folder!)).toBe(true);
     expect(await desk.openExam(FORM)).toBe('An exam is already open.');
@@ -115,6 +116,111 @@ describe('F-30 opening an exam (the minimal form of M3)', () => {
     sokha.report('pageBlocked', { url: 'https://stackoverflow.com/questions/1' });
     await eventually(() => expect(desk.state().feed[0]).toMatchObject({ kind: 'pageBlocked', student: 'Sokha Chan', pc: 'PC-14', details: { url: 'https://stackoverflow.com/questions/1' } }));
     expect(desk.state().students.find((s) => s.name === 'Sokha Chan')!.warnings).toBe(0);
+  });
+});
+
+describe('F-33 F-35 F-43 exams that are kept, classes, and files to give', () => {
+  it('F-35 an exam is saved without opening it, changed, copied, opened again, and deleted only if it was never run', async () => {
+    const { desk } = await lab();
+    const saved = await desk.saveExam(FORM);
+    if ('error' in saved) throw new Error(saved.error);
+    expect(desk.state()).toMatchObject({ screen: 'make', exams: [{ id: saved.id, title: FORM.title, runs: 0 }] });
+    expect(await desk.saveExam({ ...FORM, title: ' ' })).toEqual({ error: 'Give the exam a title.' });
+
+    const classId = desk.state().classes[0]!.id;
+    await desk.saveExam({ ...FORM, id: saved.id, classId, title: 'Term 1 practical', minutes: 60 });
+    expect(desk.state().exams).toMatchObject([{ id: saved.id, title: 'Term 1 practical', minutes: 60 }]);
+    expect(desk.state().classes).toHaveLength(1);
+
+    await desk.copyExam(saved.id);
+    await desk.copyExam('no-such-exam');
+    expect(desk.state().exams.map((e) => e.title).sort()).toEqual(['Term 1 practical', 'Term 1 practical (copy)']);
+    const copy = desk.state().exams.find((e) => e.title.endsWith('(copy)'))!;
+    expect(await desk.deleteExam(copy.id)).toBeUndefined();
+
+    expect(await desk.openSaved('no-such-exam')).toMatch(/isn't kept/);
+    expect(await desk.openSaved(saved.id)).toBeUndefined();
+    expect(desk.state()).toMatchObject({ screen: 'lobby', run: { title: 'Term 1 practical', minutes: 60 } });
+    expect(await desk.openSaved(saved.id)).toBe('An exam is already open.');
+    expect(await desk.deleteExam(saved.id)).toBe('This exam is open now.');
+    await desk.end();
+    await desk.done();
+    expect(await desk.deleteExam(saved.id)).toMatch(/was run/);
+    expect(desk.state().exams).toMatchObject([{ id: saved.id, runs: 1 }]);
+  });
+
+  it('F-43 a class is made from a pasted list, changed, and deleted only when no exam uses it', async () => {
+    const { desk, sokha, sit } = await lab();
+    expect(await desk.saveClass({ name: ' ', list: 'Sokha Chan' })).toBe('Name the class.');
+    expect(await desk.saveClass({ name: 'Year 10 A', list: ' \n' })).toMatch(/one on each line/);
+    expect(await desk.saveClass({ name: 'Year 10 A', list: 'No\tName\tEmail\n1\tSokha Chan\tsokha.chan@school.edu\n2\tDara Kim\tdara.kim@school.edu' })).toBeUndefined();
+    const cls = desk.state().classes[0]!;
+    expect(cls).toMatchObject({ name: 'Year 10 A', students: 2, roster: [{ name: 'Dara Kim', email: 'dara.kim@school.edu', number: 2 }, { name: 'Sokha Chan', email: 'sokha.chan@school.edu', number: 1 }] });
+    expect(await desk.saveClass({ name: 'year 10 a', list: 'Someone' })).toBe('There is already a class called year 10 a.');
+
+    // an exam with this class is run; Sokha takes it
+    await desk.openExam({ ...FORM, classId: cls.id });
+    expect(await desk.saveClass({ id: cls.id, name: 'Year 10 A', list: 'Dara Kim' })).toMatch(/in the exam that is open now/);
+    await sit(sokha, 'Sokha Chan');
+    await desk.end();
+    await desk.done();
+
+    // Sokha is renamed (the email says it is her), Dara is taken off, Vannak is new
+    expect(await desk.saveClass({ id: cls.id, name: 'Year 10 A (ICT)', list: 'Sokha C. Chan\tsokha.chan@school.edu\nVannak Sok' })).toBeUndefined();
+    expect(desk.state().classes[0]).toMatchObject({ name: 'Year 10 A (ICT)', roster: [{ name: 'Sokha C. Chan' }, { name: 'Vannak Sok' }] });
+    // taking Sokha off: she stays, as the exam has her record
+    expect(await desk.saveClass({ id: cls.id, name: 'Year 10 A (ICT)', list: 'Vannak Sok' })).toBe('Saved. 1 student who was taken off stays on the list: earlier exams have their work.');
+    expect(desk.state().classes[0]!.students).toBe(2);
+
+    expect(await desk.deleteClass(cls.id)).toMatch(/An exam uses this class/);
+    await desk.saveClass({ name: 'Year 9 C', list: 'Kosal Meas' });
+    const spare = desk.state().classes.find((c) => c.name === 'Year 9 C')!;
+    expect(await desk.deleteClass(spare.id)).toBeUndefined();
+    expect(desk.state().classes.map((c) => c.name)).toEqual(['Year 10 A (ICT)']);
+  });
+
+  it('F-33 files to give are kept with the exam, reach every student\'s Exam folder at Start, and are handed in only if changed', async () => {
+    const { desk, sokha, sit, card, root } = await lab();
+    const mine = join(root, 'teacher-files');
+    await mkdir(mine, { recursive: true });
+    await writeFile(join(mine, 'marks.csv'), 'name,mark\n');
+    await writeFile(join(mine, 'grades.py'), '# starter code\n');
+    const files = [{ name: 'marks.csv', bytes: 0, path: join(mine, 'marks.csv') }, { name: 'grades.py', bytes: 0, path: join(mine, 'grades.py') }];
+    expect(await desk.saveExam({ ...FORM, files: [files[0]!, { ...files[0]!, name: 'MARKS.csv' }] })).toEqual({ error: 'Two of the files to give have the same name.' });
+    expect(await desk.saveExam({ ...FORM, files: [{ name: 'a/b.txt', bytes: 0, path: files[0]!.path }] })).toMatchObject({ error: expect.stringContaining('can\'t be given') });
+    expect(await desk.saveExam({ ...FORM, files: [{ name: 'gone.txt', bytes: 0 }] })).toMatchObject({ error: expect.stringContaining('can\'t be read any more') });
+    const saved = await desk.saveExam({ ...FORM, files });
+    if ('error' in saved) throw new Error(saved.error);
+    const classId = desk.state().classes.at(-1)!.id;
+    expect(desk.state().exams.find((e) => e.id === saved.id)!.files).toEqual([{ name: 'grades.py', bytes: 15 }, { name: 'marks.csv', bytes: 10 }]);
+    // the teacher's own copy can change or go: the exam has its own. One file is taken off again
+    await writeFile(join(mine, 'marks.csv'), 'changed afterwards');
+    await desk.copyExam(saved.id);
+    await desk.saveExam({ ...FORM, id: saved.id, classId, files: [{ name: 'marks.csv', bytes: 10 }, { name: 'grades.py', bytes: 15 }] });
+    expect(desk.state().exams.find((e) => e.title.endsWith('(copy)'))!.files).toHaveLength(2);
+
+    await desk.openSaved(saved.id);
+    await sit(sokha, 'Sokha Chan');
+    await eventually(() => expect(card(desk, 'Sokha Chan').state).toBe('ready'));
+    await desk.start();
+    await eventually(() => expect(sokha.state().screen).toBe('exam'));
+    await sokha.exam!.begin();
+    expect(readFileSync(join(sokha.folder!, 'marks.csv'), 'utf8')).toBe('name,mark\n');
+    expect(readFileSync(join(sokha.folder!, 'grades.py'), 'utf8')).toBe('# starter code\n');
+
+    // a given file that wasn't touched isn't backed up; one that was changed is
+    expect(await sokha.exam!.backUp()).toBe(0);
+    await writeFile(join(sokha.folder!, 'grades.py'), '# starter code\nprint(1)\n');
+    await sokha.askHandIn();
+    expect(sokha.state().handIn).toMatchObject({ files: [{ name: 'grades.py' }], unchanged: [{ name: 'marks.csv', bytes: 10 }] });
+    await sokha.handIn();
+    expect(sokha.state().receipt!.files.map((f) => f.name)).toEqual(['grades.py']);
+    await eventually(() => expect(card(desk, 'Sokha Chan')).toMatchObject({ state: 'handedIn', files: 1 }));
+
+    // a file is given only to a student of the run
+    const base = `http://127.0.0.1:${desk.port}/runs/${desk.state().run!.id}/files`;
+    expect((await fetch(`${base}/marks.csv`)).status).toBe(404);
+    expect((await fetch(`${base}/marks.csv`, { headers: { 'x-exammode-token': 'made-up' } })).status).toBe(404);
   });
 });
 
@@ -173,7 +279,7 @@ describe('M3 an exam from the lobby to the receipts', () => {
     await sokha.handIn();
     expect(sokha.state().handingIn).toBe(false);
     await sokha.askHandIn();
-    expect(sokha.state()).toMatchObject({ screen: 'handIn', handIn: { files: [{ name: 'Report.docx', bytes: 9 }, { name: 'code/grades.py', bytes: 8 }], unchanged: [] } });
+    expect(sokha.state()).toMatchObject({ screen: 'handIn', handIn: { files: [{ name: 'code/grades.py', bytes: 8 }, { name: 'Report.docx', bytes: 9 }], unchanged: [] } });
     sokha.keepWorking();
     expect(sokha.state()).toMatchObject({ screen: 'exam', handIn: undefined });
     sokha.finish();

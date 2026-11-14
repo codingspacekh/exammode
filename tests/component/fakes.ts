@@ -39,7 +39,7 @@ export function card(name: string, over: Partial<StudentView> = {}): StudentView
 }
 
 export function teacher(over: Partial<TeacherState> = {}): TeacherState {
-  return { screen: 'make', classes: [], defaults: { teacher: '' }, students: [], feed: [], events: [], files: {}, ...over };
+  return { screen: 'make', classes: [], exams: [], defaults: { teacher: '' }, students: [], feed: [], events: [], files: {}, ...over };
 }
 
 export const RUN = {
@@ -49,7 +49,9 @@ export const RUN = {
 
 export function teacherApi(state: TeacherState = teacher(), openAnswer?: string): TeacherApi {
   const done = () => vi.fn(async () => undefined);
-  return { get: vi.fn(async () => state), onState: () => () => undefined, open: vi.fn(async () => openAnswer), start: done(), end: done(), letBackIn: done(), keepOut: done(), addTime: done(), done: done(), openFolder: done(), exportLog: vi.fn(async () => '/Hand-ins/Log.csv') };
+  return { get: vi.fn(async () => state), onState: () => () => undefined, open: vi.fn(async () => openAnswer), saveExam: vi.fn(async () => openAnswer), openSaved: vi.fn(async () => openAnswer), copyExam: done(), deleteExam: vi.fn(async () => openAnswer),
+    chooseFiles: vi.fn(async () => [{ name: 'marks.csv', bytes: 1024, path: '/Users/teacher/marks.csv' }]), saveClass: vi.fn(async () => openAnswer), deleteClass: vi.fn(async () => openAnswer),
+    readListFile: vi.fn(async () => 'Name,Email\nBopha Ouk,bopha.ouk@school.edu'), start: done(), end: done(), letBackIn: done(), keepOut: done(), addTime: done(), done: done(), openFolder: done(), exportLog: vi.fn(async () => '/Hand-ins/Log.csv') };
 }
 
 export function browserApi(state: BrowserState): BrowserApi {

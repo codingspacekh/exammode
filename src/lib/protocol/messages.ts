@@ -32,6 +32,8 @@ export type FromStudent = z.infer<typeof fromStudent>;
 export const examInfo = z.object({
   title: id, teacher: id, class: id, minutes: z.int().positive(),
   websites: z.array(z.object({ url: z.string(), hosts: z.array(z.string()) })),
+  /** the files the teacher gives every student: fetched into the Exam folder at Start (§2.9) */
+  files: z.array(fileMeta).optional(),
 });
 export type ExamInfo = z.infer<typeof examInfo>;
 

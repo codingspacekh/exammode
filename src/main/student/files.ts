@@ -5,11 +5,11 @@
  */
 import { createHash } from 'node:crypto';
 import { createReadStream, openAsBlob } from 'node:fs';
-import { mkdir, readdir, rm, stat } from 'node:fs/promises';
+import { mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { changed, nextSnapshot, toHash, type FileStat, type HashedFile, type Snapshot } from '@lib/files/changes';
-import { handInList, type NamedHash } from '@lib/files/handIn';
+import { handInList } from '@lib/files/handIn';
 import { isSafeName, isWorkFile } from '@lib/files/names';
 import { PROTOCOL_VERSION, type FileMeta, type Upload } from '@lib/protocol/messages';
 
@@ -54,12 +54,51 @@ export class ExamFiles {
   /** what the teacher's laptop has: the files as they were at the last backup */
   private snapshot: Snapshot = {};
 
-  constructor(readonly folder: string, private readonly given: NamedHash[] = []) {}
+  /** the files the teacher gave, as they were given */
+  private given: FileMeta[] = [];
+  /** given files that were fetched once: one the student deleted isn't fetched again */
+  private readonly fetched = new Set<string>();
+
+  constructor(readonly folder: string) {}
 
   /** Makes the Exam folder. Files that are in it already (the student was let back in) count as not backed up. */
   async begin(): Promise<void> {
     await mkdir(this.folder, { recursive: true });
-    this.snapshot = Object.fromEntries(this.given.map((f) => [f.name, { name: f.name, bytes: -1, modified: -1, sha256: f.sha256 }]));
+  }
+
+  /** Puts the teacher's files in the Exam folder (F-33): each is fetched once, checked by its SHA-256, and never
+   *  written over a file that is already there — a student who was let back in keeps their own copy. A given
+   *  file left as it was isn't backed up or handed in. Answers how many are still to fetch. */
+  async give(files: FileMeta[], fetchOne: (name: string) => Promise<Response>): Promise<number> {
+    this.given = files;
+    for (const f of files) this.snapshot[f.name] ??= { name: f.name, bytes: -1, modified: -1, sha256: f.sha256 };
+    for (const f of files) {
+      if (this.fetched.has(f.name) || !isSafeName(f.name) || f.name.includes('/')) continue;
+      const to = pathOf(this.folder, f.name);
+      if (await stat(to).then(() => true, () => false)) {
+        this.fetched.add(f.name);
+        continue;
+      }
+      try {
+        const res = await fetchOne(f.name);
+        if (!res.ok) continue;
+        const data = Buffer.from(await res.arrayBuffer());
+        if (createHash('sha256').update(data).digest('hex') !== f.sha256) continue;
+        await writeFile(to, data, { flag: 'wx' });
+        this.fetched.add(f.name);
+      } catch {
+        // no contact now: it is tried again with the next backup
+      }
+    }
+    return files.filter((f) => !this.fetched.has(f.name)).length;
+  }
+
+  /** The Exam folder as Hand in shows it (09): what the student made or changed, and what was given and left
+   *  alone. */
+  async view(): Promise<{ files: FileStat[]; unchanged: FileStat[] }> {
+    const list = handInList(this.given, await this.hashed(await listFiles(this.folder)));
+    const plain = ({ name, bytes, modified }: HashedFile): FileStat => ({ name, bytes, modified });
+    return { files: list.send.map(plain), unchanged: list.unchanged.map(plain) };
   }
 
   private async hashed(files: FileStat[]): Promise<HashedFile[]> {
