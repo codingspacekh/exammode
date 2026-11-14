@@ -236,6 +236,9 @@ export class StudentFlow {
         session.report('appClosed', { app: app.name });
         this.set({ closed: { name: app.name, at: this.now() } });
       },
+      trouble: (what) => {
+        if (session === this.session) session.report('ruleChanged', { what });
+      },
       // the dots on the exam bar; and the teacher's card says which app is in front, with its window's title
       apps: (open) => {
         if (session !== this.session) return;

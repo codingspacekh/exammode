@@ -11,7 +11,7 @@ import { pipeline } from 'node:stream/promises';
 import { changed, nextSnapshot, toHash, type FileStat, type HashedFile, type Snapshot } from '@lib/files/changes';
 import { handInList } from '@lib/files/handIn';
 import { isSafeName, isWorkFile } from '@lib/files/names';
-import { PROTOCOL_VERSION, type FileMeta, type Upload } from '@lib/protocol/messages';
+import { MAX_FILE_BYTES, PROTOCOL_VERSION, type FileMeta, type Upload } from '@lib/protocol/messages';
 
 const pathOf = (folder: string, name: string): string => join(folder, ...name.split('/'));
 
@@ -42,12 +42,41 @@ const meta = ({ name, bytes, sha256 }: HashedFile): FileMeta => ({ name, bytes, 
 export type Sent = { ok: true; body: unknown } | { ok: false; status: number };
 
 /** Sends files to the teacher's laptop: who and what first, then each file (the server's POST /upload). */
-export async function sendFiles(base: string, upload: Upload, folder: string, send: typeof fetch = fetch): Promise<Sent> {
+export async function sendFiles(base: string, upload: Upload, folder: string, send: typeof fetch = fetch, /** the listed files that go with it: all of them, unless the teacher's laptop has some already */ attach: FileMeta[] = upload.files): Promise<Sent> {
   const form = new FormData();
   form.set('meta', JSON.stringify(upload));
-  for (const [i, file] of upload.files.entries()) form.set(`f${i}`, await openAsBlob(pathOf(folder, file.name)), 'file');
-  const res = await send(`${base}/upload`, { method: 'POST', body: form });
+  const going = new Set(attach.map((f) => f.name));
+  let bytes = 0;
+  for (const [i, file] of upload.files.entries()) {
+    if (!going.has(file.name)) continue;
+    form.set(`f${i}`, await openAsBlob(pathOf(folder, file.name)), 'file');
+    bytes += file.bytes;
+  }
+  // a laptop that takes the connection and then says nothing doesn't hold the hand-in up for minutes: a minute,
+  // and what a slow network (1 MB a second) needs for these files
+  const res = await send(`${base}/upload`, { method: 'POST', body: form, signal: AbortSignal.timeout(60_000 + Math.ceil(bytes / 1000)) });
   return res.ok ? { ok: true, body: await res.json() } : { ok: false, status: res.status };
+}
+
+/** How much goes in one request: a folder of thousands of files goes up in parts. */
+export const BATCH_FILES = 200;
+export const BATCH_BYTES = 64 * 1024 * 1024;
+
+/** The files in parts, each small enough for one request (a file bigger than a part is a part by itself). */
+export function batches(files: FileMeta[], maxFiles = BATCH_FILES, maxBytes = BATCH_BYTES): FileMeta[][] {
+  const parts: FileMeta[][] = [];
+  let bytes = 0;
+  for (const file of files) {
+    const part = parts.at(-1);
+    if (!part || part.length >= maxFiles || bytes + file.bytes > maxBytes) {
+      parts.push([file]);
+      bytes = file.bytes;
+    } else {
+      part.push(file);
+      bytes += file.bytes;
+    }
+  }
+  return parts;
 }
 
 export class ExamFiles {
@@ -110,17 +139,47 @@ export class ExamFiles {
     return done;
   }
 
-  /** The files to back up now, and `sent` to call once the teacher has them. */
-  async toBackUp(): Promise<{ files: FileMeta[]; sent: () => void }> {
-    const now = await listFiles(this.folder);
+  /** The files to back up now, and `sent` to call with the ones the teacher has: the others are for next time. */
+  async toBackUp(): Promise<{ files: FileMeta[]; sent: (done: FileMeta[]) => void }> {
+    const now = (await listFiles(this.folder)).filter((f) => f.bytes <= MAX_FILE_BYTES);
     const hashed = await this.hashed(toHash(this.snapshot, now));
     const next = nextSnapshot(this.snapshot, now, hashed);
-    return { files: changed(this.snapshot, hashed).map(meta), sent: () => void (this.snapshot = next) };
+    const files = changed(this.snapshot, hashed).map(meta);
+    const before = this.snapshot;
+    return {
+      files,
+      sent: (done) => {
+        const has = new Set(done.map((f) => f.name));
+        const kept: Snapshot = { ...next };
+        // a file that didn't go is, for the snapshot, as it was at the last backup — or not there at all
+        for (const { name } of files) {
+          if (has.has(name)) continue;
+          if (before[name]) kept[name] = before[name];
+          else delete kept[name];
+        }
+        this.snapshot = kept;
+      },
+    };
   }
 
-  /** The hand-in: everything the student made or changed (F-16). */
+  /** The hand-in: everything the student made or changed (F-16). A file that is as it was at the last backup
+   *  isn't read again. */
   async toHandIn(): Promise<FileMeta[]> {
-    return handInList(this.given, await this.hashed(await listFiles(this.folder))).send.map(meta);
+    const now = (await listFiles(this.folder)).filter((f) => f.bytes <= MAX_FILE_BYTES);
+    const fresh = new Map((await this.hashed(toHash(this.snapshot, now))).map((f) => [f.name, f]));
+    const all = now.flatMap((f) => fresh.get(f.name) ?? (this.snapshot[f.name] && this.snapshot[f.name]!.bytes === f.bytes ? [{ ...f, sha256: this.snapshot[f.name]!.sha256 }] : []));
+    return handInList(this.given, all).send.map(meta);
+  }
+
+  /** The files that are too big to send (the teacher is told, and the student). */
+  async tooBig(): Promise<FileStat[]> {
+    return (await listFiles(this.folder)).filter((f) => f.bytes > MAX_FILE_BYTES);
+  }
+
+  /** The teacher's laptop doesn't have what this computer thought it had: everything counts as not backed up. */
+  forget(): void {
+    this.snapshot = {};
+    for (const f of this.given) this.snapshot[f.name] = { name: f.name, bytes: -1, modified: -1, sha256: f.sha256 };
   }
 
   /** Once the teacher has the work (F-21). */

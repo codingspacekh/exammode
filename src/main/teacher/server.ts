@@ -17,7 +17,7 @@ import { pipeline } from 'node:stream/promises';
 import type { AddressInfo } from 'node:net';
 import busboy from 'busboy';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { MAX_FILES, PROTOCOL_VERSION, inventory, parseFromStudent, stopped, updateReply, upload, type Beacon, type FromTeacher, type Inventory, type Upload } from '@lib/protocol/messages';
+import { MAX_FILE_BYTES, MAX_FILES, PROTOCOL_VERSION, inventory, parseFromStudent, stopped, updateReply, upload, type Beacon, type FromTeacher, type Inventory, type Upload } from '@lib/protocol/messages';
 import { signBeacon, signMessage, signUpload, type Identity } from '../../trust/signed';
 import type { Classroom, Link } from './classroom';
 import { discard, newIncoming, receive, type Received } from './handIns';
@@ -31,7 +31,6 @@ export const MAX_SOCKETS = 1000;
 /** A connection that hasn't asked to join by then is closed. */
 export const JOIN_WITHIN_MS = 10_000;
 /** One file, and one request, at most; and what must stay free on the teacher's disk. */
-export const MAX_FILE_BYTES = 500 * 1024 * 1024;
 export const MAX_REQUEST_BYTES = 1024 * 1024 * 1024;
 const FREE_DISK_FLOOR = 500 * 1024 * 1024;
 /** How many computers one address may report installed apps for. */

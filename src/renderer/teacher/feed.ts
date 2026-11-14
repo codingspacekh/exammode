@@ -35,6 +35,9 @@ export function feedLine(item: FeedItem): { tone: Tone; who?: string; text: stri
     case 'leftBeforeStart': return { tone: 'lost', who, text: 'left before the start' };
     case 'nameTaken': return { tone: 'warn', who, text: `— someone on ${item.pc ?? 'another computer'} picked this name` };
     case 'codeWrong': return { tone: 'lost', text: `A wrong code was typed${on}` };
+    case 'ruleChanged': return { tone: 'danger', who, text: `— the lock on ${item.pc ?? 'their computer'} isn't whole: ${String(d.what ?? 'look at that computer')}` };
+    case 'uploadFailed': return { tone: 'danger', who, text: `— this laptop couldn't keep their files (${String(d.why ?? 'unknown')}). Is the disk full, or one of their files open here?` };
+    case 'fileTooBig': return { tone: 'warn', who, text: `has a file too big to send — ${String(d.name)} (${String(d.megabytes)} MB): it isn't backed up or handed in` };
     default: return undefined;
   }
 }

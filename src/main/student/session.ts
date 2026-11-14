@@ -5,7 +5,7 @@
  */
 import { randomBytes } from 'node:crypto';
 import { WebSocket } from 'ws';
-import { PROTOCOL_VERSION, parseFromTeacher, type ExamInfo, type FromStudent, type FromTeacher, type RefusedReason } from '@lib/protocol/messages';
+import { MAX_LOCAL_LOG, PROTOCOL_VERSION, parseFromTeacher, type ExamInfo, type FromStudent, type FromTeacher, type RefusedReason } from '@lib/protocol/messages';
 import type { CheckResult } from '@lib/session/attempt';
 import { checkMessage } from '../../trust/signed';
 import { clockOffset, isTimeUp, teacherTime } from '@lib/session/time';
@@ -139,7 +139,7 @@ export class Session {
    *  with the record of the gap. */
   report(kind: string, details: Record<string, unknown> = {}): void {
     if (this.connected && JOINED.includes(this.state)) this.send({ v: PROTOCOL_VERSION, type: 'event', kind, details });
-    else this.localLog.push({ at: this.teacherNow(), kind, details });
+    else this.keep({ at: this.teacherNow(), kind, details });
   }
 
   /** The student confirmed Leave (F-15). */
@@ -170,6 +170,15 @@ export class Session {
 
   private send(msg: FromStudent): void {
     if (this.connected) this.ws!.send(JSON.stringify(msg));
+  }
+
+  /** What happened with no contact, for when it returns. It has a size: a record too long to send would keep
+   *  this computer from ever coming back (the oldest of the middle is dropped, and how many is said). */
+  private keep(entry: LogEntry): void {
+    if (this.localLog.length < MAX_LOCAL_LOG - 1) return void this.localLog.push(entry);
+    const last = this.localLog.at(-1);
+    if (last?.kind === 'notKept') last.details = { count: Number(last.details.count) + 1 };
+    else this.localLog.push({ at: entry.at, kind: 'notKept', details: { count: 1 } });
   }
 
   private become(state: SessionState, reason?: RefusedReason): void {
@@ -251,7 +260,7 @@ export class Session {
     // the teacher's laptop was never reached: say so, and leave trying again to the student
     if (this.state === 'joining' && this.answered) return this.finish('closed');
     if (JOINED.includes(this.state)) {
-      this.localLog.push({ at: this.teacherNow(), kind: 'contactLost', details: {} });
+      this.keep({ at: this.teacherNow(), kind: 'contactLost', details: {} });
       this.become('noContact');
     }
     this.retry = setTimeout(() => this.open(), this.options.retryMs ?? 2000);

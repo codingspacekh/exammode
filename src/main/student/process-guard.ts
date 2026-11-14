@@ -22,20 +22,27 @@ export interface Closed { name: string; kind: 'app' | 'remote' | 'browser'; pid:
 export type Context = Omit<GuardContext, 'ancestors'>;
 
 export const SWEEP_MS = 500;
+/** After this many looks in a row that failed (3 s), it is said. */
+export const FAILED_LOOKS = 6;
 
 export class ProcessGuard {
   private timer?: NodeJS.Timeout;
   private sweeping = false;
   private readonly closed = new Set<number>();
+  private failures = 0;
 
   /** `onSweep`: told every process after each look — the lock uses it to say which of the exam's apps are open */
   constructor(
     private readonly procs: Procs, private readonly ctx: Context, private readonly onClosed: (closed: Closed) => void,
     private readonly now: () => number = Date.now, private readonly onSweep?: (all: Proc[]) => void,
+    private readonly onTrouble?: (what: string) => void,
   ) {}
 
   start(everyMs = SWEEP_MS): void {
-    this.timer = setInterval(() => void this.sweep().catch(() => undefined), everyMs);
+    this.timer = setInterval(() => void this.sweep().then(() => void (this.failures = 0), () => {
+      // looks that keep failing mean nothing is being closed: the teacher is told, once
+      if (++this.failures === FAILED_LOOKS) this.onTrouble?.('The apps on this computer can\'t be looked at: apps that aren\'t part of the exam aren\'t being closed.');
+    }), everyMs);
   }
 
   stop(): void {
@@ -48,6 +55,9 @@ export class ProcessGuard {
     this.sweeping = true;
     try {
       let all = await this.procs.list(false);
+      // Windows gives a number that was a closed program's to a new one: only what is still there is remembered
+      const there = new Set(all.map((p) => p.pid));
+      for (const pid of this.closed) if (!there.has(pid)) this.closed.delete(pid);
       // A program not seen before: who made it isn't known yet. If no publisher could make it allowed, it is
       // closed at once (N-02); otherwise the publisher is asked for first — an allowed app is never closed by guess
       const waiting = all.filter((p) => p.image !== null && !this.procs.known(p.image) && this.matters(p, all));
@@ -82,7 +92,11 @@ export class ProcessGuard {
     const decision = this.judge(proc, all);
     if (decision.allow) return 0;
     this.closed.add(proc.pid);
-    if (!(await this.procs.terminate(proc.pid))) return 0;
+    if (!(await this.procs.terminate(proc.pid))) {
+      // it couldn't be closed: tried again at the next look
+      this.closed.delete(proc.pid);
+      return 0;
+    }
     this.onClosed({ name: appName(proc), kind: decision.kind, pid: proc.pid, at: this.now() });
     return 1;
   }

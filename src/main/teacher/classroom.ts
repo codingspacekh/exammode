@@ -5,7 +5,7 @@
  * to whoever listens (the live view, N-03).
  */
 import { randomBytes, randomInt } from 'node:crypto';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { folderName, isSafeName, studentFolders } from '@lib/files/names';
 import { receiptCode } from '@lib/files/receipt';
@@ -349,7 +349,16 @@ export class Classroom {
       const arrived = new Map(received.map((f) => [f.name, f]));
       // a hand-in lists every file; the ones this laptop has from a backup, just as they are listed, needn't come
       // again (a folder of thousands of files goes up in parts)
-      const have = new Map((seat.id !== undefined && meta.kind === 'handIn' ? await this.store.files(seat.id) : []).map((f) => [f.name, f]));
+      const have = new Map<string, { sha256: string; bytes: number }>();
+      if (seat.id !== undefined && meta.kind === 'handIn') {
+        const folder = this.folderOf(studentId);
+        // (as the record says, and still there on the disk)
+        for (const f of await this.store.files(seat.id)) {
+          if (arrived.has(f.name) || !isSafeName(f.name)) continue;
+          const onDisk = await stat(join(folder, ...f.name.split('/'))).then((s) => s.size, () => -1);
+          if (onDisk === f.bytes) have.set(f.name, f);
+        }
+      }
       const here = (f: FileMeta): boolean => {
         const got = arrived.get(f.name) ?? have.get(f.name);
         return got?.sha256 === f.sha256 && got.bytes === f.bytes;

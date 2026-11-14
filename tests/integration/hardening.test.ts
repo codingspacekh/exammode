@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
 import { SimClassroom, type SimOptions } from '../../scripts/class/sim';
-import { hashFile, uploadOf } from '../../src/main/student/files';
+import { batches, hashFile, uploadOf } from '../../src/main/student/files';
 import { WRONG_CODES } from '../../src/main/teacher/classroom';
 import { later } from './helpers';
 
@@ -180,4 +180,62 @@ describe('a classmate can\'t be put out, and work the laptop can\'t keep is said
     rmSync(sim.room.folderOf(dara.id));
     expect(await dara.exam!.backUp()).toBe(1);
   });
+});
+
+describe('a student\'s work gets to the teacher whatever is in the folder, and a failure isn\'t for ever', () => {
+  it('files go in parts: by how many, and by how much', () => {
+    const file = (name: string, bytes: number) => ({ name, bytes, sha256: 'a'.repeat(64) });
+    const many = Array.from({ length: 450 }, (_, i) => file(`f${i}.txt`, 10));
+    expect(batches(many).map((b) => b.length)).toEqual([200, 200, 50]);
+    expect(batches([file('a', 40), file('b', 40), file('big', 500), file('c', 10)], 200, 100).map((b) => b.map((f) => f.name))).toEqual([['a', 'b'], ['big'], ['c']]);
+    expect(batches([])).toEqual([]);
+  });
+
+  it('a folder of hundreds of files is backed up in several requests and handed in with one small one', async () => {
+    const sim = await started();
+    const dara = sim.student('Dara Kim');
+    for (let i = 0; i < 450; i++) await dara.write(`project/lib/part-${i}.py`, `x = ${i}`);
+    const requests: number[] = [];
+    const real = dara.exam!['options'].send!;
+    dara.exam!['options'].send = (async (input: string | URL | Request, init?: RequestInit) => {
+      const form = init?.body as FormData;
+      requests.push([...form.keys()].filter((k) => k !== 'meta').length);
+      return real(input, init);
+    }) as typeof fetch;
+    const receipt = await dara.handIn();
+    expect(receipt?.files).toHaveLength(450);
+    // three parts of the files, then the hand-in: the list alone
+    expect(requests).toEqual([200, 200, 50, 0]);
+    expect(sim.view('Dara Kim')).toMatchObject({ state: 'handedIn', files: 450 });
+    expect(readFileSync(join(sim.room.folderOf(dara.id), 'project', 'lib', 'part-449.py'), 'utf8')).toBe('x = 449');
+    expect(existsSync(dara.folder)).toBe(false);
+  }, 30_000);
+
+  it('a hand-in the laptop can\'t match with what it has is sent again whole, and goes through', async () => {
+    const sim = await started();
+    const dara = sim.student('Dara Kim');
+    await dara.write('Report.docx', 'my report');
+    expect(await dara.exam!.backUp()).toBe(1);
+    // (the laptop's copy is gone: someone tidied the Hand-ins folder)
+    const { rmSync } = await import('node:fs');
+    rmSync(join(sim.room.folderOf(dara.id), 'Report.docx'));
+    const receipt = await dara.handIn();
+    expect(receipt?.files.map((f) => f.name)).toEqual(['Report.docx']);
+    expect(readFileSync(join(sim.room.folderOf(dara.id), 'Report.docx'), 'utf8')).toBe('my report');
+  }, 20_000);
+
+  it('what happened with no contact is kept up to a size, and the computer still comes back', async () => {
+    const sim = await started();
+    const dara = sim.student('Dara Kim');
+    dara.unplug();
+    await sim.until(() => dara.session!.state === 'noContact' && sim.view('Dara Kim').state === 'noContact');
+    for (let i = 0; i < 5000; i++) dara.session!.report('pageBlocked', { url: `https://example.com/${i}` });
+    dara.plug();
+    await sim.until(() => dara.session!.state === 'inExam');
+    const gap = (await sim.log('Dara Kim')).find((e) => e.kind === 'gap')!;
+    const kept = (gap.details as { localLog: { kind: string; details: { count?: number } }[] }).localLog;
+    expect(kept.length).toBeLessThanOrEqual(500);
+    expect(kept.at(-1)).toMatchObject({ kind: 'notKept' });
+    expect(kept.at(-1)!.details.count).toBeGreaterThan(4000);
+  }, 20_000);
 });

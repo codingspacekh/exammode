@@ -107,4 +107,39 @@ describe('F-12 N-02 the process guard\'s loop', () => {
     await new Promise((r) => setTimeout(r, 40));
     expect(closed).toHaveLength(1);
   });
+
+  it('a new program that got a closed one\'s number is closed too (Windows gives the numbers out again)', async () => {
+    const { g, procs, closed } = guard();
+    procs.start(500, 'C:\\Windows\\System32\\notepad.exe', { signer: 'Microsoft Windows', product: 'Notepad' });
+    expect(await g.sweep()).toBe(1);
+    // gone at the next look; later another program has the number 500
+    expect(await g.sweep()).toBe(0);
+    procs.start(500, 'C:\\Program Files\\Chat\\chat.exe', { product: 'Chat' });
+    expect(await g.sweep()).toBe(1);
+    expect(closed.map((c) => c.name)).toEqual(['notepad', 'chat']);
+  });
+
+  it('a program that couldn\'t be closed is tried again at the next look, and said only when it is closed', async () => {
+    const { g, procs, closed, pids } = guard();
+    procs.start(600, 'C:\\Program Files\\Chat\\chat.exe', { product: 'Chat' });
+    procs.stubborn.add(600);
+    expect(await g.sweep()).toBe(0);
+    expect(closed).toEqual([]);
+    procs.stubborn.delete(600);
+    expect(await g.sweep()).toBe(1);
+    expect(pids()).not.toContain(600);
+    expect(closed.map((c) => c.name)).toEqual(['Chat']);
+  });
+
+  it('when the programs can\'t be looked at for 3 seconds, it is said once, for the teacher', async () => {
+    const procs = new FakeProcs();
+    const said: string[] = [];
+    const g = new ProcessGuard(procs, { allowed: [], always: LISTS, env, self: [EXAM_MODE] }, () => undefined, Date.now, undefined, (what) => said.push(what));
+    procs.list = async () => { throw new Error('access denied'); };
+    g.start(5);
+    await new Promise((r) => setTimeout(r, 150));
+    g.stop();
+    expect(said).toHaveLength(1);
+    expect(said[0]).toMatch(/aren't being closed/);
+  });
 });

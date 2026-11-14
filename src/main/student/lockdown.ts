@@ -26,6 +26,8 @@ export interface LockEvents {
   closed(app: { name: string; kind: string }): void;
   /** which of the exam's apps are open, whenever that changes */
   apps(open: OpenApp[]): void;
+  /** the lock isn't whole any more (the apps can't be looked at, a key hook stopped): for the teacher */
+  trouble?(what: string): void;
 }
 
 export interface Lockdown {

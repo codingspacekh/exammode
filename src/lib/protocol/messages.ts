@@ -20,6 +20,8 @@ const details = z.record(z.string().max(60), z.unknown()).refine((d) => JSON.str
 export const MAX_FILES = 500;
 export const MAX_LISTED = 20_000;
 export const MAX_LOCAL_LOG = 500;
+/** One file at most; a bigger one isn't sent, and the teacher is told. */
+export const MAX_FILE_BYTES = 500 * 1024 * 1024;
 const time = z.int().nonnegative();
 
 /** A file by name, size and SHA-256 (F-16, F-22). */

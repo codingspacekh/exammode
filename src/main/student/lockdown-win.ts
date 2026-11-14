@@ -114,7 +114,7 @@ export class WindowsLockdown implements Lockdown {
       await this.unlock();
       return `This computer couldn't be locked (${String(error)}). Tell your teacher.`;
     }
-    this.guardLoop = new ProcessGuard({ list: listProcesses, known: factsKnown, terminate }, ctx, events.closed, Date.now, (all) => void this.lookAtApps(all, events));
+    this.guardLoop = new ProcessGuard({ list: listProcesses, known: factsKnown, terminate }, ctx, events.closed, Date.now, (all) => void this.lookAtApps(all, events).catch(() => undefined), (what) => events.trouble?.(what));
     this.guardLoop.start();
     return undefined;
   }
