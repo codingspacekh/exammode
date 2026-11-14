@@ -1,0 +1,22 @@
+# The windows tests alone (MILESTONES §3: real Windows, never only the fake), on GitHub's Windows Server 2022
+# (Windows 10's code base) and 2025 (Windows 11's), as administrator: quicker than the whole check when only the
+# Windows side changed. The whole check still runs them too (ci.yml).
+name: windows
+on:
+  workflow_dispatch:
+  push:
+    branches: [dev]
+    paths: ['src/win/**', 'src/guard/**', 'src/lib/lockdown/**', 'src/lib/guard/**', 'tests/windows/**', '.github/workflows/windows.yml']
+jobs:
+  windows:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - run: npx vitest run --project windows --silent=false
