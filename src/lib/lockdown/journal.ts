@@ -17,12 +17,15 @@ export const firewallRule = z.object({
 const firewallProfile = z.enum(['domain', 'private', 'public']);
 const outbound = z.enum(['allow', 'block']);
 const shell = z.enum(['running', 'stopped']);
+const onOff = z.enum(['on', 'off']);
 const written = { id: z.int().positive(), at: z.int() };
 
 /** `{ id, kind, target, before, after, at }` — one per change. A registry target is the key and the value's name. */
 export const journalEntry = z.discriminatedUnion('kind', [
   z.object({ ...written, kind: z.literal('registry'), target: text, before: regValue, after: regValue }),
   z.object({ ...written, kind: z.literal('firewallRule'), target: text, before: firewallRule.nullable(), after: firewallRule.nullable() }),
+  // the firewall itself, per profile: blocking outbound traffic does nothing where a school has switched it off
+  z.object({ ...written, kind: z.literal('firewallState'), target: firewallProfile, before: onOff, after: onOff }),
   z.object({ ...written, kind: z.literal('firewallOutbound'), target: firewallProfile, before: outbound, after: outbound }),
   z.object({ ...written, kind: z.literal('explorer'), target: z.literal('shell'), before: shell, after: shell }),
 ]);
@@ -33,11 +36,20 @@ export type FirewallProfile = z.infer<typeof firewallProfile>;
 /** A change the plan asks for: an entry without what the journal adds. */
 export type Change = JournalEntry extends infer E ? (E extends JournalEntry ? Omit<E, 'id' | 'before' | 'at'> : never) : never;
 
+/** A change as it is sent to the Guard: checked before anything is done with it. */
+export const change = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('registry'), target: text, after: regValue }),
+  z.object({ kind: z.literal('firewallRule'), target: text, after: firewallRule.nullable() }),
+  z.object({ kind: z.literal('firewallState'), target: firewallProfile, after: onOff }),
+  z.object({ kind: z.literal('firewallOutbound'), target: firewallProfile, after: outbound }),
+  z.object({ kind: z.literal('explorer'), target: z.literal('shell'), after: shell }),
+]);
+
 /** The parts of a computer the lockdown changes. */
 export interface SystemState {
   /** `HKLM\…\Name` or `HKU\<SID>\…\Name` → the value; a missing key means it doesn't exist */
   registry: Record<string, number | string>;
-  firewall: { outbound: Record<FirewallProfile, 'allow' | 'block'>; rules: Record<string, FirewallRule> };
+  firewall: { enabled: Record<FirewallProfile, 'on' | 'off'>; outbound: Record<FirewallProfile, 'allow' | 'block'>; rules: Record<string, FirewallRule> };
   explorer: 'running' | 'stopped';
 }
 
@@ -51,6 +63,7 @@ export function read(state: SystemState, change: Pick<Change, 'kind' | 'target'>
   switch (change.kind) {
     case 'registry': return state.registry[change.target] ?? null;
     case 'firewallRule': return state.firewall.rules[change.target] ?? null;
+    case 'firewallState': return state.firewall.enabled[change.target as FirewallProfile];
     case 'firewallOutbound': return state.firewall.outbound[change.target as FirewallProfile];
     case 'explorer': return state.explorer;
   }
@@ -61,6 +74,7 @@ export function apply(state: SystemState, change: Change): SystemState {
   switch (change.kind) {
     case 'registry': return { ...state, registry: withEntry(state.registry, change.target, change.after) };
     case 'firewallRule': return { ...state, firewall: { ...state.firewall, rules: withEntry(state.firewall.rules, change.target, change.after) } };
+    case 'firewallState': return { ...state, firewall: { ...state.firewall, enabled: { ...state.firewall.enabled, [change.target]: change.after } } };
     case 'firewallOutbound': return { ...state, firewall: { ...state.firewall, outbound: { ...state.firewall.outbound, [change.target]: change.after } } };
     case 'explorer': return { ...state, explorer: change.after };
   }

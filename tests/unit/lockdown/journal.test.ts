@@ -15,7 +15,7 @@ const school = (): SystemState => ({
     'HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\\AllowClipboardHistory': 1,
     'HKLM\\SOFTWARE\\School\\Asset': 'LAB-07',
   },
-  firewall: { outbound: { domain: 'allow', private: 'allow', public: 'block' }, rules: { 'School: printers': schoolRule } },
+  firewall: { enabled: { domain: 'on', private: 'off', public: 'on' }, outbound: { domain: 'allow', private: 'allow', public: 'block' }, rules: { 'School: printers': schoolRule } },
   explorer: 'running',
 });
 const thePlan = plan({

@@ -48,6 +48,8 @@ export function plan(input: PlanInput): Change[] {
     // our own DNS and DHCP rules, in case a school has turned Windows' built-in ones off (M0, finding 3)
     rule({ name: 'ExamMode: DNS', program: SVCHOST, service: 'Dnscache', protocol: 'udp', remotePorts: [53] }),
     rule({ name: 'ExamMode: DHCP', program: SVCHOST, service: 'Dhcp', protocol: 'udp', localPorts: [68], remotePorts: [67] }),
+    // the firewall on, on every profile (a school may have switched one off), then nothing out but our rules
+    ...(['domain', 'private', 'public'] as const).map((target): Change => ({ kind: 'firewallState', target, after: 'on' })),
     ...(['domain', 'private', 'public'] as const).map((target): Change => ({ kind: 'firewallOutbound', target, after: 'block' })),
     // Explorer last (D7); Windows is told not to start it again first (M0, finding 2)
     value(`${machine}\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\\AutoRestartShell`, 0),

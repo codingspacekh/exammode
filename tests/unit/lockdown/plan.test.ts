@@ -45,7 +45,7 @@ describe('§2.4 the plan: policies', () => {
   });
   it('a value two apps both set is changed once', () => {
     const excel = { ...word, id: 'excel' };
-    const targets = plan(input({ profiles: [word, excel] })).map((c) => c.target);
+    const targets = plan(input({ profiles: [word, excel] })).map((c) => `${c.kind} ${c.target}`);
     expect(new Set(targets).size).toBe(targets.length);
   });
   it('an exam with no apps still locks the computer', () => {
@@ -66,6 +66,12 @@ describe('§2.6 the plan: the firewall', () => {
     const web = rules(plan(input({ websites: true })));
     expect(web).toHaveLength(5);
     expect(web).toContainEqual({ name: 'ExamMode: the exam\'s websites', program: 'C:\\Program Files\\ExamMode\\ExamMode.exe', protocol: 'tcp', remotePorts: [80, 443] });
+  });
+  it('the firewall is switched on on every profile before outbound traffic is blocked', () => {
+    const changes = plan(input());
+    const on = changes.filter((c) => c.kind === 'firewallState');
+    expect(on.map((c) => [c.target, c.after])).toEqual([['domain', 'on'], ['private', 'on'], ['public', 'on']]);
+    expect(changes.map((c) => c.kind).lastIndexOf('firewallState')).toBeLessThan(changes.findIndex((c) => c.kind === 'firewallOutbound'));
   });
   it('outbound traffic is blocked on every firewall profile', () => {
     const blocked = plan(input()).filter((c) => c.kind === 'firewallOutbound');
