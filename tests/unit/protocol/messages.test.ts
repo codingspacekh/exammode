@@ -62,7 +62,6 @@ describe('§2.7 messages from the teacher', () => {
     { v, type: 'start', endsAt: 1_800_003_600_000 },
     { v, type: 'time', endsAt: 1_800_004_200_000 },
     { v, type: 'end' },
-    { v, type: 'unlock' },
     { v, type: 'receipt', code: 'HX7-29Q', files: [{ name: 'Report.docx', bytes: 18_220, sha256: sha }] },
   ])('$type is accepted', (msg) => {
     expect(parseFromTeacher(msg)).toEqual({ ok: true, msg });

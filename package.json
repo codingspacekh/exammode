@@ -30,11 +30,11 @@
     "db:generate": "drizzle-kit generate && node scripts/migrations.mjs",
     "licence": "tsx scripts/licence/cli.ts",
     "class": "tsx scripts/class/cli.ts",
-    "guard": "node out/guard/main.js"
+    "guard": "node out/guard/main.js",
+    "unlock": "node out/guard/main.js --undo"
   },
   "dependencies": {
     "busboy": "^1.6.0",
-    "cn": "^0.5.2",
     "drizzle-orm": "^0.45.4",
     "input-otp": "^1.5.0",
     "koffi": "^3.3.7",

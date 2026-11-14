@@ -1,7 +1,7 @@
 /**
  * Locking the lab computer for an exam, as the student's flow sees it (architecture §2.4): the checks, the lock
  * and the unlock. On a lab computer this is Windows and the Guard (lockdown-win.ts); in the tests, a fake; with no
- * lockdown at all (a Mac, a development build) an exam runs unlocked, as in M3.
+ * lockdown at all (a Mac, a development build) an exam runs unlocked.
  */
 import type { AppToClose, Check } from '@lib/lockdown/checks';
 import type { AppProfile } from '@lib/profiles/schema';

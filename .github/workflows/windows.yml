@@ -7,6 +7,11 @@ on:
   push:
     branches: [dev]
     paths: ['src/win/**', 'src/guard/**', 'src/lib/lockdown/**', 'src/lib/guard/**', 'src/main/shell/**', 'src/main/student/**', 'tests/windows/**', 'tests/e2e/lock.spec.ts', '.github/workflows/windows.yml']
+permissions:
+  contents: read
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   windows:
     strategy:
@@ -52,3 +57,10 @@ jobs:
         env:
           EXAMMODE_LOCK_TEST: '1'
         timeout-minutes: 8
+      - uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: test-results-${{ matrix.os }}
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore

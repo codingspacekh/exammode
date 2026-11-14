@@ -4,6 +4,7 @@
  */
 import { join } from 'node:path';
 import { app, BrowserWindow, ipcMain, type BrowserWindowConstructorOptions } from 'electron';
+import type { Handlers } from '@lib/app/calls';
 import { devEnv } from './env';
 
 export type View = 'student' | 'teacher' | 'bar' | 'browser';
@@ -32,7 +33,7 @@ export function createWindow(view: View, options: BrowserWindowConstructorOption
 }
 
 /** Answers a side's calls from its screens (`name:call`), and gives back how to push its state to them. */
-export function serve<S>(name: string, get: () => S, calls: Record<string, (...args: never[]) => unknown>, windows: () => (BrowserWindow | undefined)[]): (state: S) => void {
+export function serve<S, Api>(name: string, get: () => S, calls: Handlers<Api>, windows: () => (BrowserWindow | undefined)[]): (state: S) => void {
   ipcMain.handle(`${name}:get`, () => get());
   for (const [call, run] of Object.entries(calls)) ipcMain.handle(`${name}:${call}`, (_event, ...args) => (run as (...a: unknown[]) => unknown)(...args));
   return (state) => {

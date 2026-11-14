@@ -4,14 +4,16 @@
  * handed in is decided by src/lib/files; this reads the disk and talks to the network.
  */
 import { createHash } from 'node:crypto';
-import { createReadStream, openAsBlob } from 'node:fs';
+import { hashFile } from '../files';
+import { openAsBlob } from 'node:fs';
 import { mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
-import { pipeline } from 'node:stream/promises';
 import { changed, nextSnapshot, toHash, type FileStat, type HashedFile, type Snapshot } from '@lib/files/changes';
 import { handInList } from '@lib/files/handIn';
 import { isSafeName, isWorkFile } from '@lib/files/names';
 import { MAX_FILE_BYTES, PROTOCOL_VERSION, type FileMeta, type Upload } from '@lib/protocol/messages';
+
+export { hashFile };
 
 const pathOf = (folder: string, name: string): string => join(folder, ...name.split('/'));
 
@@ -31,11 +33,6 @@ export async function listFiles(folder: string): Promise<FileStat[]> {
   return files.sort((a, b) => (a.name < b.name ? -1 : 1));
 }
 
-export async function hashFile(path: string): Promise<string> {
-  const hash = createHash('sha256');
-  await pipeline(createReadStream(path), hash);
-  return hash.digest('hex');
-}
 
 const meta = ({ name, bytes, sha256 }: HashedFile): FileMeta => ({ name, bytes, sha256 });
 

@@ -6,6 +6,7 @@
  *
  * `--allow`: the programs that may ask it to lock — the installed ExamMode.exe by default (D10).
  * `--no-relaunch`: for development, where ExamMode is Electron itself and can't be started by its program alone.
+ * `--undo`: undo what the journal says and stop (`npm run unlock`): for a computer that stayed locked.
  * `--dev`: a development Guard also keeps the programs a caller names reachable through the firewall (GitHub's own
  * agent on its computers). The installed service is never started with it.
  */
@@ -61,6 +62,13 @@ const guard = new Guard({
 
 const undone = await guard.recover();
 if (undone > 0) say(`${undone} changes of an exam that didn't end were undone`);
+// `--undo` (`npm run unlock`, as an administrator): put the computer back from the journal, and nothing else —
+// for a lab computer that stayed locked
+if (args.includes('--undo')) {
+  const left = (await guard.status()).changes;
+  say(left === 0 ? (undone > 0 ? 'This computer is back as it was.' : 'Nothing to undo: this computer isn\'t locked.') : `${left} changes couldn't be undone. Start the computer again, and run this once more.`);
+  process.exit(left === 0 ? 0 : 1);
+}
 // only ExamMode is heard: the process at the other end of the connection — as Windows says, not as the caller
 // says — has to be one of the allowed programs
 const owners = new Map<Socket, number | undefined>();

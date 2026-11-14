@@ -11,8 +11,8 @@ const LOW_MS = 10 * 60_000;
 /** How long the bar says that an app was closed (07). */
 export const CLOSED_MS = 8000;
 
-/** 04 · The exam bar (F-09): across the top of the screen for the whole exam. M3: an ordinary always-on-top
- *  window. The exam's apps are buttons on it (05, 06). Leave is the door at the end (08): a menu can't open inside a window
+/** 04 · The exam bar (F-09): across the top of the screen for the whole exam: an always-on-top window,
+ *  which holds the top of the screen when the computer is locked. The exam's apps are buttons on it (05, 06). Leave is the door at the end (08): a menu can't open inside a window
  *  this low. With no contact, a strip under the bar says so (10b). */
 export function ExamBar({ state, api }: { state: StudentState; api: StudentApi }) {
   const now = useNow();

@@ -7,7 +7,7 @@ import { access, readdir } from 'node:fs/promises';
 import { LISTS } from '@lib/guard/lists';
 import { BUILTIN } from '@lib/profiles/builtin';
 import { installedApps, type AppPath, type Installed, type UninstallEntry } from '@lib/profiles/inventory';
-import { findExe } from '../main/student/launcher';
+import { findExe } from '@lib/profiles/find';
 import { powershellJson } from './run';
 
 const READ = `

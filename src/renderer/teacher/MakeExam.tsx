@@ -55,10 +55,16 @@ export function MakeExam({ state, api, exam, page, onPage, onClose, cancel = fal
   const form = (): ExamForm => ({ id: exam?.id, teacher, title, classId: kept?.id, className, studentNames, minutes, websites: sites, files, apps });
   async function send(how: 'open' | 'saveExam') {
     setOpening(true);
-    const wrong = await api[how](form());
-    setError(wrong);
-    setOpening(false);
-    if (!wrong && how === 'saveExam') onClose?.();
+    try {
+      const wrong = await api[how](form());
+      setError(wrong);
+      if (!wrong && how === 'saveExam') onClose?.();
+    } catch (error) {
+      // (the main process itself failed: said, and the buttons work again)
+      setError(`That didn't work: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setOpening(false);
+    }
   }
   const lab = state.labApps;
   const has = (id: string) => apps.some((a) => 'profile' in a && a.profile === id);

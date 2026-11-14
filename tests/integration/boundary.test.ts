@@ -31,4 +31,22 @@ describe('architecture §2.2 layer boundaries', () => {
   it('the renderer may not use a native <select> (N-07: shadcn/ui only)', async () => {
     expect(await problems('export const S = () => <select />;\n', 'src/renderer/student/x.tsx')).toContain('no-restricted-syntax');
   });
+  it('src/lib may not import a Node built-in by its bare name either: any of them', async () => {
+    expect(await problems("import { createInterface } from 'readline';\nexport const c = createInterface;\n", 'src/lib/x.ts')).toContain('no-restricted-imports');
+    expect(await problems("import { lookup } from 'dns';\nexport const l = lookup;\n", 'src/lib/x.ts')).toContain('no-restricted-imports');
+  });
+  it('the teacher\'s side and a lab computer\'s side don\'t reach into each other, and neither knows Electron', async () => {
+    expect(await problems("import { hashFile } from '../student/files';\nexport const h = hashFile;\n", 'src/main/teacher/x.ts')).toContain('no-restricted-imports');
+    expect(await problems("import { TeacherDesk } from '../teacher/desk';\nexport const d = TeacherDesk;\n", 'src/main/student/x.ts')).toContain('no-restricted-imports');
+    expect(await problems("import { app } from 'electron';\nexport const a = app;\n", 'src/main/teacher/x.ts')).toContain('no-restricted-imports');
+    expect(await problems("import { app } from 'electron';\nexport const a = app;\n", 'src/main/student/x.ts')).toContain('no-restricted-imports');
+    // what both sides need is beside them
+    expect(await problems("import { hashFile } from '../files';\nexport const h = hashFile;\n", 'src/main/teacher/x.ts')).toEqual([]);
+  });
+  it('src/win, src/guard and src/trust don\'t reach into src/main, or know Electron', async () => {
+    expect(await problems("import { findExe } from '../main/student/launcher';\nexport const f = findExe;\n", 'src/win/x.ts')).toContain('no-restricted-imports');
+    expect(await problems("import { app } from 'electron';\nexport const a = app;\n", 'src/guard/x.ts')).toContain('no-restricted-imports');
+    expect(await problems("import { Session } from '../main/student/session';\nexport const s = Session;\n", 'src/trust/x.ts')).toContain('no-restricted-imports');
+    expect(await problems("import { run } from '../win/run';\nexport const r = run;\n", 'src/guard/x.ts')).toEqual([]);
+  });
 });

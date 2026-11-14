@@ -33,7 +33,7 @@ export default defineConfig({
     ],
     coverage: {
       provider: 'v8',
-      include: ['src/lib/**', 'src/main/**', 'src/guard/**'],
+      include: ['src/lib/**', 'src/main/**', 'src/guard/**', 'src/trust/**'],
       // index.ts and shell/ are Electron glue (the windows), proven by the e2e tests; the migrations are generated SQL
       // … and so are the Guard's program and the real lock, which are Windows only (the windows tests prove them)
       exclude: ['src/main/index.ts', 'src/main/shell/**', 'src/main/student/lockdown-win.ts', 'src/guard/main.ts', 'src/main/teacher/store/migrations/**'],
@@ -42,6 +42,7 @@ export default defineConfig({
         'src/lib/session/**': { lines: 95, branches: 95, functions: 95, statements: 95 },
         'src/lib/guard/**': { lines: 95, branches: 95, functions: 95, statements: 95 },
         'src/lib/lockdown/**': { lines: 95, branches: 95, functions: 95, statements: 95 },
+        'src/trust/**': { lines: 95, branches: 95, functions: 95, statements: 95 },
         'src/lib/**': { lines: 90, branches: 90, functions: 90, statements: 90 },
         'src/main/**': { lines: 85, branches: 85, functions: 85, statements: 85 },
         'src/guard/**': { lines: 85, branches: 85, functions: 85, statements: 85 },

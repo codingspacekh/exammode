@@ -1,5 +1,5 @@
 /**
- * ExamMode in teacher mode: one window (11 minimal, 12, 13) showing the teacher's desk (desk.ts). Electron glue:
+ * ExamMode in teacher mode: one window (the exams and classes, 11, 12, 13, 14) showing the teacher's desk (desk.ts). Electron glue:
  * proven by the e2e tests.
  */
 import { fileLog } from '../log';
@@ -8,7 +8,7 @@ import type { Identity } from '../../trust/signed';
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { app, BrowserWindow, dialog, shell } from 'electron';
-import type { ExamForm } from '@lib/app/state';
+import type { ExamForm, TeacherApi, TeacherState } from '@lib/app/state';
 import { hostOf } from '@lib/browser/sites';
 import { TeacherDesk } from '../teacher/desk';
 import { createWindow, serve } from './windows';
@@ -56,7 +56,7 @@ export async function runTeacher(identity?: Identity): Promise<void> {
 
   const win = createWindow('teacher', { width: 1440, height: 900, minWidth: 1280, minHeight: 720 });
   win.once('ready-to-show', () => win.show());
-  const tell = serve('teacher', () => desk.state(), {
+  const tell = serve<TeacherState, TeacherApi>('teacher', () => desk.state(), {
     open: (form: ExamForm) => desk.openExam(form),
     saveExam: async (form: ExamForm) => {
       const saved = await desk.saveExam(form);

@@ -1,8 +1,10 @@
 /**
  * The student's side of ExamMode without its windows: finding exams, joining, the exam, the hand-in — and the one
- * state the student's screens show (architecture §2.2). M3: 01 Join, 03 Waiting, 04 the exam bar, 09 Hand in,
- * 09b Handed in. The computer isn't checked or locked yet (M4), so joining goes straight to waiting.
+ * state the student's screens show (architecture §2.2): 01 Join, 02 the checks and the lock, 03 Waiting, 04 the
+ * exam bar and its apps, 08 Leave, 09 Hand in, 09b Handed in, 10 Can't join. What locks the computer is passed in
+ * (`lockdown`); with none — a Mac, a development build — joining goes straight to waiting.
  */
+import type { ReportKind } from '@lib/exam/events';
 import { z } from 'zod';
 import { beacon, type Beacon } from '@lib/protocol/messages';
 import type { Trust } from '@lib/trust/licence';
@@ -305,7 +307,7 @@ export class StudentFlow {
   }
 
   /** Something for the teacher's log (a blocked page …). */
-  report(kind: string, details: Record<string, unknown>): void {
+  report(kind: ReportKind, details: Record<string, unknown>): void {
     this.session?.report(kind, details);
   }
 

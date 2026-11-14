@@ -72,7 +72,7 @@ export interface SavedExam {
   runs: number;
 }
 
-/** The minimal *open an exam* of M3: a title, a class, the time, and where the questions are. */
+/** Make an exam (11): a title, a class, the time, where the questions are, the files to give and the apps. */
 export interface ExamForm {
   /** the exam that is being changed; none: a new one */
   id?: string;

@@ -3,6 +3,7 @@
  * every 2 s, and — when the network goes — the same ExamMode coming back with its own record of the gap (F-19).
  * It decides nothing about the exam: the teacher's laptop does (D5).
  */
+import type { ReportKind } from '@lib/exam/events';
 import { randomBytes } from 'node:crypto';
 import { WebSocket } from 'ws';
 import { MAX_LOCAL_LOG, PROTOCOL_VERSION, parseFromTeacher, type ExamInfo, type FromStudent, type FromTeacher, type RefusedReason } from '@lib/protocol/messages';
@@ -137,7 +138,7 @@ export class Session {
 
   /** Something for the teacher's log (an app was closed, a page blocked …). With no contact it is kept, and sent
    *  with the record of the gap. */
-  report(kind: string, details: Record<string, unknown> = {}): void {
+  report(kind: ReportKind, details: Record<string, unknown> = {}): void {
     if (this.connected && JOINED.includes(this.state)) this.send({ v: PROTOCOL_VERSION, type: 'event', kind, details });
     else this.keep({ at: this.teacherNow(), kind, details });
   }

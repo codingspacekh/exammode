@@ -4,7 +4,7 @@ import { formatMinutes } from '@lib/session/time';
 import { Note } from '@/components/brand';
 import { Calm, Card } from './Calm';
 
-/** 03 · Waiting for the teacher (F-08). M3: the computer isn't locked yet (F-07 comes with M4). */
+/** 03 · Waiting for the teacher (F-08): joined, checked and — on a lab computer — locked. */
 export function Waiting({ state }: { state: StudentState }) {
   const { exam, student } = state;
   if (!exam || !student) return null;

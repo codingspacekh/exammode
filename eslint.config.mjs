@@ -1,3 +1,4 @@
+import { builtinModules } from 'node:module';
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 
@@ -6,9 +7,11 @@ import tseslint from 'typescript-eslint';
  *  - lib: src/lib is pure — no Electron, Node built-ins, koffi, React or the DOM (D4);
  *  - renderer: no Node or Electron — only the preload API;
  *  - controls: no native <select> or date / time / colour / range / number inputs outside
- *    src/renderer/components/ui — only shadcn/ui controls reach the screen (N-07).
+ *    src/renderer/components/ui — only shadcn/ui controls reach the screen (N-07);
+ *  - the main process's layers: the teacher's side and a lab computer's side don't reach into each other; only the
+ *    shell (and index.ts, the preload) knows Electron; src/win, src/guard and src/trust don't reach into src/main.
  */
-const nodeBuiltins = ['fs', 'fs/promises', 'path', 'os', 'child_process', 'crypto', 'url', 'worker_threads', 'stream', 'events', 'util', 'net', 'dgram', 'http'];
+const nodeBuiltins = builtinModules.filter((name) => !name.startsWith('_'));
 const noNode = nodeBuiltins.map((name) => ({ name, message: 'No Node built-ins here (architecture §2.2).' }));
 
 export const lib = {
@@ -40,6 +43,16 @@ export const renderer = {
   }],
 };
 
+const noElectron = { name: 'electron', message: 'Only src/main/shell, index.ts and the preload know Electron (architecture §2.2).' };
+/** One side of the main process: no Electron, and not the other side. */
+const side = (other) => ({
+  'no-restricted-imports': ['error', { paths: [noElectron], patterns: [{ group: [`**/${other}/*`, `**/${other}`], message: `The ${other}'s side isn't reached from here: what both sides need is in src/lib or src/main (architecture §2.2).` }, { group: ['**/shell/*', 'electron/*'], message: 'Only the shell knows Electron.' }] }],
+});
+/** What the main process uses, and that doesn't use it back. */
+export const below = {
+  'no-restricted-imports': ['error', { paths: [noElectron], patterns: [{ group: ['**/main/*', '**/main/**', 'electron/*'], message: 'src/win, src/guard and src/trust are used by src/main: they don\'t reach into it (architecture §2.2).' }] }],
+};
+
 export const controls = {
   'no-restricted-syntax': ['error',
     { selector: "JSXOpeningElement[name.name='select']", message: 'Use Select from src/renderer/components/ui — never a native <select> (N-07).' },
@@ -58,5 +71,8 @@ export default tseslint.config(
   { files: ['scripts/**/*.mjs', '*.mjs'], languageOptions: { globals: { console: 'readonly', process: 'readonly', URL: 'readonly' } } },
   { files: ['src/lib/**/*.{ts,tsx}'], rules: lib },
   { files: ['src/renderer/**/*.{ts,tsx}'], rules: renderer },
+  { files: ['src/main/teacher/**/*.ts'], rules: side('student') },
+  { files: ['src/main/student/**/*.ts'], rules: side('teacher') },
+  { files: ['src/win/**/*.ts', 'src/guard/**/*.ts', 'src/trust/**/*.ts'], rules: below },
   { files: ['src/renderer/**/*.tsx'], ignores: ['src/renderer/components/ui/**'], rules: controls },
 );

@@ -390,7 +390,7 @@ export class Classroom {
       const at = this.now();
       const folder = this.folderOf(studentId);
       const id = seat.id ?? (await this.save(studentId));
-      for (const f of meta.files) if (arrived.has(f.name)) await place(arrived.get(f.name)!, folder, f.name);
+      for (const f of meta.files) if (arrived.has(f.name)) await place(arrived.get(f.name)!, folder, f.name, meta.kind === 'handIn');
       this.uploads++;
       if (!receipt) {
         await this.store.saveFiles(id, meta.files, 'backup', at);

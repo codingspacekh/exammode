@@ -1,8 +1,9 @@
 /**
  * The teacher's side of ExamMode without its windows: the store, the server, the beacon and the run that is open,
- * and the one state the teacher's screens show (architecture §2.2). M3: open an exam (11, minimal), the lobby (12),
- * the live view (13).
+ * and the one state the teacher's screens show (architecture §2.2): the kept exams and classes, Make an exam (11),
+ * the lobby (12), the live view (13) and what is kept after the end (14).
  */
+import { QUIET } from '@lib/exam/events';
 import type { Identity } from '../../trust/signed';
 import { copyFile, cp, mkdir, readdir, rm, stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -14,7 +15,7 @@ import type { FileMeta } from '@lib/protocol/messages';
 import type { ExamForm, FeedItem, KeptFile, TeacherState } from '@lib/app/state';
 import { logCsv } from '@lib/exam/log';
 import { BeaconSender, type BeaconOptions } from './beacon';
-import { hashFile } from '../student/files';
+import { hashFile } from '../files';
 import { Classroom, type ClassroomOptions } from './classroom';
 import { labApps } from '@lib/profiles/inventory';
 import { ClassroomServer } from './server';
@@ -42,8 +43,6 @@ export interface DeskOptions {
   record?: (start: string) => Promise<string[]>;
 }
 
-/** Not worth a line in *What's happening*: the lobby's list and the cards show them. */
-const QUIET = ['runOpened', 'joined', 'ready', 'started'];
 const FEED = 100;
 /** How many of a run's events the screens are given: more than a day's exam has, short of a flood. */
 const EVENTS_SHOWN = 3000;
@@ -141,6 +140,12 @@ export class TeacherDesk {
     const badName = given.find((f) => !isSafeName(f.name) || f.name.includes('/'));
     if (badName) return { error: `"${badName.name}" can't be given: its name has a character that a lab computer can't store.` };
     if (new Set(given.map((f) => f.name.toLowerCase())).size !== given.length) return { error: 'Two of the files to give have the same name.' };
+
+    // a file just chosen is looked at before anything is saved: one that can't be read any more mustn't leave
+    // an exam behind that the form doesn't know it has made (the next Save would make a second one)
+    for (const f of given) {
+      if (f.path && !(await stat(f.path).then((info) => info.isFile(), () => false))) return { error: `"${f.name}" can't be read any more. Take it off the list and add it again.` };
+    }
 
     let classId = form.classId;
     if (!classId) {
@@ -354,7 +359,7 @@ export class TeacherDesk {
     if (!room) return { screen: 'make', ...shelf, licence, students: [], feed: [], events: [], files: {} };
     const { run, students } = room.view();
     const all = await this.eventsOf(run.id, new Map(students.map((s) => [s.id, s.name])));
-    const feed = all.filter((e) => !QUIET.includes(e.kind)).slice(-FEED).reverse();
+    const feed = all.filter((e) => !(QUIET as readonly string[]).includes(e.kind)).slice(-FEED).reverse();
     const screen = run.endedAt !== undefined ? 'ended' : run.startedAt === undefined ? 'lobby' : 'live';
     // the files kept from each student (13b, 14): read again only when some were taken since, or the run's
     // state changed (a hand-in marks them)

@@ -43,7 +43,8 @@ export class Store {
     this.sqlite = new DatabaseSync(path);
     // WAL with synchronous = NORMAL: a write is safe from ExamMode stopping at once, and from the power going
     // after the next flush(); the classroom flushes at the moments that matter (Start, a hand-in, the end)
-    this.sqlite.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON;');
+    // (on a Mac a plain sync only reaches the drive's own cache: `fullfsync` makes a flush mean what it says)
+    this.sqlite.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON; PRAGMA fullfsync = ON; PRAGMA checkpoint_fullfsync = ON;');
     this.migrate();
     this.db = drizzle(async (sql, params, method) => {
       const statement = this.sqlite.prepare(sql);

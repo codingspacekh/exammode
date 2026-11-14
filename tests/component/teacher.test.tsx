@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FeedItem } from '@lib/app/state';
 import { TeacherApp } from '@/App';
 import { After } from '@/teacher/After';
+import { EVENT_KINDS, QUIET } from '@lib/exam/events';
 import { feedLine, timelineLine } from '@/teacher/feed';
 import { Live, lookOf } from '@/teacher/Live';
 import { Lobby } from '@/teacher/Lobby';
@@ -663,6 +664,24 @@ describe('13 the feed\'s words', () => {
     expect(line('nameTaken', {}, 'Dara Kim', 'PC-12')).toBe('Dara Kim|— someone on PC-12 picked this name');
     expect(line('nameTaken', {}, 'Dara Kim', null)).toBe('Dara Kim|— someone on another computer picked this name');
     expect(line('codeWrong', {}, null, 'PC-09')).toBe('|A wrong code was typed on PC-09');
+  });
+});
+
+describe('every kind of event has its words (F-39)', () => {
+  it('a kind that is written to the log is a line in What\'s happening — or one the lists already show', () => {
+    for (const kind of EVENT_KINDS) {
+      const line = feedLine({ id: 1, at: 0, kind, student: 'Sokha Chan', pc: 'PC-14', details: {} });
+      if (QUIET.includes(kind)) continue;
+      expect(line, kind).toBeDefined();
+      expect(line!.text, kind).not.toBe('');
+    }
+    expect(feedLine({ id: 1, at: 0, kind: 'aKindOfANewerVersion', details: {} })).toBeUndefined();
+  });
+  it('the lock that isn\'t whole, files that couldn\'t be kept and a file too big are said in full', () => {
+    const line = (kind: string, details: Record<string, unknown>) => feedLine({ id: 1, at: 0, kind, student: 'Sokha Chan', pc: 'PC-14', details })!;
+    expect(line('ruleChanged', { what: 'This computer couldn\'t be locked again' })).toMatchObject({ tone: 'danger', text: '— the lock on PC-14 isn\'t whole: This computer couldn\'t be locked again' });
+    expect(line('uploadFailed', { why: 'ENOSPC' }).text).toMatch(/couldn't keep their files \(ENOSPC\)/);
+    expect(line('fileTooBig', { name: 'video.mp4', megabytes: 812 }).text).toBe('has a file too big to send — video.mp4 (812 MB): it isn\'t backed up or handed in');
   });
 });
 

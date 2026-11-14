@@ -5,7 +5,7 @@
  */
 import { createHash, randomUUID } from 'node:crypto';
 import { createWriteStream } from 'node:fs';
-import { mkdir, rename, rm } from 'node:fs/promises';
+import { mkdir, open, rename, rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import type { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -36,10 +36,20 @@ export async function receive(name: string, from: Readable, folder: string): Pro
   return { name, bytes, sha256: hash.digest('hex'), path };
 }
 
-/** Moves a checked file to `folder/name`, taking the place of an older copy. */
-export async function place(file: { path: string }, folder: string, name: string): Promise<void> {
+/** Moves a checked file to `folder/name`, taking the place of an older copy. `forGood`: it is written through to
+ *  the disk first — a hand-in's receipt lets the lab computer delete its copy, so this one has to survive the
+ *  power going a moment later. */
+export async function place(file: { path: string }, folder: string, name: string, forGood = false): Promise<void> {
   const to = join(folder, ...name.split('/'));
   await mkdir(dirname(to), { recursive: true });
+  if (forGood) {
+    const handle = await open(file.path, 'r+');
+    try {
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
+  }
   await rename(file.path, to);
 }
 

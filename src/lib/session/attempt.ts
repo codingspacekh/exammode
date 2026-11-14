@@ -1,3 +1,4 @@
+import type { EventKind } from '../exam/events';
 /**
  * A student's attempt at a run, as the teacher's laptop sees it (architecture §2.8, D5): left, stopped suddenly or
  * no contact — the rule behind F-15, F-18, F-19 and F-20. Pure: every function takes the attempt and what was seen,
@@ -42,7 +43,7 @@ export interface Result { attempt: Attempt; events: LogEvent[]; reply?: Reply }
 /** No beat for this long: no contact (in the exam), or off the list (before Start). Beats come every 2 s. */
 export const NO_CONTACT_MS = 10_000;
 /** Events that count as a warning on a student in the exam. Anything else (a blocked page, F-13) is a note. */
-export const WARNINGS: readonly string[] = ['appClosed', 'displayAdded', 'ruleChanged'];
+export const WARNINGS: readonly EventKind[] = ['appClosed', 'displayAdded', 'ruleChanged'];
 
 const JOINED: Reply = { type: 'joined' };
 const same = (attempt: Attempt): Result => ({ attempt, events: [] });
@@ -191,7 +192,7 @@ export function onHandIn(a: Attempt, how: HandInHow, at: number): Result {
 
 /** Something the student's computer reports: a warning in the exam if it is on the list, otherwise a note. */
 export function onEvent(a: Attempt, msg: { kind: string; details: Record<string, unknown> }, at: number): Result {
-  const warning = sitting(a) && WARNINGS.includes(msg.kind);
+  const warning = sitting(a) && (WARNINGS as readonly string[]).includes(msg.kind);
   return { attempt: warning ? { ...a, warnings: a.warnings + 1 } : a, events: [event(msg.kind, at, msg.details)] };
 }
 

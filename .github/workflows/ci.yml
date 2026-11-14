@@ -7,8 +7,15 @@ on:
     branches: [main, dev]
   pull_request:
   workflow_dispatch:
+# nothing here writes to the repository; a newer push to a branch stops the run of the one before
+permissions:
+  contents: read
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   check:
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -19,6 +26,8 @@ jobs:
       - uses: actions/setup-node@v5
         with: { node-version: 24, cache: npm }
       - run: npm ci
+      # the packages ExamMode ships with: none with a known vulnerability
+      - run: npm audit --omit=dev --audit-level=high
       - name: Download the Electron binary, up to 3 tries
         shell: bash
         run: for i in 1 2 3; do node node_modules/electron/install.js && exit 0; sleep 15; done; exit 1
@@ -28,3 +37,11 @@ jobs:
         if: runner.os == 'Windows'
       - run: npm run e2e
         if: ${{ !cancelled() }}
+      # what a failed e2e test saw (a trace of each window), kept: nobody is at that computer
+      - uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: test-results-${{ matrix.os }}
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore

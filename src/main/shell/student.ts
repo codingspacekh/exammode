@@ -1,5 +1,5 @@
 /**
- * ExamMode on a lab computer (M3: nothing is locked yet). One window for the plain screens (01, 03, 09, 09b); in
+ * ExamMode on a lab computer. One window for the plain screens (01, 03, 09, 09b); in
  * the exam, the exam bar across the top of the screen (04) and — only if the exam has websites — the exam browser
  * under it. What they show is the student's flow (flow.ts). Electron glue: proven by the e2e tests.
  */
@@ -14,7 +14,7 @@ import { mkdirSync } from 'node:fs';
 import { hostname, uptime } from 'node:os';
 import { dirname, join } from 'node:path';
 import { app, clipboard, dialog, screen, shell, type BrowserWindow } from 'electron';
-import type { BrowserState, StudentState } from '@lib/app/state';
+import type { BrowserApi, BrowserState, StudentApi, StudentState } from '@lib/app/state';
 import { StudentFlow } from '../student/flow';
 import type { WindowsLockdown } from '../student/lockdown-win';
 import { ExamBrowser } from './browser';
@@ -84,7 +84,7 @@ export async function runStudent(): Promise<void> {
   let browser: ExamBrowser | undefined;
   let browserState: BrowserState = { tabs: [], active: 0, sites: [] };
 
-  const tellBrowser = serve('browser', () => browserState, {
+  const tellBrowser = serve<BrowserState, BrowserApi>('browser', () => browserState, {
     select: (tab: number) => browser?.select(tab),
     close: (tab: number) => browser?.close(tab),
     back: () => browser?.back(),
@@ -93,7 +93,7 @@ export async function runStudent(): Promise<void> {
     toQuestions: () => browser?.toQuestions(),
   }, () => [browser?.window]);
 
-  const tell = serve('student', () => flow.state(), {
+  const tell = serve<StudentState, StudentApi>('student', () => flow.state(), {
     pick: (runId: string) => flow.pick(runId),
     lookAt: (host: string) => flow.lookAt(host),
     join: (studentId: string, code: string) => flow.join(studentId, code),
@@ -133,7 +133,8 @@ export async function runStudent(): Promise<void> {
       app.relaunch({ args: process.argv.slice(1).filter((a) => a !== '--student') });
       app.exit(0);
     },
-    // M3: the computer isn't locked, so the Exam folder opens in the system's own file manager (its own list: M5)
+    // not locked (a development build): the Exam folder opens in the system's own file manager. Locked, there is
+    // none, and the bar doesn't offer it
     openFolder: () => {
       if (!flow.folder) return;
       mkdirSync(flow.folder, { recursive: true });
