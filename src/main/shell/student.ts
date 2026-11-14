@@ -3,6 +3,8 @@
  * the exam, the exam bar across the top of the screen (04) and — only if the exam has websites — the exam browser
  * under it. What they show is the student's flow (flow.ts). Electron glue: proven by the e2e tests.
  */
+import { fileLog } from '../log';
+import { devEnv } from './env';
 import { AUTHOR, REQUEST_ADDRESS } from '@lib/trust/author';
 import type { RequestForm } from '../teacher/licence';
 import { teacherLicence, trust } from './trust';
@@ -53,7 +55,8 @@ async function lockdownFor(env: NodeJS.ProcessEnv): Promise<WindowsLockdown | un
 }
 
 export async function runStudent(): Promise<void> {
-  const env = process.env;
+  const env = devEnv();
+  const log = fileLog(join(app.getPath('userData'), 'exammode.log'));
   const lockdown = await lockdownFor(env);
   const flow = new StudentFlow({
     lockdown,
@@ -63,7 +66,7 @@ export async function runStudent(): Promise<void> {
     bootId: String(Math.round((Date.now() - uptime() * 1000) / 60_000)),
     discoveryPort: number(env.EXAMMODE_BEACON_PORT),
     teacherPort: number(env.EXAMMODE_PORT),
-    trust: trust(env),
+    trust: trust(env), log,
     remember: join(app.getPath('userData'), 'exam.json'),
     // what this computer has installed, for the teacher's Add an app; (development: from a file)
     installed: env.EXAMMODE_INSTALLED && !app.isPackaged
@@ -73,6 +76,10 @@ export async function runStudent(): Promise<void> {
 
   const main = createWindow('student', { width: 1440, height: 900, minWidth: 1280, minHeight: 720 });
   main.once('ready-to-show', () => main.show());
+  // locked, ExamMode's window isn't closed by a key (Alt+F4): leaving is Leave, which asks first
+  main.on('close', (event) => {
+    if (flow.state().locked) event.preventDefault();
+  });
   let bar: BrowserWindow | undefined;
   let browser: ExamBrowser | undefined;
   let browserState: BrowserState = { tabs: [], active: 0, sites: [] };
@@ -144,11 +151,13 @@ export async function runStudent(): Promise<void> {
         fullscreenable: false, skipTaskbar: true, alwaysOnTop: true, backgroundColor: '#0f172a', title: 'ExamMode — the exam bar',
       });
       bar.setAlwaysOnTop(true, 'screen-saver');
+      // (the bar goes when the exam does — `destroy` below — never by a key)
+      bar.on('close', (event) => event.preventDefault());
       const made = bar;
       bar.once('ready-to-show', () => {
         made.showInactive();
         // locked: the bar holds the top of the screen — apps fill the space under it and can't cover it (D6)
-        if (lockdown && flow.state().locked) void reserve(made);
+        if (lockdown && flow.state().locked) void reserve(made).catch((error: unknown) => log('bar', 'the top of the screen couldn\'t be kept for the bar', error));
       });
     }
     if (inExam && !browser && flow.websites.length > 0) {
@@ -221,6 +230,9 @@ export async function runStudent(): Promise<void> {
     if (state.locked !== locked) {
       locked = state.locked;
       main.setKiosk(locked);
+      // locked after the bar was made (a student who was let back in is in the exam at once, and the lock
+      // follows): the bar takes the top of the screen now
+      if (locked && lockdown && bar && !bar.isDestroyed() && barHandle === undefined) void reserve(bar).catch((error: unknown) => log('bar', 'the top of the screen couldn\'t be kept for the bar', error));
     }
     if (state.screen === shown) return;
     shown = state.screen;

@@ -66,7 +66,8 @@ export function ExamBar({ state, api }: { state: StudentState; api: StudentApi }
         <span className="text-[10.5px] whitespace-nowrap text-xbar-muted">{state.endsAt === undefined ? 'left' : `left · ends ${formatClock(state.endsAt - state.clockOffset)}`}</span>
       </div>
       {sep}
-      <Button variant="ghost" className={button} onClick={() => void api.openFolder()}><FolderIcon /> Exam folder</Button>
+      {/* locked, there is no file manager to show the folder in: the exam's apps open in it, and Hand in… lists it */}
+      {!state.locked && <Button variant="ghost" className={button} onClick={() => void api.openFolder()}><FolderIcon /> Exam folder</Button>}
       <Button className={cn(button, 'border-[#6366f1] bg-[#6366f1] text-white hover:bg-[#5558e6]')} disabled={state.screen !== 'exam'} onClick={() => void api.askHandIn()}><UploadSimpleIcon /> Hand in…</Button>
       <Button variant="ghost" size="icon" aria-label="Leave the exam…" title="Leave the exam…" className="size-[34px] rounded-[7px] text-xbar-foreground hover:bg-xbar-3 hover:text-white" disabled={state.screen !== 'exam'} onClick={() => void api.askLeave()}><DoorOpenIcon /></Button>
     </header>

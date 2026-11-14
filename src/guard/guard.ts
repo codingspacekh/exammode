@@ -30,6 +30,8 @@ export interface GuardOptions {
   relaunch?: (runId: string) => Promise<void>;
   /** how often the watched process is looked at */
   watchMs?: number;
+  /** how often what an unlock couldn't undo is tried again */
+  retryMs?: number;
 }
 
 export type Answer = { ok: true } | { ok: false; why: 'locked' | 'secret' | 'failed'; detail?: string };
@@ -38,6 +40,7 @@ export class Guard {
   private secret?: string;
   private watched?: Watched;
   private timer?: NodeJS.Timeout;
+  private again?: NodeJS.Timeout;
   private busy: Promise<unknown> = Promise.resolve();
   private readonly now: () => number;
 
@@ -90,9 +93,15 @@ export class Guard {
     return this.inTurn(async () => {
       const entries = await this.entries();
       if (entries.length > 0 && secret !== this.secret) return { ok: false, why: 'secret' };
-      this.forget();
       const left = await this.undo(entries);
-      return left === 0 ? { ok: true } : { ok: false, why: 'failed', detail: `${left} changes couldn't be undone yet` };
+      if (left === 0) {
+        this.forget();
+        return { ok: true };
+      }
+      // not all of it could be put back: whoever locked can ask again (the secret stays), the process is still
+      // watched, and the Guard keeps trying by itself
+      this.again ??= setInterval(() => void this.tryAgain(), this.options.retryMs ?? 5000);
+      return { ok: false, why: 'failed', detail: `${left} changes couldn't be undone yet` };
     });
   }
 
@@ -122,12 +131,22 @@ export class Guard {
 
   stop(): void {
     clearInterval(this.timer);
+    clearInterval(this.again);
   }
 
   // ── inside ────────────────────────────────────────────────────────────────────────────────────────────────────
 
+  /** What an unlock couldn't put back is tried again until it is. */
+  private tryAgain(): Promise<void> {
+    return this.inTurn(async () => {
+      if (await this.undo(await this.entries()) === 0) this.forget();
+    });
+  }
+
   private forget(): void {
     clearInterval(this.timer);
+    clearInterval(this.again);
+    this.again = undefined;
     this.watched = undefined;
     this.secret = undefined;
   }

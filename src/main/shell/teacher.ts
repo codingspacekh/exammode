@@ -2,6 +2,8 @@
  * ExamMode in teacher mode: one window (11 minimal, 12, 13) showing the teacher's desk (desk.ts). Electron glue:
  * proven by the e2e tests.
  */
+import { fileLog } from '../log';
+import { devEnv } from './env';
 import type { Identity } from '../../trust/signed';
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
@@ -35,7 +37,8 @@ async function recordHosts(start: string): Promise<string[]> {
 }
 
 export async function runTeacher(identity?: Identity): Promise<void> {
-  const env = process.env;
+  const env = devEnv();
+  const log = fileLog(join(app.getPath('userData'), 'exammode.log'));
   const handIns = env.EXAMMODE_HANDINS ?? join(app.getPath('documents'), 'ExamMode Hand-ins');
   mkdirSync(handIns, { recursive: true });
   let desk: TeacherDesk;
@@ -43,7 +46,7 @@ export async function runTeacher(identity?: Identity): Promise<void> {
     desk = await TeacherDesk.open({
       db: join(app.getPath('userData'), 'exammode.db'), handIns, port: number(env.EXAMMODE_PORT),
       beacon: { port: number(env.EXAMMODE_BEACON_PORT), targets: env.EXAMMODE_BEACON_TO ? () => env.EXAMMODE_BEACON_TO!.split(',') : undefined },
-      record: recordHosts, identity,
+      record: recordHosts, identity, log,
     });
   } catch (error) {
     const busy = (error as NodeJS.ErrnoException).code === 'EADDRINUSE';

@@ -8,8 +8,9 @@ import { app, safeStorage } from 'electron';
 import { trustOf } from '@lib/trust/author';
 import type { Trust } from '@lib/trust/licence';
 import { PLAIN, TeacherLicence, type Vault } from '../teacher/licence';
+import { devEnv } from './env';
 
-export function trust(env: NodeJS.ProcessEnv = process.env): Trust {
+export function trust(env: NodeJS.ProcessEnv = devEnv()): Trust {
   return trustOf(app.isPackaged, env.EXAMMODE_AUTHOR_KEYS?.split(',').filter(Boolean), env.EXAMMODE_REQUIRE_LICENCE === '1');
 }
 
@@ -22,7 +23,7 @@ const keychain: Vault = {
   open: (sealed) => safeStorage.decryptString(Buffer.from(sealed, 'base64')),
 };
 
-export function teacherLicence(env: NodeJS.ProcessEnv = process.env): TeacherLicence {
+export function teacherLicence(env: NodeJS.ProcessEnv = devEnv()): TeacherLicence {
   // (a test's own settings folder isn't worth the keychain asking for a password)
   const vault = !app.isPackaged && env.EXAMMODE_USER_DATA ? PLAIN : keychain;
   return new TeacherLicence(app.getPath('userData'), trust(env), vault);

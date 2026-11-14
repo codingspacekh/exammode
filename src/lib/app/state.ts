@@ -181,6 +181,8 @@ export interface StudentState {
   checks?: { checks: Check[]; ok: boolean; toClose: AppToClose[]; locking: boolean; error?: string };
   /** the computer is locked for the exam (F-07) */
   locked: boolean;
+  /** the exam is over here, but the computer couldn't be put back as it was — yet: ExamMode keeps trying */
+  stillLocked?: string;
   /** 07: an app that isn't part of the exam was just closed */
   closed?: { name: string; at: number };
   /** the exam's apps, on the exam bar (05, 06): which are open, and which is in front */

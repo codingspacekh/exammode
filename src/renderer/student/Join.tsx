@@ -89,6 +89,7 @@ export function Join({ state, api }: { state: StudentState; api: StudentApi }) {
           </div>
 
           {state.joinError && <Note tone="danger" icon={<WarningIcon />} className="mt-4">{WHY[state.joinError]}</Note>}
+          {state.stillLocked && <Note tone="danger" icon={<WarningIcon />} className="mt-4"><b>This computer isn't back to normal yet. Tell your teacher.</b> ExamMode keeps trying. {state.stillLocked}</Note>}
 
           {typing && (
             <div className="mt-4 flex items-end gap-2">

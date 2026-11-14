@@ -34,6 +34,8 @@ export interface DeskOptions {
   tickMs?: number;
   /** the teacher's licence and key (F-44); none: a development build's teacher */
   identity?: Identity;
+  /** what went wrong, for the log file */
+  log?: (where: string, what: string, error?: unknown) => void;
   /** opens a website once and answers with the other hosts it loads its files from (§2.6) */
   record?: (start: string) => Promise<string[]>;
 }
@@ -59,7 +61,7 @@ export class TeacherDesk {
     // (the desk isn't made yet when the server is: what a lab computer says goes to it once it is)
     const made: { desk?: TeacherDesk } = {};
     const server = new ClassroomServer({
-      handIns: options.handIns, port: options.port, tickMs: options.tickMs, identity: options.identity,
+      handIns: options.handIns, port: options.port, tickMs: options.tickMs, identity: options.identity, log: options.log,
       inventory: async (report) => {
         const kept = await store.saveInventory(report.pc, { profiles: report.profiles, apps: report.apps }, Date.now());
         if (kept) void made.desk?.refresh();
@@ -274,7 +276,7 @@ export class TeacherDesk {
   private watch(room: Classroom): void {
     this.room = room;
     this.server.add(room);
-    this.unwatch = room.onChange(() => void this.refresh());
+    this.unwatch = room.onChange(() => void this.refresh().catch((error: unknown) => this.options.log?.('desk', 'the screens couldn\'t be brought up to date', error)));
   }
 
   /** Builds the state again and tells the screens. Changes that come while it is being built are one more turn. */

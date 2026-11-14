@@ -191,7 +191,7 @@ export class WindowsLockdown implements Lockdown {
     for (let i = 0; i < 20 && pids.size > 0 && (await mine()).length > 0; i++) await new Promise((r) => setTimeout(r, 100));
   }
 
-  async unlock(): Promise<void> {
+  async unlock(): Promise<string | void> {
     this.guardLoop?.stop();
     this.guardLoop = undefined;
     // the exam's apps are closed with the exam, and their exam settings removed
@@ -203,8 +203,11 @@ export class WindowsLockdown implements Lockdown {
     if (runId) await rm(join(this.options.profiles, runId), { recursive: true, force: true, maxRetries: 3 }).catch(() => undefined);
     await this.keyboard.stop().catch(() => undefined);
     const secret = this.secret;
-    this.secret = undefined;
-    if (secret) await this.client.ask({ type: 'unlock', secret }).catch(() => undefined);
     this.options.clearClipboard();
+    if (!secret) return undefined;
+    const reply = await this.client.ask({ type: 'unlock', secret }).catch((error: unknown) => ({ ok: false as const, why: 'failed' as const, detail: String(error) }));
+    // (the secret is kept until the Guard says it is done: asking again tries again)
+    if (reply.ok) return void (this.secret = undefined);
+    return `This computer couldn't be put back as it was${'detail' in reply && reply.detail ? ` (${reply.detail})` : ''}.`;
   }
 }

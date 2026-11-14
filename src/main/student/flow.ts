@@ -38,6 +38,8 @@ export interface FlowOptions {
   lockdown?: Lockdown;
   /** what is installed on this computer, told to each teacher's laptop it finds (F-31a); none: nothing is told */
   installed?: () => Promise<Installed | undefined>;
+  /** what went wrong, for the log file */
+  log?: (where: string, what: string, error?: unknown) => void;
   /** whose exams this computer lists and joins (F-44); by default anyone's (a development build) */
   trust?: Trust;
   /** for tests: faster beats and retries */
@@ -53,6 +55,10 @@ const remembered = z.object({
   heard: beacon.optional(),
 });
 type Remembered = z.infer<typeof remembered>;
+
+/** How often, and how long, a computer that couldn't be put back is tried again: every 5 s for 10 minutes. */
+const UNLOCK_RETRY_MS = 5000;
+const UNLOCK_TRIES = 120;
 
 const toFound = (f: Found): FoundExam => ({ runId: f.runId, title: f.title, teacher: f.teacher, class: f.class, minutes: f.minutes, host: f.host, port: f.port, ...(f.teacherKey ? { teacherKey: f.teacherKey } : {}) });
 
@@ -73,6 +79,7 @@ export class StudentFlow {
   private readonly now: () => number;
   private readonly toldInstalled = new Set<string>();
   private readonly heard = new Map<string, Beacon>();
+  private unlocking?: NodeJS.Timeout;
   private installed?: Promise<Installed | undefined>;
 
   constructor(private readonly options: FlowOptions) {
@@ -279,7 +286,7 @@ export class StudentFlow {
     }).catch((error: unknown) => String(error));
     if (!wrong && session === this.session) this.set({ locked: true });
     // (the exam was left while the computer was being locked: put it back)
-    if (!wrong && session !== this.session) void lockdown.unlock().catch(() => undefined);
+    if (!wrong && session !== this.session) this.putBack();
     return wrong;
   }
 
@@ -362,6 +369,7 @@ export class StudentFlow {
   }
 
   async stop(): Promise<void> {
+    clearTimeout(this.unlocking);
     this.leaveSession();
     await this.discovery?.stop();
   }
@@ -371,6 +379,20 @@ export class StudentFlow {
   /** The exam is over for this computer: there is nothing to come back to. */
   private forget(): void {
     if (this.options.remember) void rm(this.options.remember, { force: true }).catch(() => undefined);
+  }
+
+  /** The computer goes back to how it was (F-21). If it can't — all of it, or yet — the student is told to tell
+   *  the teacher, it is written in the log, and it is tried again: a lab computer isn't left locked in silence. */
+  private putBack(tries = 0): void {
+    const lockdown = this.options.lockdown;
+    if (!lockdown) return;
+    void lockdown.unlock().catch((error: unknown) => String(error)).then((wrong) => {
+      if (!wrong) return void (this.current.stillLocked !== undefined && this.set({ stillLocked: undefined }));
+      this.options.log?.('unlock', wrong);
+      this.set({ stillLocked: wrong });
+      // (not while this computer is in an exam again: that lock is the new exam's)
+      if (tries < UNLOCK_TRIES) this.unlocking = setTimeout(() => !this.current.locked && this.putBack(tries + 1), this.options.timing?.retryMs ?? UNLOCK_RETRY_MS);
+    });
   }
 
   private fresh(): StudentState {
@@ -477,7 +499,7 @@ export class StudentFlow {
     exam?.stop();
     session?.close();
     // the exam is over on this computer, however it ended: it goes back to how it was (F-21)
-    if (this.current.locked) void this.options.lockdown?.unlock().catch(() => undefined);
+    if (this.current.locked) this.putBack();
     this.current = { ...this.current, locked: false, closed: undefined, apps: [], appMissing: undefined };
   }
 }

@@ -3,7 +3,8 @@
  * renderer; `?view=` says which screen it is. The renderer reaches the system only through the preload script.
  */
 import { join } from 'node:path';
-import { BrowserWindow, ipcMain, type BrowserWindowConstructorOptions } from 'electron';
+import { app, BrowserWindow, ipcMain, type BrowserWindowConstructorOptions } from 'electron';
+import { devEnv } from './env';
 
 export type View = 'student' | 'teacher' | 'bar' | 'browser';
 
@@ -18,12 +19,14 @@ export function createWindow(view: View, options: BrowserWindowConstructorOption
     backgroundColor: '#f4f6f8',
     show: false,
     ...options,
-    webPreferences: { preload: preload(), sandbox: true, contextIsolation: true, nodeIntegration: false },
+    // (the developer's tools are a development build's: in an exam they would be a way to change the screens)
+    webPreferences: { preload: preload(), sandbox: true, contextIsolation: true, nodeIntegration: false, devTools: !app.isPackaged },
   });
   // nothing in a screen opens another window or leaves the app
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', (event) => event.preventDefault());
-  if (process.env.ELECTRON_RENDERER_URL) void win.loadURL(`${process.env.ELECTRON_RENDERER_URL}?view=${view}`);
+  const dev = devEnv().ELECTRON_RENDERER_URL;
+  if (dev) void win.loadURL(`${dev}?view=${view}`);
   else void win.loadFile(join(out, '../renderer/index.html'), { query: { view } });
   return win;
 }

@@ -8,7 +8,7 @@ import type { Stopped } from '@lib/protocol/messages';
 import { alive, Guard, type GuardOptions, type System, type Watched } from '../../src/guard/guard';
 import { planAsked, type LockAsk } from '@lib/lockdown/plan';
 import { GuardClient, serve } from '../../src/guard/pipe';
-import { later, tempFolder } from './helpers';
+import { eventually, later, tempFolder } from './helpers';
 
 /** A computer as plain data (the journal's own model), which can be told to fail. */
 class FakeSystem implements System {
@@ -199,6 +199,25 @@ describe('F-20 the watchdog: ExamMode\'s process ends without unlocking', () => 
   it('a process is known to be running or gone', () => {
     expect(alive(process.pid)).toBe(true);
     expect(alive(2_000_000_000)).toBe(false);
+  });
+});
+
+describe('F-21 an unlock that can\'t put everything back isn\'t forgotten', () => {
+  it('whoever locked can ask again, and the Guard keeps trying by itself until it is done', async () => {
+    const { g, system } = await guard({ retryMs: 20 });
+    expect(await g.lock(PLAN, 's3cret')).toEqual({ ok: true });
+    // one change can't be undone just now (the firewall is busy, a key is held)
+    system.failOn = 'AutoRestartShell';
+    expect(await g.unlock('s3cret')).toMatchObject({ ok: false, why: 'failed', detail: expect.stringMatching(/1 changes? couldn't be undone yet/) });
+    expect((await g.status()).locked).toBe(true);
+    // the secret still opens it — and nobody else's does
+    expect(await g.unlock('guessed')).toEqual({ ok: false, why: 'secret' });
+    expect(await g.unlock('s3cret')).toMatchObject({ ok: false, why: 'failed' });
+    // put right, it is undone without being asked again
+    system.failOn = undefined;
+    await eventually(async () => expect((await g.status()).locked).toBe(false));
+    expect(system.state).toEqual(before());
+    g.stop();
   });
 });
 

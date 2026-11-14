@@ -325,6 +325,13 @@ describe('10 Can\'t join again (F-18, F-20)', () => {
   });
 });
 
+describe('01 Join, on a computer that isn\'t back to normal (F-21)', () => {
+  it('says so, and to tell the teacher', () => {
+    render(<Join state={student({ stillLocked: 'This computer couldn\'t be put back as it was (2 changes couldn\'t be undone yet).' })} api={studentApi()} />);
+    expect(screen.getByRole('alert')).toHaveTextContent('This computer isn\'t back to normal yet. Tell your teacher. ExamMode keeps trying. This computer couldn\'t be put back as it was');
+  });
+});
+
 describe('I\'m a teacher… (F-44)', () => {
   const FORM = { name: 'Srey Leak', school: 'Riverside High School', email: 'sreyleak@riverside-high.example', check: 'riverside-high.example/staff', note: '' };
   async function fill(user: ReturnType<typeof userEvent.setup>) {

@@ -46,6 +46,8 @@ class FakeLockdown implements Lockdown {
     this.says(this.opened.map((o, i) => ({ id: o, front: i === this.opened.length - 1, title: i === this.opened.length - 1 ? 'Report.docx' : undefined })));
     return undefined;
   }
+  /** what unlocking answers: nothing when the computer is back as it was */
+  unlockSays: string | undefined;
   closedApps = 0;
   async closeApps() {
     this.closedApps++;
@@ -53,6 +55,7 @@ class FakeLockdown implements Lockdown {
   }
   async unlock() {
     this.unlocks++;
+    if (this.unlockSays) return this.unlockSays;
   }
 }
 
@@ -709,5 +712,30 @@ describe('M4 locking the lab computer, in the student\'s flow (F-04–F-07, F-12
       computers: 2, profiles: { word: 2, thonny: 1 },
       others: [{ ...GIMP, computers: 2 }, { name: 'Notepad++', version: '8.6', exe: 'C:\\Program Files\\Notepad++\\notepad++.exe', computers: 1 }],
     }));
+  });
+
+  it('F-21 a computer that can\'t be put back as it was says so, writes it down, and keeps trying until it is', async () => {
+    const lockdown = new FakeLockdown();
+    const logged: string[] = [];
+    const { desk, sokha, sit } = await lab({}, lockdown);
+    Object.assign(sokha, { options: { ...sokha['options'], log: (where: string, what: string) => void logged.push(`${where}: ${what}`) } });
+    await desk.openExam(FORM);
+    await sit(sokha, 'Sokha Chan');
+    await eventually(() => expect(sokha.state().screen).toBe('checks'));
+    await sokha.lock();
+    await desk.start();
+    await eventually(() => expect(sokha.state()).toMatchObject({ screen: 'exam', locked: true }));
+    lockdown.unlockSays = 'This computer couldn\'t be put back as it was (2 changes couldn\'t be undone yet).';
+    await sokha.askHandIn();
+    await sokha.handIn();
+    await eventually(() => expect(sokha.state().screen).toBe('handedIn'));
+    sokha.finish();
+    await eventually(() => expect(sokha.state()).toMatchObject({ screen: 'join', stillLocked: expect.stringMatching(/couldn't be put back/) }));
+    expect(logged[0]).toMatch(/^unlock: This computer couldn't be put back/);
+    // tried again by itself; once it works, nothing is said any more
+    const tries = lockdown.unlocks;
+    await eventually(() => expect(lockdown.unlocks).toBeGreaterThan(tries + 1));
+    lockdown.unlockSays = undefined;
+    await eventually(() => expect(sokha.state().stillLocked).toBeUndefined());
   });
 });

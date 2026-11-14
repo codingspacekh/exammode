@@ -41,6 +41,7 @@ export interface Lockdown {
   openApp(id: string): Promise<'notInstalled' | 'failed' | undefined>;
   /** Closes the exam's apps that are open: the exam is over, and its folder is about to be removed. */
   closeApps(): Promise<void>;
-  /** Puts the computer back as it was (F-21). */
-  unlock(): Promise<void>;
+  /** Puts the computer back as it was (F-21). Answers with what went wrong, in words, if it couldn't — all of
+   *  it, or yet: asking again tries again. */
+  unlock(): Promise<string | void>;
 }
