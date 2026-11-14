@@ -13,7 +13,9 @@ export const PROTOTYPE_CLASS: [string, string][] = [
 /** Still working when the time runs out. */
 const TO_THE_END = ['Piseth Nhem', 'Sothea Nuon', 'Panha Choun', 'Visal Long'];
 
-export const wholeExamOptions: SimOptions = { students: PROTOTYPE_CLASS.map(([name]) => name), minutes: 3, speed: 20 };
+/** Ten times as fast as a real exam: 26 students on a slow computer still have a whole second before they
+ *  would count as *no contact*. */
+export const wholeExamOptions: SimOptions = { students: PROTOTYPE_CLASS.map(([name]) => name), minutes: 2, speed: 10 };
 
 /**
  * The teacher's whole exam, as the prototype tells it (MILESTONES §6, M6): Dara opens Chrome twice, Sophea, Seyha
