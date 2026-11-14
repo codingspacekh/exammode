@@ -7,7 +7,7 @@ Keeps a student's lab computer inside the exam's own apps and websites until the
 - [Milestones & TDD workflow](docs/MILESTONES.md): build plan, gates, progress
 - [UI prototype](design/screens/index.html): `python3 -m http.server 8000 --directory design/screens`, or open the file
 
-Status: a teacher can run a whole exam, unlocked: open it, watch it live, let a student back in, add time, end it, and get every hand-in and the log ([M3](docs/acceptance/M3.md), [M6 so far](docs/acceptance/M6.md)). The lock (M4) and the apps (M5) are next. The gates of M0–M3 wait for the teacher's answers and a day in the lab ([M0](docs/acceptance/M0.md), [M1](docs/acceptance/M1.md), [M2](docs/acceptance/M2.md)).
+Status: a teacher can run a whole exam ([M3](docs/acceptance/M3.md), [M6](docs/acceptance/M6.md)), and a Windows computer is locked for it and put back — proven on GitHub's Windows computers, not yet tried by hand on a lab computer ([M4](docs/acceptance/M4.md)). Next: the exam's apps (M5). The gates of M0–M4 and M6 wait for the teacher's answers and a day in the lab ([M0](docs/acceptance/M0.md), [M1](docs/acceptance/M1.md), [M2](docs/acceptance/M2.md)).
 
 ## Develop
 

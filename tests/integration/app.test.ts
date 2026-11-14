@@ -43,7 +43,7 @@ async function lab(over: Partial<DeskOptions> = {}, lockdown?: Lockdown) {
   const clock = { ahead: 0 };
   const now = () => Date.now() + clock.ahead;
   const student = async (pc: string) => {
-    const flow = new StudentFlow({ pc, examRoot: join(root, pc), bootId: `boot-${pc}`, discoveryPort: 0, now, lockdown: pc === 'PC-14' ? lockdown : undefined, timing: { beatMs: 40, retryMs: 40, clockMs: 20, graceMs: 40 } });
+    const flow = new StudentFlow({ pc, examRoot: join(root, pc), bootId: `boot-${pc}`, remember: join(root, pc, 'exam.json'), discoveryPort: 0, now, lockdown: pc === 'PC-14' ? lockdown : undefined, timing: { beatMs: 40, retryMs: 40, clockMs: 20, graceMs: 40 } });
     await flow.start();
     later(() => flow.stop());
     return flow;
@@ -560,6 +560,36 @@ describe('M4 locking the lab computer, in the student\'s flow (F-04–F-07, F-12
     expect(sokha.state()).toMatchObject({ screen: 'join', locked: false });
     expect(sokha.state().closed).toBeUndefined();
     expect(lockdown.unlocks).toBe(1);
+  });
+
+  it('F-20 ExamMode, started again by the Guard after it stopped suddenly, comes back to the exam by itself and says why it is locked out', async () => {
+    const { desk, sokha, sit, card, root } = await locking();
+    await sit(sokha, 'Sokha Chan');
+    await eventually(() => expect(sokha.state().checks?.ok).toBe(true));
+    await sokha.lock();
+    await eventually(() => expect(card(desk, 'Sokha Chan').state).toBe('ready'));
+    await desk.start();
+    await eventually(() => expect(sokha.state().screen).toBe('exam'));
+    // ExamMode is killed; the Guard tells the teacher's laptop
+    const { token, seat } = sokha.session!;
+    await sokha.stop();
+    await fetch(`http://127.0.0.1:${desk.port}/stopped`, { method: 'POST', body: JSON.stringify({ v: 1, type: 'stopped', token, pc: 'PC-14', instanceId: seat.instanceId, at: Date.now() }) });
+    await eventually(() => expect(card(desk, 'Sokha Chan')).toMatchObject({ state: 'left', leftHow: 'stoppedSuddenly' }));
+
+    // … and starts ExamMode again with --resume: a new ExamMode, which remembers the exam
+    const again = new StudentFlow({ pc: 'PC-14', examRoot: join(root, 'PC-14'), bootId: 'boot-PC-14', discoveryPort: false, remember: join(root, 'PC-14', 'exam.json'), timing: { beatMs: 40, retryMs: 40 } });
+    later(() => again.stop());
+    await again.resume('another-run');
+    expect(again.state().screen).toBe('join');
+    await again.resume(desk.state().run!.id);
+    expect(again.state()).toMatchObject({ screen: 'cantJoin', student: { name: 'Sokha Chan' }, exam: { title: FORM.title }, left: { how: 'stoppedSuddenly', pc: 'PC-14' } });
+    await eventually(() => expect(card(desk, 'Sokha Chan').asksBackFrom).toBe('PC-14'));
+    // Close: it stops asking, and forgets the exam
+    again.giveUp();
+    await eventually(() => expect(existsSync(join(root, 'PC-14', 'exam.json'))).toBe(false));
+    const third = new StudentFlow({ pc: 'PC-14', examRoot: join(root, 'PC-14'), bootId: 'boot-PC-14', discoveryPort: false, remember: join(root, 'PC-14', 'exam.json') });
+    await third.resume(desk.state().run!.id);
+    expect(third.state().screen).toBe('join');
   });
 
   it('F-15 F-18 leaving unlocks; a student who is let back in is locked again before the exam opens', async () => {

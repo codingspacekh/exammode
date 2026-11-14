@@ -4,9 +4,10 @@
  * 09b Handed in. The computer isn't checked or locked yet (M4), so joining goes straight to waiting.
  */
 import { randomUUID } from 'node:crypto';
-import { join } from 'node:path';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 import { folderName } from '@lib/files/names';
-import type { FoundExam, JoinError, StudentState } from '@lib/app/state';
+import type { FoundExam, JoinError, Name, StudentState } from '@lib/app/state';
 import type { ExamInfo } from '@lib/protocol/messages';
 import { Discovery, examsAt, namesOf, type Found } from './discovery';
 import { StudentExam, type Receipt } from './exam';
@@ -25,11 +26,15 @@ export interface FlowOptions {
   /** the teacher's port, for a computer name that was typed in */
   teacherPort?: number;
   now?: () => number;
+  /** a file that remembers the exam this computer is in, for coming back after ExamMode stopped (F-20) */
+  remember?: string;
   /** locks this computer for an exam; none: exams run unlocked (a Mac, a development build) */
   lockdown?: Lockdown;
   /** for tests: faster beats and retries */
   timing?: Pick<SessionOptions, 'beatMs' | 'retryMs' | 'clockMs'> & { backupMs?: number; graceMs?: number };
 }
+
+interface Remembered { exam: FoundExam; student: Name; code: string }
 
 const toFound = (f: Found): FoundExam => ({ runId: f.runId, title: f.title, teacher: f.teacher, class: f.class, minutes: f.minutes, host: f.host, port: f.port });
 
@@ -102,6 +107,27 @@ export class StudentFlow {
     if (this.typed.length === 0) this.set({ joinError: 'unreachable' });
   }
 
+  /** ExamMode was started again by the Guard after it stopped suddenly (`--resume <run>`, F-20): it asks to join
+   *  the exam it was in, as the same student — which is refused, and says so (10). Nothing happens if this
+   *  computer doesn't remember that exam. */
+  async resume(runId: string): Promise<void> {
+    const file = this.options.remember;
+    const was = file ? await readFile(file, 'utf8').then((text) => JSON.parse(text) as Remembered, () => undefined) : undefined;
+    if (!was || was.exam.runId !== runId || this.current.screen !== 'join') return;
+    this.typed = [was.exam];
+    this.listed();
+    this.set({ picked: runId, names: [was.student] });
+    await this.join(was.student.id, was.code);
+  }
+
+  /** What `resume` needs, kept while this computer is in an exam. */
+  private async remember(exam: FoundExam, student: Name, code: string): Promise<void> {
+    const file = this.options.remember;
+    if (!file) return;
+    await mkdir(dirname(file), { recursive: true }).catch(() => undefined);
+    await writeFile(file, JSON.stringify({ exam, student, code } satisfies Remembered)).catch(() => undefined);
+  }
+
   async join(studentId: string, code: string): Promise<void> {
     const exam = this.current.found.find((f) => f.runId === this.current.picked);
     const student = this.current.names.find((n) => n.id === studentId);
@@ -131,6 +157,7 @@ export class StudentFlow {
 
     this.found = exam;
     const reply = await session.join();
+    if (reply === 'joined') await this.remember(exam, student, code);
     if (session !== this.session) return;
     if (reply !== 'joined' && reply !== 'left') return this.backToJoin(reply);
     // `left`: refused, and the teacher was told; the join waits for Let back in or Keep out (10)
@@ -239,6 +266,7 @@ export class StudentFlow {
   /** Close on *You can't join this exam again* (10): stop asking. */
   giveUp(): void {
     if (this.current.screen !== 'cantJoin') return;
+    this.forget();
     this.leaveSession();
     this.current = { ...this.fresh(), found: this.current.found };
     this.tell();
@@ -254,6 +282,7 @@ export class StudentFlow {
   /** Finish (09b): ExamMode is as it was before the exam. */
   finish(): void {
     if (this.current.screen !== 'handedIn') return;
+    this.forget();
     this.leaveSession();
     this.current = { ...this.fresh(), found: this.current.found };
     this.tell();
@@ -265,6 +294,11 @@ export class StudentFlow {
   }
 
   // ── inside ────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  /** The exam is over for this computer: there is nothing to come back to. */
+  private forget(): void {
+    if (this.options.remember) void rm(this.options.remember, { force: true }).catch(() => undefined);
+  }
 
   private fresh(): StudentState {
     return { screen: 'join', pc: this.options.pc, found: [], names: [], joining: false, clockOffset: 0, contact: true, handingIn: false, locked: false };

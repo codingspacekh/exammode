@@ -57,6 +57,7 @@ export async function runStudent(): Promise<void> {
     bootId: String(Math.round((Date.now() - uptime() * 1000) / 60_000)),
     discoveryPort: number(env.EXAMMODE_BEACON_PORT),
     teacherPort: number(env.EXAMMODE_PORT),
+    remember: join(app.getPath('userData'), 'exam.json'),
   });
 
   const main = createWindow('student', { width: 1440, height: 900, minWidth: 1280, minHeight: 720 });
@@ -193,4 +194,7 @@ export async function runStudent(): Promise<void> {
     if (flow.state().locked) flow.report('displayAdded', {});
   });
   await flow.start();
+  // started again by the Guard after stopping suddenly: back to the exam, to say why this student is locked out
+  const resume = process.argv.indexOf('--resume');
+  if (resume >= 0 && process.argv[resume + 1]) void flow.resume(process.argv[resume + 1]!);
 }

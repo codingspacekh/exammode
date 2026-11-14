@@ -6,6 +6,8 @@ How ExamMode is built, **in what order**, and **how each part is proven to work*
 - System design (processes, lockdown, protocol, profiles): [`02-architecture.md`](02-architecture.md)
 - UI prototype: [`../design/screens/index.html`](../design/screens/index.html) — approved 2026-11-10
 
+*Revision 11 (2026-11-14): **M4 was built on GitHub's Windows computers** (the teacher: *"start M4"*), with no lab computer: a `windows` workflow runs the Windows tests and a lock e2e on Windows Server 2022 and 2025 for every change to the Windows side. The service and the installer stay in M8; what only a lab computer can show is listed in `docs/acceptance/M4.md` §4.*
+
 *Revision 10 (2026-11-14): **M6 before M4 and M5, as far as it goes without them** (the teacher: *"continue"*): the lock can only be tried on a lab computer, and the teacher's and student's remaining screens can be tried on the Mac today. What M6 needs from the lock (the checks) and the apps (choosing them) waits.*
 
 *Revision 9 (2026-11-14): **the prototype is clickable** (`design/screens/play.html`: the teacher's laptop and a lab computer side by side), and after trying it the teacher said *"okay go ahead"*: **M3 was started**, again with the earlier gates open. Its trial on lab computers is one more check for the lab day.*
@@ -190,6 +192,7 @@ If a gate fails, fix forward inside the same milestone. **Do not start the next 
 | When | What | Where |
 |---|---|---|
 | every commit | `npm run check:quick`: lint, type-check, unit (≈ 20 s), by a git `pre-commit` hook | the Mac |
+| a change to the Windows side, on `dev` | the `windows` tests and the lock e2e on `windows-2022` and `windows-2025` (`.github/workflows/windows.yml`) | GitHub Actions |
 | every push to `dev` or `main` | `npm run check` on `macos-latest`; `npm run check:win` (`check` + the `windows` project) on `windows-latest` | GitHub Actions (`.github/workflows/ci.yml`) |
 | the gates of M0, M4, M5, M8 | the manual checks | a real lab computer |
 
@@ -421,7 +424,7 @@ Each milestone lists: **goal · build order (TDD slices) · tests written first 
 | M1 The rules | 🔨 built; waiting for the teacher | | All six slices, test first: 206 unit tests, 100 % coverage of `src/lib` (`docs/acceptance/M1.md`); **waiting: the teacher reads the §2.8 table as tests** (M1.md §2, rows 9–16 need a yes or no) |
 | M2 The classroom network | 🔨 built; waiting for the teacher and the lab | | All six slices, test first: the six stories and 40 simulated students pass (`docs/acceptance/M2.md`); **waiting: a lab computer hears the beacon and joins (R3); the teacher's yes or no to M2.md §3** |
 | M3 Walking skeleton | 🔨 built; waiting for the teacher and the lab | | The first usable app, unlocked: screens 01, 03, 04, 07b, 09, 09b, 11 (minimal), 12, 13; e2e with a teacher and two students (`docs/acceptance/M3.md`); **waiting: the teacher's look at the screens and yes or no to M3.md §3; the 10-minute trial on lab computers** |
-| M4 Locking a lab computer | | | |
+| M4 Locking a lab computer | 🔨 built and proven on GitHub's Windows; waiting for a lab computer | | The Guard, the executors, the checks, the process guard, the keyboard hook, the kiosk and the bar: a real Windows computer is locked for an exam and put back, also after ExamMode is killed (`docs/acceptance/M4.md`). **Waiting: every way out tried by hand on a lab computer; the service and installer (M8)** |
 | M5 The apps | | | |
 | M6 The teacher's whole exam | 🔨 built ahead of M4 and M5; waiting for the teacher | | 08, 10, 10b, 13b, Add time, 13 in full, the code full screen, 14 and the log, kept exams, classes, files to give; the 26-student story ends with screen 14's counts (`docs/acceptance/M6.md`). **Waiting: the teacher's look (two screens were never drawn), N-13, yes or no to M6.md §3.** The apps and the checks join these screens with M5 and M4 |
 | M7 Teacher licence & trust | | | |

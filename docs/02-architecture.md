@@ -1,5 +1,7 @@
 # 2. Architecture
 
+*Revision 10 (2026-11-14): M4, from what real Windows showed — **the exam bar holds the top of the screen through the work area**, as an AppBar needs Explorer and Explorer is stopped (D6, §2.4); **ExamMode talks to the Guard on 127.0.0.1:47802**, not a named pipe, and only who locked can unlock (§2.4); the firewall is switched on before outbound is blocked, read through PowerShell and changed through `netsh` (§2.4, §2.6); the process guard looks every half second and needs no window-event hook (§2.5); the keyboard hook is given its rules as data (§2.5); ExamMode remembers its exam in `exam.json` for `--resume` (§2.4). Details in [`acceptance/M4.md`](acceptance/M4.md) §3.*
+
 *Revision 9 (2026-11-14): M6 — `refused { left }` says when and how the student left, for screen 10; `joined` lists the files to give, which a lab computer fetches from `GET /runs/<run>/files/<name>` with its token (§2.7, §2.9); an exam's files are kept beside the database in `exam-files/<exam>/` (§2.11); class lists are read by `src/lib/exam/roster.ts` and the log is written by `src/lib/exam/log.ts`.*
 
 *Revision 8 (2026-11-14): M3 — the state behind the screens lives in the main process without Electron (`teacher/desk.ts`, `student/flow.ts`), and the windows are thin glue in `src/main/shell` (§2.13); `joined` tells a lab computer about the exam, and the beacon carries its length (§2.7); the exam browser's pages are views under ExamMode's own strip, and a blocked page is ExamMode's screen, not a web page (§2.6); `--teacher` until the licence (§2.14).*
@@ -47,7 +49,7 @@
 | D3 | **A Windows service, ExamMode Guard**, does the admin-only jobs and **owns the journal**. It is its own program, `ExamModeGuard.exe` (TypeScript built as a Node single-executable application), run by WinSW | A normal app can't change the firewall or machine policies; the Guard still runs when ExamMode is killed (F-20, N-04) |
 | D4 | **The rules live in pure TypeScript** (`src/lib`): the student state machine, the process decision, the stop classification, the protocol | The parts that decide right and wrong are the most tested and depend on nothing |
 | D5 | **The teacher's laptop is the authority.** Students' computers report; the teacher's laptop decides who is in, who left and who may come back | A lab computer can be tampered with; the teacher's laptop is in the teacher's hands (R7) |
-| D6 | **The exam bar is a Windows AppBar** (like the taskbar): it reserves the top of the screen, so maximised apps fill the space under it | Word and VS Code stay normal windows; nothing has to be drawn over them (F-09, F-11) |
+| D6 | **The exam bar holds the top of the screen** (like the taskbar): maximised apps fill the space under it. With Explorer stopped there is no AppBar to be, so ExamMode sets the screen's work area itself (M4) | Word and VS Code stay normal windows; nothing has to be drawn over them (F-09, F-11) |
 | D7 | **Explorer is stopped during an exam** and started again afterwards | Removes the taskbar, Start, the desktop and most Win-key shortcuts in one step (F-07, F-14), as Safe Exam Browser does |
 | D8 | **The firewall blocks all outbound traffic** except ExamMode itself, the teacher's laptop, DNS and DHCP; **the exam browser filters by website** | Firewall rules can't name websites; the browser can. Together: no app reaches the internet, and the browser reaches only the exam's sites (F-10, F-23) |
 | D9 | **Every change is journaled before it is made**, and undone in reverse order | The computer always goes back to normal (N-04, R6) |
@@ -135,13 +137,13 @@ Start ────────────────────────�
 
 | Change | Done by | Undone by |
 |---|---|---|
-| Firewall: our rule group; outbound blocked except ExamMode, the teacher, DNS, DHCP (§2.6) | Guard | removing our group; restoring the saved default outbound action |
+| Firewall: switched on on every profile; our rules; outbound blocked except ExamMode, the teacher, DNS, DHCP (§2.6) | Guard | removing our rules; restoring each profile's state and default outbound action |
 | User policies (HKU\\\<user SID\>): `DisableTaskMgr`, `DisableLockWorkstation`, `DisableChangePassword`, `NoLogoff`, `NoRun`, `NoWinKeys` | Guard | restoring the saved values (or deleting what we added) |
 | Machine policies: `AllowClipboardHistory=0`, `AllowCrossDeviceClipboard=0`, `HideFastUserSwitching=1`, Copilot and Recall off | Guard | as above |
 | Each app profile's policies (Office's connected experiences off, …) | Guard | as above |
 | Explorer stopped | Guard | starting `explorer.exe` in the user's session (`WTSQueryUserToken` + `CreateProcessAsUser`) |
 | ExamMode starts when Windows starts (`Run` key) during the exam (F-20) | Guard | replaced by a one-time `RunOnce … --resume` if the student stopped suddenly (below); otherwise deleted |
-| AppBar registered; keyboard and window hooks; process guard; clipboard emptied | ExamMode | ExamMode (they end with the process anyway) |
+| The work area under the exam bar; the keyboard hook; the process guard's loop; the kiosk window; the clipboard emptied | ExamMode | ExamMode (they end with the process; Explorer sets the work area again when it starts) |
 
 ### Step 3: the journal (D9, N-04)
 
@@ -153,7 +155,7 @@ Start ────────────────────────�
 
 So a computer is never left locked with no ExamMode on it, and a student who stopped suddenly always sees why. If the teacher lets them back in (F-18), ExamMode simply locks again.
 
-**The pipe:** the Guard listens on `\\.\pipe\exammode-guard`. It accepts a client only if the client process's image is the installed `ExamMode.exe` in Program Files, which only an administrator can change (and, in a signed build, its signature: R10). Messages are `lock(plan)`, `unlock`, `status`, `watch(pid, teacher, token)`; the token lets the Guard's `stopped` prove which attempt it is about.
+**ExamMode ↔ Guard:** the Guard listens on `127.0.0.1:47802`, which only this computer can reach (a named pipe made by a service can't be written to by an ordinary account). One JSON message a line: `lock(plan, secret)`, `unlock(secret)`, `status`, `watch(…, teacher, token)`. A caller says which process it is, and is heard only if that process's program is the installed `ExamMode.exe` in Program Files, which only an administrator can change; **only who locked can unlock**: the secret is made by ExamMode for each lock and never leaves its memory. The token (from `watch`) lets the Guard's `stopped` prove which attempt it is about. A plan is checked against the journal's schema before anything is done with it.
 
 ## 2.5 The process guard
 
@@ -173,7 +175,7 @@ decide(proc: ProcInfo, ctx: { allowed: AppProfile[]; ancestors: ProcInfo[]; alwa
 4. A process whose **ancestor matches an allowed profile** is allowed if that profile allows its children (`python.exe` from VS Code), and it is never a browser or remote tool. Browsers and remote tools are known by file name *or product name*, so a browser renamed `python.exe` is still a browser.
 5. Anything else **with a visible window** is closed: `TerminateProcess` and an `appClosed` event. Background processes are closed only if they are on the **always-close list** (remote tools, local AI runners such as Ollama and LM Studio, screen recorders).
 
-**How fast (N-02):** a `SetWinEventHook(EVENT_OBJECT_SHOW)` in the hook worker reports a new window within milliseconds. A sweep with `EnumWindows` every 500 ms catches anything missed. Signer checks are cached by path and file timestamp, so a decision takes well under 1 ms after the first.
+**How fast (N-02):** every 500 ms the loop lists the processes and their windows (about 1 ms) and asks `decide()`. On real Windows, Notepad was closed about 0.5 s after it was started, so the window-event hook of M0's spike isn't used. Who made a program is asked once per file and remembered by its path and timestamp; a program that no publisher could make allowed is closed without asking.
 
 **Keyboard (F-14):** a `WH_KEYBOARD_LL` hook in the hook worker swallows LWin/RWin, Ctrl+Esc, Alt+Esc and Alt+Space on the bar, and passes everything else through. Ctrl+Alt+Del can't be hooked, so the user policies in §2.4 empty its screen of Task Manager, Lock, Switch user and Sign out.
 
