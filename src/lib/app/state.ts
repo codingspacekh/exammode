@@ -189,7 +189,7 @@ export interface StudentState {
 }
 
 /** One of the exam's apps, as the exam bar shows it. */
-export interface BarApp { id: string; name: string; badge?: { text: string; color: string }; running: boolean; front: boolean }
+export interface BarApp { id: string; name: string; badge?: { text: string; color: string }; running: boolean; front: boolean; /** a file of it that isn't saved (09) */ unsaved?: string }
 
 export interface StudentApi {
   get(): Promise<StudentState>;

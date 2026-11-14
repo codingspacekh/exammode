@@ -9,7 +9,7 @@ import { access, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { lookup } from 'node:dns/promises';
 import { LISTS } from '@lib/guard/lists';
-import { appName, appsToClose, runChecks } from '@lib/lockdown/checks';
+import { appName, appsToClose, runChecks, unsavedIn } from '@lib/lockdown/checks';
 import type { Change } from '@lib/lockdown/journal';
 import { plan } from '@lib/lockdown/plan';
 import { fileName, matches } from '@lib/profiles/match';
@@ -137,7 +137,7 @@ export class WindowsLockdown implements Lockdown {
         }
       }
       const inFront = windowed.find((p) => p.pid === front);
-      open.push({ id: app.id, front: inFront !== undefined, title: (inFront ?? windowed[0]!).titles.find((t) => t.trim() !== '') });
+      open.push({ id: app.id, front: inFront !== undefined, title: (inFront ?? windowed[0]!).titles.find((t) => t.trim() !== ''), unsaved: windowed.flatMap((p) => p.titles).map(unsavedIn).find(Boolean) });
     }
     const said = JSON.stringify(open);
     if (said === this.told) return;

@@ -18,7 +18,7 @@ export interface LockInfo {
 }
 
 /** One of the exam's apps that is open now. */
-export interface OpenApp { id: string; /** its window is the one in front */ front: boolean; /** that window's title */ title?: string }
+export interface OpenApp { id: string; /** its window is the one in front */ front: boolean; /** that window's title */ title?: string; /** a file of it that isn't saved, from a window's title */ unsaved?: string }
 
 /** What the lock tells the flow while the exam runs. */
 export interface LockEvents {

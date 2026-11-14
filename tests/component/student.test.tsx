@@ -340,6 +340,21 @@ describe('09 Hand in (F-16)', () => {
     expect(screen.getByRole('note')).toHaveTextContent('18 minutes are left. You can\'t come back into the exam after you hand in.');
   });
 
+  it('F-16 an app of the exam that is still open: save there first — it is closed at the hand-in', () => {
+    const word = { id: 'word', name: 'Word', running: true, front: false };
+    const code = { id: 'vscode', name: 'VS Code', running: true, front: true };
+    const { rerender } = render(<HandIn state={asking({ apps: [word, { ...code, running: false }] })} api={studentApi()} />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Word is still open. Save your work there first: it is closed when you hand in, and what isn\'t saved isn\'t handed in.');
+    rerender(<HandIn state={asking({ apps: [word, code] })} api={studentApi()} />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Word and VS Code are still open.');
+    // a file its window's title says isn't saved is named
+    rerender(<HandIn state={asking({ apps: [word, { ...code, unsaved: 'grades.py' }] })} api={studentApi()} />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Not saved yet: grades.py in VS Code. Keep working, save it, then hand in');
+    // no app open: nothing to say
+    rerender(<HandIn state={asking({ apps: [{ ...word, running: false }] })} api={studentApi()} />);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('an empty Exam folder says so, and can still be handed in', () => {
     render(<HandIn state={asking({ handIn: { files: [], unchanged: [] } })} api={studentApi()} />);
     expect(screen.getByText('There is nothing in your Exam folder. Save your work there first.')).toBeInTheDocument();

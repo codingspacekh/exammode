@@ -1,4 +1,4 @@
-import { ClockIcon, FileIcon, UploadSimpleIcon, UserIcon } from '@phosphor-icons/react';
+import { ClockIcon, FileIcon, FloppyDiskIcon, UploadSimpleIcon, UserIcon } from '@phosphor-icons/react';
 import type { FileLine, StudentApi, StudentState } from '@lib/app/state';
 import { formatClock } from '@lib/session/time';
 import { Note, size } from '@/components/brand';
@@ -23,6 +23,10 @@ export function HandIn({ state, api }: { state: StudentState; api: StudentApi })
   if (!exam || !student || !handIn) return null;
   const minutes = state.endsAt === undefined ? undefined : Math.max(0, Math.floor((state.endsAt - (now + state.clockOffset)) / 60_000));
   const count = handIn.files.length;
+  // the exam's apps are closed at the hand-in: what isn't saved in them is lost
+  const open = state.apps.filter((a) => a.running);
+  const unsaved = open.filter((a) => a.unsaved);
+  const names = (apps: typeof open) => apps.map((a) => a.name).join(apps.length === 2 ? ' and ' : ', ');
   return (
     <Calm who={<><UserIcon /> {student.name} · {state.pc}</>}>
       <Card role="dialog" aria-labelledby="handin-title" className="w-[min(640px,92%)] overflow-hidden shadow-[0_20px_48px_rgba(16,24,40,.22)]">
@@ -41,6 +45,13 @@ export function HandIn({ state, api }: { state: StudentState; api: StudentApi })
             {handIn.unchanged.length > 0 && <li className="border-t border-border bg-background px-3 py-[9px] text-[11.5px] font-semibold text-muted-foreground">Given by {exam.teacher}, not changed</li>}
             {handIn.unchanged.map((f) => <Row key={f.name} file={f} dim />)}
           </ul>
+          {open.length > 0 && (
+            <Note tone="warn" icon={<FloppyDiskIcon />} className="mt-3">
+              {unsaved.length > 0
+                ? <><b>Not saved yet: {unsaved.map((a) => `${a.unsaved} in ${a.name}`).join(', ')}.</b> Keep working, save it, then hand in — what isn't saved isn't handed in.</>
+                : <><b>{names(open)} {open.length === 1 ? 'is' : 'are'} still open.</b> Save your work there first: {open.length === 1 ? 'it is' : 'they are'} closed when you hand in, and what isn't saved isn't handed in.</>}
+            </Note>
+          )}
           <Note tone="info" icon={<ClockIcon />} className="mt-3">
             {minutes === undefined ? '' : minutes === 1 ? '1 minute is left. ' : `${minutes} minutes are left. `}You can't come back into the exam after you hand in.
           </Note>

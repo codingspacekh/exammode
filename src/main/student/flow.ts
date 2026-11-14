@@ -237,7 +237,7 @@ export class StudentFlow {
         const front = open.find((o) => o.front);
         const name = apps.find((a) => a.id === front?.id)?.name;
         session.front = name ? [name, front?.title].filter(Boolean).join(' · ') : undefined;
-        this.set({ apps: this.current.apps.map((a) => ({ ...a, running: open.some((o) => o.id === a.id), front: front?.id === a.id })) });
+        this.set({ apps: this.current.apps.map((a) => ({ ...a, running: open.some((o) => o.id === a.id), front: front?.id === a.id, unsaved: open.find((o) => o.id === a.id)?.unsaved })) });
       },
     }).catch((error: unknown) => String(error));
     if (!wrong && session === this.session) this.set({ locked: true });

@@ -4,6 +4,7 @@
  * which of the exam profiles' apps are here. Reads only.
  */
 import { access, readdir } from 'node:fs/promises';
+import { LISTS } from '@lib/guard/lists';
 import { BUILTIN } from '@lib/profiles/builtin';
 import { installedApps, type AppPath, type Installed, type UninstallEntry } from '@lib/profiles/inventory';
 import { findExe } from '../main/student/launcher';
@@ -20,6 +21,9 @@ $p = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths', 'HKCU:\\S
 $paths = @(Get-ChildItem -Path $p -ErrorAction SilentlyContinue | ForEach-Object { @{ exe = [string]$_.PSChildName; path = [string]$_.GetValue('') } })
 @{ entries = $entries; paths = $paths }`;
 
+/** Never offered for an exam: the programs ExamMode always closes. */
+export const NEVER = [LISTS.browsers, LISTS.remote, LISTS.ai, LISTS.recorders].flatMap((l) => l.files);
+
 export async function installed(): Promise<Installed | undefined> {
   const env = process.env as Record<string, string>;
   const read = await powershellJson<{ entries?: UninstallEntry[] | UninstallEntry; paths?: AppPath[] | AppPath }>(READ);
@@ -34,5 +38,5 @@ export async function installed(): Promise<Installed | undefined> {
   };
   const profiles: string[] = [];
   for (const profile of BUILTIN) if (await findExe(profile, io).catch(() => undefined)) profiles.push(profile.id);
-  return { profiles, apps: installedApps(list(read.entries), list(read.paths), BUILTIN, env) };
+  return { profiles, apps: installedApps(list(read.entries), list(read.paths), BUILTIN, env, NEVER) };
 }

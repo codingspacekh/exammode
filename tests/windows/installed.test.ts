@@ -18,6 +18,8 @@ describe('F-31a what this computer has installed', () => {
       expect(isProgramPath(app.exe)).toBe(true);
       expect(app.exe.toLowerCase().startsWith(`${windows}\\`)).toBe(false);
     }
+    // no browser is offered (GitHub's computers have Firefox, Chrome and Edge)
+    expect(apps.filter((a) => /firefox|chrome|msedge/i.test(a.exe))).toEqual([]);
     // most of the programs are where the list says (an entry left behind by an uninstall may not be)
     expect(apps.filter((a) => existsSync(a.exe)).length).toBeGreaterThan(apps.length / 2);
     // and it is a report the teacher's laptop takes

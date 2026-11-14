@@ -30,8 +30,10 @@ const clean = (text?: string | null): string => (text ?? '').replace(/\s+/g, ' '
 const unquote = (path: string): string => path.replace(/^"([^"]*)".*$/, '$1').replace(/,\s*-?\d+$/, '').trim();
 
 /** The apps a teacher could add, from Windows' own lists: those whose program is known, and isn't part of Windows
- *  or an installer. An app that has an exam profile isn't here: `profiles` says it. */
-export function installedApps(entries: UninstallEntry[], paths: AppPath[], profiles: AppProfile[], env: Env): InstalledApp[] {
+ *  or an installer. An app that has an exam profile isn't here: `profiles` says it. Nor is a browser, a remote
+ *  tool, an AI app or a recorder: the exam's browser is ExamMode's own. */
+export function installedApps(entries: UninstallEntry[], paths: AppPath[], profiles: AppProfile[], env: Env, /** programs that are never an exam's app, by file name: browsers, remote tools … */ never: string[] = []): InstalledApp[] {
+  const notForExams = new Set(never.map((f) => f.toLowerCase()));
   const windows = expand('%SystemRoot%', env);
   const programs = paths.flatMap((p) => (p.path ? [unquote(expand(p.path, env) ?? p.path)] : [])).filter(isProgramPath);
   const withProfile = new Set(profiles.flatMap((p) => p.match.files.map((f) => f.toLowerCase())));
@@ -42,7 +44,7 @@ export function installedApps(entries: UninstallEntry[], paths: AppPath[], profi
     const icon = unquote(expand(clean(entry.icon), env) ?? '');
     const folder = clean(entry.location).replace(/^"|"$/g, '').replace(/[\\/]+$/, '');
     const exe = isProgramPath(icon) ? icon : folder === '' ? undefined : programs.find((p) => under(p, folder));
-    if (!exe || NOT_AN_APP.test(fileName(exe)) || withProfile.has(fileName(exe).toLowerCase())) continue;
+    if (!exe || NOT_AN_APP.test(fileName(exe)) || withProfile.has(fileName(exe).toLowerCase()) || notForExams.has(fileName(exe).toLowerCase())) continue;
     if (windows && under(exe, windows)) continue;
     const app = installedApp.safeParse({ name: name.slice(0, 120), publisher: clean(entry.publisher).slice(0, 120) || undefined, version: clean(entry.version).slice(0, 40) || undefined, exe });
     if (app.success && !found.has(exe.toLowerCase())) found.set(exe.toLowerCase(), app.data);

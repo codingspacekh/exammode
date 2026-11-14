@@ -22,6 +22,11 @@ describe('F-31a what a lab computer has installed', () => {
   it('an app that has an exam profile is not listed twice: its profile says it', () => {
     expect(apps.some((a) => /thonny/i.test(a.name))).toBe(false);
   });
+  it('a browser or a remote tool is never offered for an exam', () => {
+    const firefox = { name: 'Mozilla Firefox (x64 en-US)', publisher: 'Mozilla', icon: 'C:\\Program Files\\Mozilla Firefox\\firefox.exe,0' };
+    expect(installedApps([firefox], [], BUILTIN, env).map((a) => a.name)).toEqual(['Mozilla Firefox (x64 en-US)']);
+    expect(installedApps([firefox], [], BUILTIN, env, ['Firefox.exe'])).toEqual([]);
+  });
   it('nothing installed: nothing listed', () => {
     expect(installedApps([], [], BUILTIN, env)).toEqual([]);
   });
