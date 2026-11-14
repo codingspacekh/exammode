@@ -115,6 +115,12 @@ export function commonName(subject: string): string | undefined {
   const found = /(?:^|,\s*)CN=(?:"([^"]+)"|([^,]+))/.exec(subject);
   return (found?.[1] ?? found?.[2])?.trim() || undefined;
 }
+/** One PowerShell for every signature: one each was far too slow (M0, finding 0). */
+export function factsCommand(paths: string[]): string {
+  const list = paths.map((p) => `'${p.replaceAll("'", "''")}'`).join(',');
+  return `@(${list}) | Where-Object { Test-Path -LiteralPath $_ } | ForEach-Object { Get-AuthenticodeSignature -LiteralPath $_ } | Select-Object Path,@{n='Status';e={"$($_.Status)"}},@{n='Subject';e={$_.SignerCertificate.Subject}},@{n='Product';e={(Get-Item -LiteralPath $_.Path).VersionInfo.ProductName}}`;
+}
+
 const facts = new Map<string, { stamp: number; facts: FileFacts }>();
 
 /** Who made these programs, and what they call themselves: asked once per file (and again only if it changed). */
@@ -124,8 +130,7 @@ export async function fileFacts(paths: string[]): Promise<Map<string, FileFacts>
   const unknown = [...stamps].filter(([path, stamp]) => facts.get(path)?.stamp !== stamp).map(([path]) => path);
   if (unknown.length > 0) {
     type Row = { Path: string; Status: string | null; Subject: string | null; Product: string | null };
-    const list = unknown.map((p) => `'${p.replaceAll("'", "''")}'`).join(',');
-    const rows = await powershellJson<Row[] | Row>(`@(${list}) | ForEach-Object { Get-AuthenticodeSignature -LiteralPath $_ -ErrorAction SilentlyContinue } | Select-Object Path,@{n='Status';e={"$($_.Status)"}},@{n='Subject';e={$_.SignerCertificate.Subject}},@{n='Product';e={(Get-Item -LiteralPath $_.Path).VersionInfo.ProductName}}`);
+    const rows = await powershellJson<Row[] | Row>(factsCommand(unknown));
     for (const row of rows ? [rows].flat() : []) {
       // the publisher only of a signature that holds: its certificate's common name
       const signer = row.Status === 'Valid' ? commonName(row.Subject ?? '') : undefined;

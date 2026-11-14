@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { LISTS } from '@lib/guard/lists';
 import { virtualMachine } from '@lib/lockdown/checks';
 import { ProcessGuard, type Closed, type Procs } from '../../src/main/student/process-guard';
-import { commonName, factsKnown, fileFacts, listProcesses, machine, remoteSession, terminate } from '../../src/win/processes';
+import { powershell } from '../../src/win/run';
+import { commonName, factsCommand, factsKnown, fileFacts, listProcesses, machine, remoteSession, terminate } from '../../src/win/processes';
 
 /** M4's process guard against real Windows (T7). */
 const windows = process.platform === 'win32';
@@ -30,6 +31,8 @@ describe.runIf(windows)('M4 the computer\'s processes', () => {
 
   it('who made a program and what it calls itself: asked once, then remembered', async () => {
     const cmd = `${process.env.SystemRoot}\\System32\\cmd.exe`;
+    const raw = await powershell(`${factsCommand([cmd, process.execPath, 'C:\\no\\such\\program.exe'])} | ConvertTo-Json -Depth 4 -Compress`);
+    console.log(`M4 facts: SystemRoot=${process.env.SystemRoot} code=${raw.code} out=${raw.out.slice(0, 700)} err=${raw.err.slice(0, 700)}`);
     const facts = await fileFacts([cmd, process.execPath, 'C:\\no\\such\\program.exe']);
     expect(facts.get(cmd)).toEqual({ signer: 'Microsoft Windows', product: expect.stringContaining('Windows') });
     expect(facts.get(process.execPath)?.signer).toBeDefined();
