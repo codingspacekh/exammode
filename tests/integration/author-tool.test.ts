@@ -10,6 +10,8 @@ import { fileName, give, init, issued, publicKey, read } from '../../scripts/lic
 import { tempFolder } from './helpers';
 
 const PASS = 'a long passphrase';
+/** (as `npm run licence` runs it; `npx` itself can't be started this way on Windows) */
+const TSX = join('node_modules', 'tsx', 'dist', 'cli.mjs');
 const teacher = newKeyPair();
 const REQUEST = { name: 'Srey Leak', school: 'Riverside High School', email: 'sreyleak@riverside-high.example', check: 'riverside-high.example/staff', key: teacher.publicKey };
 
@@ -61,11 +63,11 @@ describe('F-44 the author\'s tool: npm run licence', () => {
     const home = join(root, 'author');
     const author = await init(home, PASS);
     await writeFile(join(root, 'request.txt'), requestText(REQUEST));
-    const { stdout } = await promisify(execFile)('npx', ['tsx', 'scripts/licence/cli.ts', join(root, 'request.txt'), '--home', home, '--out', root, '--yes'], { env: { ...process.env, EXAMMODE_AUTHOR_PASSPHRASE: PASS } });
+    const { stdout } = await promisify(execFile)(process.execPath, [TSX, 'scripts/licence/cli.ts', join(root, 'request.txt'), '--home', home, '--out', root, '--yes'], { env: { ...process.env, EXAMMODE_AUTHOR_PASSPHRASE: PASS } });
     expect(stdout).toMatch(/Licence 0001 for Srey Leak/);
     const licence = JSON.parse(await readFile(join(root, 'Srey Leak.emlicence'), 'utf8')) as unknown;
     expect(checkLicence(licence, { authorKeys: [author] }, teacher.publicKey).ok).toBe(true);
-    const list = await promisify(execFile)('npx', ['tsx', 'scripts/licence/cli.ts', 'list', '--home', home]);
+    const list = await promisify(execFile)(process.execPath, [TSX, 'scripts/licence/cli.ts', 'list', '--home', home]);
     expect(list.stdout).toMatch(/0001 .*Srey Leak · Riverside High School/);
   }, 60_000);
 });
