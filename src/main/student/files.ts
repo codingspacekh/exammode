@@ -108,7 +108,10 @@ export class ExamFiles {
       try {
         const res = await fetchOne(f.name);
         if (!res.ok) continue;
+        // (no more is read than the file is said to be: a computer in between can't fill this one's memory)
+        if (Number(res.headers.get('content-length') ?? f.bytes) !== f.bytes) continue;
         const data = Buffer.from(await res.arrayBuffer());
+        if (data.length !== f.bytes) continue;
         if (createHash('sha256').update(data).digest('hex') !== f.sha256) continue;
         await writeFile(to, data, { flag: 'wx' });
         this.fetched.add(f.name);

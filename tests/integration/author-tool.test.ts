@@ -20,8 +20,11 @@ describe('F-44 the author\'s tool: npm run licence', () => {
     const home = join(await tempFolder(), 'author');
     const key = await init(home, PASS);
     expect(await publicKey(home, PASS)).toBe(key);
-    const file = join(home, 'exammode-author-key.pem');
-    expect(await readFile(file, 'utf8')).toMatch(/^-----BEGIN ENCRYPTED PRIVATE KEY-----/);
+    const file = join(home, 'exammode-author-key.json');
+    // locked with a slow key derivation: the key itself isn't in the file
+    const kept = JSON.parse(await readFile(file, 'utf8')) as { kdf: string; N: number; data: string };
+    expect(kept).toMatchObject({ kdf: 'scrypt', N: 2 ** 18 });
+    expect(Buffer.from(kept.data, 'base64').toString('latin1')).not.toContain('MC4CAQAwBQYDK2Vw');
     if (process.platform !== 'win32') expect((await stat(file)).mode & 0o077).toBe(0);
     await expect(publicKey(home, 'not the passphrase')).rejects.toThrow(/isn't the passphrase/);
     // a key that is there is never replaced

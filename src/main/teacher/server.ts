@@ -21,7 +21,7 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import { MAX_FILE_BYTES, MAX_FILES, PROTOCOL_VERSION, inventory, parseFromStudent, stopped, updateReply, upload, type Beacon, type FromTeacher, type Inventory, type Upload } from '@lib/protocol/messages';
 import { connectionOf, signBeacon, signMessage, signUpload, type Identity } from '../../trust/signed';
 import type { Classroom, Link } from './classroom';
-import { discard, newIncoming, receive, type Received } from './handIns';
+import { discard, incomingFolder, newIncoming, receive, type Received } from './handIns';
 
 export const PORT = 47800;
 const TICK_MS = 1000;
@@ -125,6 +125,8 @@ export class ClassroomServer {
   }
 
   async listen(): Promise<void> {
+    // files that were on their way in when the laptop last stopped: never checked, never kept
+    await discard(incomingFolder(this.options.handIns)).catch(() => undefined);
     await new Promise<void>((resolve, reject) => {
       this.http.once('error', reject);
       this.http.listen(this.options.port ?? PORT, resolve);

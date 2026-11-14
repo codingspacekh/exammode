@@ -70,7 +70,7 @@
 │  │    └─ files            ── Exam folder, backups, hand-in (§2.9)               │
 │  ├─ hook worker ── koffi: low-level keyboard hook + window-event hook (R1)      │
 │  └─ renderer (React + shadcn) ── join, checks, waiting, exam bar, dialogs        │
-│             ▲ named pipe \\.\pipe\exammode-guard (authenticated, §2.4)          │
+│             ▲ 127.0.0.1:47802 — the caller found from the connection (§2.4)     │
 │  ExamModeGuard.exe (Windows service, LocalSystem) ── src/guard                  │
 │       journal · firewall · machine & user policies · Explorer · watchdog         │
 └──────────────────────────────────────┬──────────────────────────────────────────┘
@@ -326,6 +326,17 @@ As in MicroLab (its Rev 16, §1.16), reusing its author key and `npm run licence
 - **Not signed:** the class list; anything a student's ExamMode sends (R7).
 - **A development build** takes a teacher with no licence and can be one (`--teacher`); `EXAMMODE_REQUIRE_LICENCE=1` makes it as strict as an installed ExamMode, and `EXAMMODE_AUTHOR_KEYS` gives it a test's own author. An installed ExamMode has neither.
 
+## 2.12a What the review before v1.0 changed (M8)
+
+Three reviews of the whole code (security, maintainability, scalability) and what was done about them are in `docs/acceptance/M8.md`. What they changed in the design:
+
+- **ExamMode ↔ Guard.** The Guard is never handed a plan. `lock` carries only what an exam needs — the run's id (a UUID), the account's SID, the teacher's IPv4 address and port, whether the exam has websites, the ids of the built-in profiles — each checked; the Guard makes the plan itself (`planAsked`), for the program that asked *as the Guard saw it*. Who is asking is found from the connection (Windows' table of connections and their processes, `src/win/tcp.ts`), not from what the caller says. The journal's folder is closed to every account but the system and the administrators. An unlock that can't undo everything keeps its secret and keeps trying.
+- **The classroom server.** Every string and list of the protocol has a size. An upload has limits: files per request, bytes per file and per request, bytes kept per student, room left on the disk. A hand-in lists every file and carries only the ones the laptop doesn't have from a backup. Files go up in parts (200 files or 64 MB). A connection that doesn't join is closed; a join in the name of a student whose ExamMode is alive is refused. A failure to keep files is a 500 and an event for the teacher, not a silent retry.
+- **Trust.** The signed announcement carries the laptop's own addresses, and counts only when it comes from one of them. A connection's signatures are bound to exactly the join they answer (the student's random word, the run, the student, the computer, the ExamMode). The exam a lab computer remembers is kept with its announcement and checked again, not believed.
+- **The teacher's state.** Brought up to date at most four times a second, from what changed: the classes, exams and lab apps are read once; the run's events from where they were last read; a student's kept files when some were taken.
+- **An installed ExamMode** reads none of the development switches, has no menu and no developer tools, and its windows aren't closed by a key while the computer is locked. What goes wrong is written to `exammode.log` in its settings folder.
+- **Layers, enforced by ESLint:** `src/main/teacher` and `src/main/student` don't import each other or Electron; `src/win`, `src/guard` and `src/trust` don't import `src/main`. The screens' calls are one list (`src/lib/app/calls.ts`) checked against the API types and the handlers; the event kinds are one list (`src/lib/exam/events.ts`) checked against the feed's words.
+
 ## 2.13 Project structure
 
 ```
@@ -346,10 +357,11 @@ exammode/
 │   │   └── exam/               # exam and class rules, CSV import and export
 │   ├── win/                    # WinApi: koffi adapters (windows, processes, hooks, AppBar, registry, displays)
 │   ├── main/
-│   │   ├── student/            # flow (the state the screens show), session client, files; later: lockdown, process guard loop, launcher
+│   │   ├── student/            # flow (the state the screens show), session client, files, exam work, lockdown, process guard loop, launcher
 │   │   ├── teacher/            # desk (the state the screens show), classroom, server, beacon, store (Drizzle), hand-ins
 │   │   └── shell/              # Electron glue: windows, IPC, the exam browser's views — proven by e2e, not unit tests
-│   ├── guard/                  # ExamModeGuard.exe, the Windows service: pipe, journal, firewall, policies, Explorer, watchdog
+│   ├── guard/                  # ExamModeGuard.exe, the Windows service: its channel, journal, firewall, policies, Explorer, watchdog
+│   ├── trust/                  # Ed25519: signing and checking licences, announcements, messages (uses Node's crypto; the shapes are in lib/trust)
 │   ├── preload/
 │   └── renderer/
 │       ├── components/ui/      # shadcn/ui components (generated, themed)
