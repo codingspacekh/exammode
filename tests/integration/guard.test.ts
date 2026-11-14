@@ -201,7 +201,7 @@ describe('F-20 the watchdog: ExamMode\'s process ends without unlocking', () => 
   });
 });
 
-describe('§2.4 the pipe between ExamMode and the Guard', () => {
+describe('§2.4 ExamMode and the Guard talk', () => {
   async function piped(isExamMode = (pid: number) => pid === 4242) {
     const made = await guard({ alive: () => true });
     // (a Unix socket stands in for the Windows pipe)
@@ -211,7 +211,16 @@ describe('§2.4 the pipe between ExamMode and the Guard', () => {
     return { ...made, path, client: new GuardClient(path, 4242) };
   }
 
-  it('lock, status, watch and unlock go over the pipe', async () => {
+  it('on a port that only this computer can reach', async () => {
+    const made = await guard();
+    const server = await serve(made.g, { host: '127.0.0.1', port: 0 }, () => true);
+    later(() => new Promise<void>((r) => server.close(() => r())));
+    const { port, address } = server.address() as { port: number; address: string };
+    expect(address).toBe('127.0.0.1');
+    expect(await new GuardClient({ host: '127.0.0.1', port }, 1).ask({ type: 'status' })).toMatchObject({ ok: true, locked: false });
+  });
+
+  it('lock, status, watch and unlock go over it', async () => {
     const { client, system } = await piped();
     expect(await client.ask({ type: 'status' })).toEqual({ id: 1, ok: true, locked: false, changes: 0 });
     expect(await client.ask({ type: 'lock', plan: PLAN, secret: 's3cret' })).toEqual({ id: 2, ok: true });

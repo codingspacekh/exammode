@@ -159,6 +159,17 @@ export async function listProcesses(withFacts = true): Promise<Running[]> {
   return procs.map((p) => ({ ...p, ...(p.image ? known.get(p.image) : {}), hasWindow: titles.has(p.pid), titles: titles.get(p.pid) ?? [] }));
 }
 
+/** Loads Windows' libraries. After this, `imageOf` can be asked without waiting. */
+export async function prepareProcesses(): Promise<void> {
+  await load();
+}
+
+/** The full path of a running process's program; null if it has gone, or can't be looked at. */
+export function imageOf(pid: number): string | null {
+  if (!api) throw new Error('prepareProcesses() first');
+  return api.imageOf(pid);
+}
+
 export async function terminate(pid: number): Promise<boolean> {
   return (await load()).terminate(pid);
 }

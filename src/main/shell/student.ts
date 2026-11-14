@@ -5,10 +5,11 @@
  */
 import { mkdirSync } from 'node:fs';
 import { hostname, uptime } from 'node:os';
-import { join } from 'node:path';
-import { app, screen, shell, type BrowserWindow } from 'electron';
+import { dirname, join } from 'node:path';
+import { app, clipboard, screen, shell, type BrowserWindow } from 'electron';
 import type { BrowserState, StudentState } from '@lib/app/state';
 import { StudentFlow } from '../student/flow';
+import type { WindowsLockdown } from '../student/lockdown-win';
 import { ExamBrowser } from './browser';
 import { createWindow, serve } from './windows';
 
@@ -20,9 +21,36 @@ const BANNER = 44;
 const CLOSED_MS = 8000;
 const number = (text: string | undefined): number | undefined => (text ? Number(text) : undefined);
 
+/** The lock, on a lab computer: Windows, and an installed ExamMode — or a development build told to lock
+ *  (EXAMMODE_LOCK=1). Otherwise exams run unlocked. The switches below are for development and tests only. */
+async function lockdownFor(env: NodeJS.ProcessEnv): Promise<WindowsLockdown | undefined> {
+  if (process.platform !== 'win32' || !(app.isPackaged || env.EXAMMODE_LOCK === '1')) return undefined;
+  const dev = !app.isPackaged;
+  const { WindowsLockdown } = await import('../student/lockdown-win');
+  const { listProcesses } = await import('../../win/processes');
+  const running = dev && (env.EXAMMODE_ALLOW_RUNNING === '1' || env.EXAMMODE_KEEP_REACHABLE) ? await listProcesses(false) : [];
+  const images = (keep: (p: (typeof running)[number]) => boolean) => [...new Set(running.filter((p) => p.image && keep(p)).map((p) => p.image!))];
+  // what has a window when ExamMode starts is left alone (GitHub's own agent, on its computers)
+  const alsoAllow = env.EXAMMODE_ALLOW_RUNNING === '1' ? images((p) => p.hasWindow) : [];
+  // programs that stay reachable through the firewall, by the start of their file's name
+  const prefixes = (env.EXAMMODE_KEEP_REACHABLE ?? '').split(',').filter(Boolean).map((p) => p.toLowerCase());
+  const keepReachable = images((p) => prefixes.some((prefix) => p.image!.slice(p.image!.lastIndexOf('\\') + 1).toLowerCase().startsWith(prefix)));
+  return new WindowsLockdown({
+    examMode: process.execPath,
+    guard: (dev && env.EXAMMODE_GUARD_EXE) || join(dirname(process.execPath), 'ExamModeGuard.exe'),
+    displays: () => screen.getAllDisplays().length,
+    clearClipboard: () => clipboard.clear(),
+    endpoint: dev && env.EXAMMODE_GUARD_PORT ? { host: '127.0.0.1', port: Number(env.EXAMMODE_GUARD_PORT) } : undefined,
+    allowVirtual: dev && env.EXAMMODE_ALLOW_VM === '1',
+    alsoAllow, keepReachable,
+  });
+}
+
 export async function runStudent(): Promise<void> {
   const env = process.env;
+  const lockdown = await lockdownFor(env);
   const flow = new StudentFlow({
+    lockdown,
     pc: env.EXAMMODE_PC ?? hostname().replace(/\.local$/, ''),
     examRoot: env.EXAMMODE_EXAM_ROOT ?? join(app.getPath('documents'), 'ExamMode'),
     // the minute Windows started: the same for every ExamMode until the computer restarts
@@ -79,15 +107,24 @@ export async function runStudent(): Promise<void> {
         fullscreenable: false, skipTaskbar: true, alwaysOnTop: true, backgroundColor: '#0f172a', title: 'ExamMode — the exam bar',
       });
       bar.setAlwaysOnTop(true, 'screen-saver');
-      bar.once('ready-to-show', () => bar?.showInactive());
+      const made = bar;
+      bar.once('ready-to-show', () => {
+        made.showInactive();
+        // locked: the bar is an AppBar, like the taskbar — apps fill the space under it and can't cover it (D6)
+        if (lockdown && flow.state().locked) void reserve(made);
+      });
     }
     if (inExam && !browser && flow.websites.length > 0) {
-      browser = new ExamBrowser(flow.websites, { x: area.x, y: area.y + BAR, width: area.width, height: area.height - BAR }, {
+      // locked, there is no taskbar: the browser has the whole screen under the bar
+      const whole = flow.state().locked ? screen.getPrimaryDisplay().bounds : area;
+      browser = new ExamBrowser(flow.websites, { x: whole.x, y: whole.y + BAR, width: whole.width, height: whole.height - BAR }, {
         changed: (s) => tellBrowser(browserState = s),
         blocked: (url) => flow.report('pageBlocked', { url }),
       });
     }
     if (!inExam) {
+      if (bar && barHandle !== undefined) void appbar?.release(barHandle);
+      barHandle = undefined;
       bar?.destroy();
       bar = undefined;
       browser?.destroy();
@@ -101,7 +138,22 @@ export async function runStudent(): Promise<void> {
     if (asking) main.focus();
   }
 
+  let barHandle: bigint | undefined;
+  let appbar: typeof import('../../win/appbar') | undefined;
+  /** Registers the bar's window with Windows as an AppBar at the top of the screen. */
+  async function reserve(win: BrowserWindow): Promise<void> {
+    appbar ??= await import('../../win/appbar');
+    const display = screen.getPrimaryDisplay();
+    const hwnd = win.getNativeWindowHandle().readBigUInt64LE(0);
+    const top = await appbar.reserveTop(hwnd, Math.round(display.size.width * display.scaleFactor), Math.round(BAR * display.scaleFactor));
+    if (top === undefined || win.isDestroyed()) return;
+    barHandle = hwnd;
+    lockdown?.setBar(hwnd);
+    win.setBounds({ x: display.bounds.x, y: Math.round(top / display.scaleFactor), width: display.size.width, height: win.getBounds().height });
+  }
+
   let shown: StudentState['screen'] = 'join';
+  let locked = false;
   let contact = true;
   let closedAt: number | undefined;
   let closedTimer: NodeJS.Timeout | undefined;
@@ -109,7 +161,9 @@ export async function runStudent(): Promise<void> {
   function resize(state: StudentState): void {
     if (!bar || bar.isDestroyed()) return;
     const strip = !state.contact || (state.closed !== undefined && Date.now() - state.closed.at < CLOSED_MS);
-    const area = screen.getPrimaryDisplay().workArea;
+    // (locked, the bar itself holds the top of the screen: the work area starts under it)
+    const display = screen.getPrimaryDisplay();
+    const area = state.locked ? display.bounds : display.workArea;
     bar.setBounds({ x: area.x, y: area.y, width: area.width, height: strip ? BAR + BANNER : BAR });
   }
   flow.onState((state) => {
@@ -123,10 +177,19 @@ export async function runStudent(): Promise<void> {
     }
     if (state.contact !== contact || state.closed) resize(state);
     contact = state.contact;
+    // F-07: locked, ExamMode fills the screen — there is nothing else to go to
+    if (state.locked !== locked) {
+      locked = state.locked;
+      main.setKiosk(locked);
+    }
     if (state.screen === shown) return;
     shown = state.screen;
     arrange(state);
   });
   app.on('before-quit', () => void flow.stop());
+  // F-04: a second screen plugged in during the exam is a warning for the teacher
+  screen.on('display-added', () => {
+    if (flow.state().locked) flow.report('displayAdded', {});
+  });
   await flow.start();
 }

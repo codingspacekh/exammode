@@ -1,14 +1,18 @@
 /**
- * How ExamMode talks to the Guard (architecture §2.4): a named pipe, `\\.\pipe\exammode-guard`, one JSON message a
- * line each way. A caller is heard only if the process it says it is, is ExamMode; and only who locked can unlock
- * (the secret). Messages: lock(plan), unlock, status, watch.
+ * How ExamMode talks to the Guard (architecture §2.4): one JSON message a line each way, over a port that only
+ * this computer can reach (127.0.0.1). Not a named pipe: Node can't say who may open one, and one made by a
+ * service can't be written to by an ordinary account — which the lab's may be (Q12). A caller is heard only if the
+ * process it says it is, is ExamMode; and only who locked can unlock (the secret). Messages: lock(plan), unlock,
+ * status, watch.
  */
 import { createConnection, createServer, type Server, type Socket } from 'node:net';
 import { z } from 'zod';
 import { change } from '@lib/lockdown/journal';
 import type { Answer, Guard, Watched } from './guard';
 
-export const PIPE = '\\\\.\\pipe\\exammode-guard';
+/** Where the Guard listens: a port of this computer's own, or (in the tests) a socket file. */
+export type Endpoint = string | { host: string; port: number };
+export const GUARD: Endpoint = { host: '127.0.0.1', port: 47802 };
 
 const id = z.int().nonnegative();
 const pid = z.int().positive();
@@ -36,7 +40,7 @@ function lines(socket: Socket, each: (line: string) => void): void {
 }
 
 /** The Guard's end. `isExamMode`: is this process the installed ExamMode.exe (D10)? */
-export function serve(guard: Guard, path: string, isExamMode: (pid: number) => boolean): Promise<Server> {
+export function serve(guard: Guard, at: Endpoint, isExamMode: (pid: number) => boolean): Promise<Server> {
   const server = createServer((socket) => {
     socket.on('error', () => undefined);
     const say = (reply: Reply): void => void socket.write(`${JSON.stringify(reply)}\n`);
@@ -57,7 +61,8 @@ export function serve(guard: Guard, path: string, isExamMode: (pid: number) => b
   });
   return new Promise((resolve, reject) => {
     server.once('error', reject);
-    server.listen(path, () => resolve(server));
+    if (typeof at === 'string') server.listen(at, () => resolve(server));
+    else server.listen(at.port, at.host, () => resolve(server));
   });
 }
 
@@ -77,12 +82,12 @@ async function answer(guard: Guard, msg: Request): Promise<Body> {
 export class GuardClient {
   private next = 1;
 
-  constructor(private readonly path: string = PIPE, private readonly pid: number = process.pid, private readonly timeoutMs = 30_000) {}
+  constructor(private readonly at: Endpoint = GUARD, private readonly pid: number = process.pid, private readonly timeoutMs = 30_000) {}
 
   ask(question: Ask): Promise<Reply> {
     const msg = { ...question, id: this.next++, pid: this.pid };
     return new Promise((resolve, reject) => {
-      const socket = createConnection(this.path);
+      const socket = typeof this.at === 'string' ? createConnection(this.at) : createConnection(this.at.port, this.at.host);
       const timer = setTimeout(() => {
         socket.destroy();
         reject(new Error('The Guard didn\'t answer'));

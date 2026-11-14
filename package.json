@@ -12,7 +12,7 @@
   },
   "scripts": {
     "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "build": "electron-vite build && vite build --config vite.guard.config.mts",
     "start": "electron-vite preview",
     "lint": "eslint",
     "typecheck": "tsc --noEmit -p tsconfig.json",
@@ -28,7 +28,8 @@
     "prepare": "git config core.hooksPath .githooks || true",
     "spike:win": "node spikes/windows/run-all.mjs",
     "db:generate": "drizzle-kit generate && node scripts/migrations.mjs",
-    "class": "tsx scripts/class/cli.ts"
+    "class": "tsx scripts/class/cli.ts",
+    "guard": "node out/guard/main.js"
   },
   "dependencies": {
     "busboy": "^1.6.0",

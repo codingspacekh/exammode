@@ -27,14 +27,16 @@ export default defineConfig({
       {
         extends: true,
         plugins: [react()],
-        test: { name: 'component', include: ['tests/component/**/*.test.tsx'], environment: 'jsdom', setupFiles: ['tests/setup/component.ts'] },
+        // (typing a form letter by letter takes a few seconds on a busy computer)
+        test: { name: 'component', include: ['tests/component/**/*.test.tsx'], environment: 'jsdom', setupFiles: ['tests/setup/component.ts'], testTimeout: 20_000 },
       },
     ],
     coverage: {
       provider: 'v8',
       include: ['src/lib/**', 'src/main/**', 'src/guard/**'],
       // index.ts and shell/ are Electron glue (the windows), proven by the e2e tests; the migrations are generated SQL
-      exclude: ['src/main/index.ts', 'src/main/shell/**', 'src/main/teacher/store/migrations/**'],
+      // … and so are the Guard's program and the real lock, which are Windows only (the windows tests prove them)
+      exclude: ['src/main/index.ts', 'src/main/shell/**', 'src/main/student/lockdown-win.ts', 'src/guard/main.ts', 'src/main/teacher/store/migrations/**'],
       // MILESTONES §3: the rules are held highest
       thresholds: {
         'src/lib/session/**': { lines: 95, branches: 95, functions: 95, statements: 95 },
