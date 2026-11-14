@@ -32,12 +32,12 @@ export const refusedReason = z.enum(['codeWrong', 'nameTaken', 'notInClass', 'le
 export type RefusedReason = z.infer<typeof refusedReason>;
 
 export const fromTeacher = z.discriminatedUnion('type', [
-  // `now` is the teacher's clock, for the student's offset to it (§2.8)
+  // `now` is the teacher's clock, for the student's offset to it (§2.8). It is also what a student who waits
+  // after `refused: left` hears when the teacher lets them back in (F-40)
   z.object({ v, type: z.literal('joined'), token: id, now: time, state: z.enum(['checking', 'ready', 'inExam']), endsAt: time.optional() }),
   z.object({ v, type: z.literal('refused'), reason: refusedReason }),
   z.object({ v, type: z.literal('start'), endsAt: time }),
   z.object({ v, type: z.literal('time'), endsAt: time }),
-  z.object({ v, type: z.literal('letBackIn') }),
   z.object({ v, type: z.literal('end') }),
   z.object({ v, type: z.literal('unlock') }),
   z.object({ v, type: z.literal('receipt'), code: z.string().regex(/^[2-9A-Z]{3}-[2-9A-Z]{3}$/), files: z.array(fileMeta) }),
