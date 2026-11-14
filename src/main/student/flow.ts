@@ -3,6 +3,8 @@
  * state the student's screens show (architecture §2.2). M3: 01 Join, 03 Waiting, 04 the exam bar, 09 Hand in,
  * 09b Handed in. The computer isn't checked or locked yet (M4), so joining goes straight to waiting.
  */
+import type { Installed } from '@lib/profiles/inventory';
+import { PROTOCOL_VERSION } from '@lib/protocol/messages';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -31,6 +33,8 @@ export interface FlowOptions {
   remember?: string;
   /** locks this computer for an exam; none: exams run unlocked (a Mac, a development build) */
   lockdown?: Lockdown;
+  /** what is installed on this computer, told to each teacher's laptop it finds (F-31a); none: nothing is told */
+  installed?: () => Promise<Installed | undefined>;
   /** for tests: faster beats and retries */
   timing?: Pick<SessionOptions, 'beatMs' | 'retryMs' | 'clockMs'> & { backupMs?: number; graceMs?: number };
 }
@@ -54,6 +58,8 @@ export class StudentFlow {
   /** the exam that was joined, as it was found */
   private found?: FoundExam;
   private readonly now: () => number;
+  private readonly toldInstalled = new Set<string>();
+  private installed?: Promise<Installed | undefined>;
 
   constructor(private readonly options: FlowOptions) {
     this.now = options.now ?? Date.now;
@@ -349,6 +355,27 @@ export class StudentFlow {
     const found = [...heard, ...this.typed.filter((t) => !heard.some((h) => h.runId === t.runId))];
     const gone = this.current.screen === 'join' && this.current.picked !== undefined && !found.some((f) => f.runId === this.current.picked);
     this.set(gone ? { found, picked: undefined, names: [] } : { found });
+    this.tellInstalled(found);
+  }
+
+  /** Each teacher's laptop is told once what this computer has installed (F-31a); again, if it didn't get there. */
+  private tellInstalled(exams: FoundExam[]): void {
+    const read = this.options.installed;
+    if (!read) return;
+    for (const { host, port } of exams) {
+      const teacher = `${host}:${port}`;
+      if (this.toldInstalled.has(teacher)) continue;
+      this.toldInstalled.add(teacher);
+      this.installed ??= read().catch(() => undefined);
+      void this.installed.then(async (installed) => {
+        if (!installed) return;
+        const res = await fetch(`http://${teacher}/inventory`, {
+          method: 'POST', headers: { 'content-type': 'application/json' }, signal: AbortSignal.timeout(5000),
+          body: JSON.stringify({ v: PROTOCOL_VERSION, pc: this.options.pc, ...installed }),
+        });
+        if (res.status >= 500) this.toldInstalled.delete(teacher);
+      }).catch(() => void this.toldInstalled.delete(teacher));
+    }
   }
 
   /** The session's state, as a screen. */

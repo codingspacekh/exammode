@@ -1,0 +1,19 @@
+{
+  "entries": [
+    { "name": "GIMP 2.10.36", "publisher": "The GIMP Team", "version": "2.10.36", "location": "C:\\Program Files\\GIMP 2\\", "icon": "C:\\Program Files\\GIMP 2\\bin\\gimp-2.10.exe", "system": false },
+    { "name": "Notepad++ (64-bit x64)", "publisher": "Notepad++ Team", "version": "8.6", "location": "", "icon": "\"C:\\Program Files\\Notepad++\\notepad++.exe\",0", "system": false },
+    { "name": "Scratch 3", "publisher": "Scratch Foundation", "version": "3.29.1", "location": "C:\\Program Files\\Scratch 3", "icon": null, "system": false },
+    { "name": "Microsoft Visual C++ 2015-2022 Redistributable (x64)", "publisher": "Microsoft Corporation", "version": "14.38", "location": null, "icon": "C:\\ProgramData\\Package Cache\\x\\VC_redist.x64.exe,0", "system": false },
+    { "name": "Thonny 4.1.4", "publisher": "Aivar Annamaa", "version": "4.1.4", "location": "C:\\Users\\Student\\AppData\\Local\\Programs\\Thonny", "icon": "C:\\Users\\Student\\AppData\\Local\\Programs\\Thonny\\thonny.exe", "system": false },
+    { "name": "Windows Driver Package", "publisher": "Intel", "version": "1", "location": null, "icon": null, "system": true },
+    { "name": "7-Zip 23.01 (x64)", "publisher": "Igor Pavlov", "version": "23.01", "location": "C:\\Program Files\\7-Zip\\", "icon": "C:\\Program Files\\7-Zip\\Uninstall.exe", "system": false },
+    { "name": "Paint helper", "publisher": "Microsoft", "version": "1", "location": null, "icon": "%SystemRoot%\\System32\\mspaint.exe", "system": false },
+    { "name": "No program known", "publisher": "X", "version": "1", "location": null, "icon": "C:\\Program Files\\X\\x.ico", "system": false },
+    { "name": "GIMP again", "publisher": "The GIMP Team", "version": "2.10.36", "location": null, "icon": "c:\\program files\\gimp 2\\bin\\GIMP-2.10.exe,0", "system": false }
+  ],
+  "paths": [
+    { "exe": "scratch-desktop.exe", "path": "C:\\Program Files\\Scratch 3\\Scratch 3.exe" },
+    { "exe": "wordpad.exe", "path": "\"%ProgramFiles%\\Windows NT\\Accessories\\WORDPAD.EXE\"" },
+    { "exe": "broken", "path": null }
+  ]
+}

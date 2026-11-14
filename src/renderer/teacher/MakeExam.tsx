@@ -12,6 +12,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { onComputers } from '@lib/profiles/inventory';
+import { AddApp } from './AddApp';
 import { Section, TeacherBar, type Page } from './TeacherBar';
 
 const NEW = 'new';
@@ -58,6 +60,7 @@ export function MakeExam({ state, api, exam, page, onPage, onClose, cancel = fal
     setOpening(false);
     if (!wrong && how === 'saveExam') onClose?.();
   }
+  const lab = state.labApps;
   const has = (id: string) => apps.some((a) => 'profile' in a && a.profile === id);
   const toggle = (id: string) => setApps(has(id) ? apps.filter((a) => !('profile' in a && a.profile === id)) : [...apps, { profile: id }]);
   const others = apps.filter((a): a is Extract<ExamApp, { custom: unknown }> => 'custom' in a);
@@ -123,7 +126,7 @@ export function MakeExam({ state, api, exam, page, onPage, onClose, cancel = fal
                 <button key={p.id} type="button" role="checkbox" aria-checked={has(p.id)} onClick={() => toggle(p.id)}
                   className={`flex items-center gap-2.5 rounded-[10px] border px-3 py-2.5 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30 ${has(p.id) ? 'border-primary bg-accent' : 'border-input'}`}>
                   <span className="grid size-7 flex-none place-items-center rounded-[7px] text-[11px] font-bold text-white" style={{ background: p.badge?.color }}>{p.badge?.text}</span>
-                  <span className="min-w-0"><b className="block truncate text-[12.5px]">{p.name}</b><span className="block truncate text-[11.5px] text-muted-foreground">{p.publisher}</span></span>
+                  <span className="min-w-0"><b className="block truncate text-[12.5px]">{p.name}</b><span className={`block truncate text-[11.5px] ${lab.computers > 0 && (lab.profiles[p.id] ?? 0) < lab.computers ? 'text-warn-ink' : 'text-muted-foreground'}`}>{lab.computers > 0 ? onComputers(lab.profiles[p.id], lab.computers) : p.publisher}</span></span>
                   <span className={`ml-auto grid size-[18px] flex-none place-items-center rounded-[5px] border-[1.5px] text-white ${has(p.id) ? 'border-primary bg-primary' : 'border-input bg-card'}`}>{has(p.id) && <CheckIcon weight="bold" className="size-3" />}</span>
                 </button>
               ))}
@@ -142,9 +145,12 @@ export function MakeExam({ state, api, exam, page, onPage, onClose, cancel = fal
             <div className="mt-2.5 flex items-end gap-2">
               <div className="flex-1">
                 <Label htmlFor="program" className={label}>Another app — its program's place on the lab computers</Label>
-                <Input id="program" value={program} onChange={(e) => setProgram(e.target.value)} placeholder="C:\\Program Files\\GIMP 2\\bin\\gimp-2.10.exe" className="h-9 font-mono text-[12.5px]" />
+                <Input id="program" value={program} onChange={(e) => setProgram(e.target.value)} placeholder={'C:\\Program Files\\GIMP 2\\bin\\gimp-2.10.exe'} className="h-9 font-mono text-[12.5px]" />
               </div>
               <Button type="button" variant="outline" disabled={program.trim() === ''} onClick={addProgram}><PlusIcon /> Add the app</Button>
+            </div>
+            <div className="mt-2.5">
+              <AddApp lab={lab} added={others.map((a) => a.custom.image)} onAdd={(more) => setApps([...apps, ...more.map((a) => ({ custom: { image: a.exe, name: a.name } }))])} />
             </div>
           </Section>
           <Section title={<><ExamIcon /> Questions</>} sub="On paper is the usual: students get no browser and no internet at all. On a website: the exam browser opens only these.">
@@ -209,9 +215,6 @@ export function MakeExam({ state, api, exam, page, onPage, onClose, cancel = fal
                 </li>
               ))}
             </ul>
-          </Section>
-          <Section title="What comes later" className="p-4">
-            <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">The list of the apps that are installed on the lab computers, with how many computers have each, comes next. Until then an app without a profile is added by its program's place.</p>
           </Section>
         </aside>
       </div>

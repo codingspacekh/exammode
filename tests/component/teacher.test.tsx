@@ -130,6 +130,49 @@ describe('11 Make an exam — files to give, saving, changing (F-33, F-35)', () 
     expect(screen.queryByRole('list', { name: 'Other apps' })).not.toBeInTheDocument();
   });
 
+  it('F-31a Add an app lists the lab computers\' apps: an app on 24 of 26 computers says so', async () => {
+    const api = teacherApi();
+    const user = userEvent.setup();
+    const gimp = { name: 'GIMP 2.10.36', publisher: 'The GIMP Team', version: '2.10.36', exe: 'C:\\Program Files\\GIMP 2\\bin\\gimp-2.10.exe', computers: 26 };
+    const npp = { name: 'Notepad++', version: '8.6', exe: 'C:\\Program Files\\Notepad++\\notepad++.exe', computers: 12 };
+    const labApps = { computers: 26, profiles: { word: 26, thonny: 24 }, others: [gimp, npp] };
+    render(<MakeExam state={teacher({ classes, labApps, defaults: { teacher: 'Ms Srey Leak', classId: 'c-1' } })} api={api} />);
+    // the apps with a profile say how many computers have them
+    expect(screen.getByRole('checkbox', { name: /Thonny/ })).toHaveTextContent('on 24 of 26 computers');
+    expect(screen.getByRole('checkbox', { name: /^.*Word/ })).toHaveTextContent('on 26 of 26 computers');
+    expect(screen.getByRole('checkbox', { name: /VS Code/ })).toHaveTextContent('on 0 of 26 computers');
+
+    await user.click(screen.getByRole('button', { name: /Add an app from the lab computers/ }));
+    const dialog = screen.getByRole('dialog', { name: 'Add an app to this exam' });
+    const rows = () => within(within(dialog).getByRole('group', { name: 'No profile yet' })).queryAllByRole('checkbox');
+    expect(rows().map((r) => r.textContent)).toEqual(['GGIMP 2.10.36The GIMP Team · on 26 of 26 computersonly allowed to run', 'NNotepad++on 12 of 26 computersonly allowed to run']);
+    expect(within(dialog).getByRole('button', { name: 'Add' })).toBeDisabled();
+    // found by a part of its name
+    await user.type(within(dialog).getByRole('textbox', { name: 'Find an app' }), 'note');
+    expect(rows().map((r) => r.getAttribute('aria-label'))).toEqual(['Notepad++']);
+    await user.clear(within(dialog).getByRole('textbox', { name: 'Find an app' }));
+    await user.click(within(dialog).getByRole('checkbox', { name: 'GIMP 2.10.36' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Add 1 app' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(within(screen.getByRole('list', { name: 'Other apps' })).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['GIMP 2.10.36C:\\Program Files\\GIMP 2\\bin\\gimp-2.10.exeonly allowed to run']);
+    // an app that is in the exam isn't offered again
+    await user.click(screen.getByRole('button', { name: /Add an app from the lab computers/ }));
+    expect(within(within(screen.getByRole('dialog')).getByRole('group', { name: 'No profile yet' })).getAllByRole('checkbox').map((r) => r.getAttribute('aria-label'))).toEqual(['Notepad++']);
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }));
+
+    await user.type(screen.getByRole('textbox', { name: 'Title' }), 'Term 1');
+    await user.click(screen.getByRole('button', { name: 'Open for students…' }));
+    expect(api.open).toHaveBeenCalledWith(expect.objectContaining({ apps: [{ custom: { image: gimp.exe, name: 'GIMP 2.10.36' } }] }));
+  });
+
+  it('F-31a before any lab computer has said what it has, Add an app says how the list gets there', async () => {
+    const user = userEvent.setup();
+    render(<MakeExam state={teacher({ classes })} api={teacherApi()} />);
+    expect(screen.getByRole('checkbox', { name: /Thonny/ })).not.toHaveTextContent(/computers/);
+    await user.click(screen.getByRole('button', { name: /Add an app from the lab computers/ }));
+    expect(screen.getByRole('dialog')).toHaveTextContent('No lab computer has said what it has installed yet');
+  });
+
   it('a kept exam opens with its apps ticked', () => {
     render(<MakeExam state={teacher({ classes, exams: [{ ...kept, apps: [{ profile: 'excel' }, { custom: { image: 'C:\\Scratch\\Scratch 3.exe', name: 'Scratch 3' } }] }] })} api={teacherApi()} exam={{ ...kept, apps: [{ profile: 'excel' }, { custom: { image: 'C:\\Scratch\\Scratch 3.exe', name: 'Scratch 3' } }] }} />);
     expect(screen.getByRole('checkbox', { name: /Excel/ })).toBeChecked();

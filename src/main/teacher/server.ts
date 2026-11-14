@@ -7,6 +7,7 @@
  *   WS   /ws                   join or resume first, then the rest of the protocol
  *   GET  /runs/<run>/files/<f>  a file the teacher gives every student, with the attempt's token (F-33)
  *   POST /stopped              the Guard: ExamMode's process ended without unlocking (F-20)
+ *   POST /inventory            a lab computer's installed apps, for Add an app (F-31a)
  *   POST /upload               a backup or a hand-in: `meta` first, then the files as f0, f1 … (F-16, F-22)
  */
 import { createReadStream } from 'node:fs';
@@ -15,13 +16,14 @@ import { pipeline } from 'node:stream/promises';
 import type { AddressInfo } from 'node:net';
 import busboy from 'busboy';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { PROTOCOL_VERSION, parseFromStudent, stopped, updateReply, upload, type Beacon, type FromTeacher, type Upload } from '@lib/protocol/messages';
+import { PROTOCOL_VERSION, inventory, parseFromStudent, stopped, updateReply, upload, type Beacon, type FromTeacher, type Inventory, type Upload } from '@lib/protocol/messages';
 import type { Classroom, Link } from './classroom';
 import { discard, newIncoming, receive, type Received } from './handIns';
 
 export const PORT = 47800;
 const TICK_MS = 1000;
 const SMALL_BODY = 16 * 1024;
+const INVENTORY_BODY = 256 * 1024;
 
 export interface ServerOptions {
   /** the Hand-ins folder: files wait in it while they are checked */
@@ -29,18 +31,20 @@ export interface ServerOptions {
   port?: number;
   /** how often the rooms' clocks tick; 0: only when the caller ticks them */
   tickMs?: number;
+  /** keeps what a lab computer says it has installed; false: it wasn't kept */
+  inventory?: (report: Inventory) => Promise<boolean>;
 }
 
 const json = (res: ServerResponse, status: number, body: unknown): void => {
   res.writeHead(status, { 'content-type': 'application/json' }).end(JSON.stringify(body));
 };
 
-async function smallBody(req: IncomingMessage): Promise<unknown> {
+async function smallBody(req: IncomingMessage, limit = SMALL_BODY): Promise<unknown> {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of req as AsyncIterable<Buffer>) {
     size += chunk.length;
-    if (size > SMALL_BODY) return undefined;
+    if (size > limit) return undefined;
     chunks.push(chunk);
   }
   try {
@@ -163,6 +167,12 @@ export class ClassroomServer {
       return void (await pipeline(createReadStream(file), res).catch(() => res.destroy()));
     }
     if (req.method === 'POST' && path === '/stopped') return this.stopped(req, res);
+    if (req.method === 'POST' && path === '/inventory') {
+      const report = inventory.safeParse(await smallBody(req, INVENTORY_BODY));
+      if (!report.success || report.data.v !== PROTOCOL_VERSION) return json(res, 400, { error: 'invalid' });
+      const kept = await this.options.inventory?.(report.data) ?? false;
+      return json(res, kept ? 200 : 409, kept ? { v: PROTOCOL_VERSION, ok: true } : { error: 'refused' });
+    }
     if (req.method === 'POST' && path === '/upload') return this.upload(req, res);
     json(res, 404, { error: 'notFound' });
   }

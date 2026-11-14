@@ -5,6 +5,7 @@
  */
 import { z } from 'zod';
 import { examApp } from '../profiles/exam-apps';
+import { installedApp, MAX_APPS } from '../profiles/inventory';
 
 export const PROTOCOL_VERSION = 1;
 
@@ -66,6 +67,10 @@ export type Beacon = z.infer<typeof beacon>;
 /** Guard → teacher, over HTTP, when ExamMode's process ends without unlocking (F-20). */
 export const stopped = z.object({ v, type: z.literal('stopped'), token: id, pc: id, instanceId: id, at: time });
 export type Stopped = z.infer<typeof stopped>;
+
+/** A lab computer says what it has installed (F-31a): `POST /inventory`, when it finds a teacher's laptop. */
+export const inventory = z.object({ v, pc: id.max(80), profiles: z.array(z.string().min(1).max(60)).max(60), apps: z.array(installedApp).max(MAX_APPS) });
+export type Inventory = z.infer<typeof inventory>;
 
 /** What comes with the files of a backup or a hand-in (HTTP, multipart). */
 export const upload = z.object({ v, token: id, kind: z.enum(['backup', 'handIn']), files: z.array(fileMeta) });

@@ -2,6 +2,7 @@
  * What the screens are told, and what they can ask for: the shape of the preload API (architecture §2.2). The main
  * process owns the state; a screen only shows it and passes on what was pressed. Types only.
  */
+import type { LabApps } from '../profiles/inventory';
 import type { Website } from '../browser/sites';
 import type { RosterStudent } from '../exam/roster';
 import type { ExamApp } from '../profiles/exam-apps';
@@ -95,6 +96,8 @@ export interface TeacherState {
   classes: ClassChoice[];
   /** the exams that are kept, the one changed last first */
   exams: SavedExam[];
+  /** the lab computers' installed apps, for Add an app (11b) */
+  labApps: LabApps;
   /** what the form starts with: the last exam's teacher and class */
   defaults: Pick<ExamForm, 'teacher' | 'classId'>;
   run?: RunView;

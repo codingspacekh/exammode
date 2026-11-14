@@ -15,6 +15,7 @@ import { logCsv } from '@lib/exam/log';
 import { BeaconSender, type BeaconOptions } from './beacon';
 import { hashFile } from '../student/files';
 import { Classroom, type ClassroomOptions } from './classroom';
+import { labApps } from '@lib/profiles/inventory';
 import { ClassroomServer } from './server';
 import { Store } from './store/store';
 
@@ -42,7 +43,7 @@ const MAX_MINUTES = 600;
 export class TeacherDesk {
   private room?: Classroom;
   private unwatch?: () => void;
-  private current: TeacherState = { screen: 'make', classes: [], exams: [], defaults: { teacher: '' }, students: [], feed: [], events: [], files: {} };
+  private current: TeacherState = { screen: 'make', classes: [], exams: [], labApps: { computers: 0, profiles: {}, others: [] }, defaults: { teacher: '' }, students: [], feed: [], events: [], files: {} };
   private readonly listeners = new Set<(state: TeacherState) => void>();
   private refreshing?: Promise<void>;
   private again = false;
@@ -52,7 +53,16 @@ export class TeacherDesk {
 
   static async open(options: DeskOptions): Promise<TeacherDesk> {
     const store = new Store(options.db);
-    const server = new ClassroomServer({ handIns: options.handIns, port: options.port, tickMs: options.tickMs });
+    // (the desk isn't made yet when the server is: what a lab computer says goes to it once it is)
+    const made: { desk?: TeacherDesk } = {};
+    const server = new ClassroomServer({
+      handIns: options.handIns, port: options.port, tickMs: options.tickMs,
+      inventory: async (report) => {
+        const kept = await store.saveInventory(report.pc, { profiles: report.profiles, apps: report.apps }, Date.now());
+        if (kept) void made.desk?.refresh();
+        return kept;
+      },
+    });
     try {
       await server.listen();
     } catch (error) {
@@ -62,6 +72,7 @@ export class TeacherDesk {
     const beacon = new BeaconSender(() => server.listings(), options.beacon);
     await beacon.start();
     const desk = new TeacherDesk(store, server, beacon, options);
+    made.desk = desk;
     // a run that was open when the laptop restarted is open again (N-05)
     const open = (await store.runsNotEnded()).at(-1);
     if (open) desk.watch(await Classroom.open(store, open.id, desk.roomOptions()));
@@ -289,7 +300,8 @@ export class TeacherDesk {
     }));
     const last = await this.store.lastExam();
     const defaults = { teacher: last?.teacher ?? '', classId: last?.classId };
-    if (!this.room) return { screen: 'make', classes, exams, defaults, students: [], feed: [], events: [], files: {} };
+    const lab = labApps((await this.store.inventory()).map((r) => r.installed));
+    if (!this.room) return { screen: 'make', classes, exams, labApps: lab, defaults, students: [], feed: [], events: [], files: {} };
     const { run, students } = this.room.view();
     const names = new Map(students.map((s) => [s.id, s.name]));
     const events: FeedItem[] = (await this.store.events(run.id))
@@ -298,6 +310,6 @@ export class TeacherDesk {
     const files: Record<string, KeptFile[]> = {};
     for (const [studentId, kept] of await this.store.runFiles(run.id)) files[studentId] = kept.map(({ name, bytes, kind }) => ({ name, bytes, kind }));
     const screen = run.endedAt !== undefined ? 'ended' : run.startedAt === undefined ? 'lobby' : 'live';
-    return { screen, classes, exams, defaults, run, students, feed, events, files };
+    return { screen, classes, exams, labApps: lab, defaults, run, students, feed, events, files };
   }
 }

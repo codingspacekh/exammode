@@ -3,6 +3,8 @@
  * the exam, the exam bar across the top of the screen (04) and — only if the exam has websites — the exam browser
  * under it. What they show is the student's flow (flow.ts). Electron glue: proven by the e2e tests.
  */
+import { readFile } from 'node:fs/promises';
+import type { Installed } from '@lib/profiles/inventory';
 import { mkdirSync } from 'node:fs';
 import { hostname, uptime } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -59,6 +61,10 @@ export async function runStudent(): Promise<void> {
     discoveryPort: number(env.EXAMMODE_BEACON_PORT),
     teacherPort: number(env.EXAMMODE_PORT),
     remember: join(app.getPath('userData'), 'exam.json'),
+    // what this computer has installed, for the teacher's Add an app; (development: from a file)
+    installed: env.EXAMMODE_INSTALLED && !app.isPackaged
+      ? async () => JSON.parse(await readFile(env.EXAMMODE_INSTALLED!, 'utf8')) as Installed
+      : process.platform === 'win32' ? async () => (await import('../../win/installed')).installed() : undefined,
   });
 
   const main = createWindow('student', { width: 1440, height: 900, minWidth: 1280, minHeight: 720 });

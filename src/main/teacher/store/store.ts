@@ -9,10 +9,14 @@ import { and, asc, desc, eq, isNull } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/sqlite-proxy';
 import type { Website } from '@lib/browser/sites';
 import type { ExamApp } from '@lib/profiles/exam-apps';
+import type { Installed } from '@lib/profiles/inventory';
 import type { FileMeta } from '@lib/protocol/messages';
 import type { Attempt, HandInHow } from '@lib/session/attempt';
 import { migrations } from './migrations/index';
 import * as schema from './schema';
+
+/** How many computers' installed apps are kept. */
+export const MAX_COMPUTERS = 200;
 
 export type StudentRow = typeof schema.students.$inferSelect;
 export type ExamRow = typeof schema.exams.$inferSelect;
@@ -176,6 +180,20 @@ export class Store {
     const all = await this.db.select().from(schema.classes).orderBy(asc(schema.classes.name));
     const students = await this.db.select({ classId: schema.students.classId }).from(schema.students);
     return all.map((c) => ({ ...c, students: students.filter((s) => s.classId === c.id).length }));
+  }
+
+  /** What a lab computer says it has installed: its last word replaces the one before (F-31a). No more than
+   *  `MAX_COMPUTERS` are kept: a computer that isn't known yet is then refused. */
+  async saveInventory(pc: string, installed: Installed, at: number): Promise<boolean> {
+    const known = await this.db.select({ pc: schema.inventory.pc }).from(schema.inventory);
+    if (known.length >= MAX_COMPUTERS && !known.some((k) => k.pc === pc)) return false;
+    await this.db.insert(schema.inventory).values({ pc, apps: installed, at }).onConflictDoUpdate({ target: schema.inventory.pc, set: { apps: installed, at } });
+    return true;
+  }
+
+  /** Every lab computer's last word on what it has installed. */
+  async inventory(): Promise<{ pc: string; installed: Installed; at: number }[]> {
+    return (await this.db.select().from(schema.inventory).orderBy(asc(schema.inventory.pc))).map((r) => ({ pc: r.pc, installed: r.apps, at: r.at }));
   }
 
   /** The exam made last: what the next one starts from. */

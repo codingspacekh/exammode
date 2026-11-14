@@ -2,6 +2,7 @@
  * The teacher's data (architecture §2.11): SQLite in the teacher's app data folder, through Drizzle. Times are ms on
  * the teacher's clock. After changing a table: `npm run db:generate`, which writes the next file in `migrations/`.
  */
+import type { Installed } from '@lib/profiles/inventory';
 import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import type { Website } from '@lib/browser/sites';
 import type { ExamApp } from '@lib/profiles/exam-apps';
@@ -98,6 +99,6 @@ export const handinFiles = sqliteTable('handin_files', {
 
 export const inventory = sqliteTable('inventory', {
   pc: text('pc').primaryKey(),
-  apps: text('apps', { mode: 'json' }).$type<unknown[]>().notNull(),
+  apps: text('apps', { mode: 'json' }).$type<Installed>().notNull(),
   at: integer('at').notNull(),
 });

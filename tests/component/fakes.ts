@@ -39,7 +39,7 @@ export function card(name: string, over: Partial<StudentView> = {}): StudentView
 }
 
 export function teacher(over: Partial<TeacherState> = {}): TeacherState {
-  return { screen: 'make', classes: [], exams: [], defaults: { teacher: '' }, students: [], feed: [], events: [], files: {}, ...over };
+  return { screen: 'make', classes: [], exams: [], labApps: { computers: 0, profiles: {}, others: [] }, defaults: { teacher: '' }, students: [], feed: [], events: [], files: {}, ...over };
 }
 
 export const RUN = {

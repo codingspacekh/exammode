@@ -1,3 +1,4 @@
+import type { Installed } from '@lib/profiles/inventory';
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -54,12 +55,19 @@ class FakeLockdown implements Lockdown {
   }
 }
 
+/** what each lab computer has installed (F-31a) */
+const GIMP = { name: 'GIMP 2.10.36', publisher: 'The GIMP Team', version: '2.10.36', exe: 'C:\\Program Files\\GIMP 2\\bin\\gimp-2.10.exe' };
+const INSTALLED: Record<string, Installed> = {
+  'PC-14': { profiles: ['word', 'thonny'], apps: [GIMP, { name: 'Notepad++', version: '8.6', exe: 'C:\\Program Files\\Notepad++\\notepad++.exe' }] },
+  'PC-03': { profiles: ['word'], apps: [GIMP] },
+};
+
 async function lab(over: Partial<DeskOptions> = {}, lockdown?: Lockdown) {
   const root = await tempFolder();
   const clock = { ahead: 0 };
   const now = () => Date.now() + clock.ahead;
   const student = async (pc: string) => {
-    const flow = new StudentFlow({ pc, examRoot: join(root, pc), bootId: `boot-${pc}`, remember: join(root, pc, 'exam.json'), discoveryPort: 0, now, lockdown: pc === 'PC-14' ? lockdown : undefined, timing: { beatMs: 40, retryMs: 40, clockMs: 20, graceMs: 40 } });
+    const flow = new StudentFlow({ pc, examRoot: join(root, pc), bootId: `boot-${pc}`, remember: join(root, pc, 'exam.json'), discoveryPort: 0, now, lockdown: pc === 'PC-14' ? lockdown : undefined, installed: async () => INSTALLED[pc], timing: { beatMs: 40, retryMs: 40, clockMs: 20, graceMs: 40 } });
     await flow.start();
     later(() => flow.stop());
     return flow;
@@ -679,5 +687,20 @@ describe('M4 locking the lab computer, in the student\'s flow (F-04–F-07, F-12
     expect(lockdown.opened).toEqual([]);
     sokha.finish();
     expect(sokha.state().apps).toEqual([]);
+  });
+
+  it('F-31a each lab computer says what it has installed: Add an app counts the computers', async () => {
+    const { desk, flows } = await lab();
+    expect(desk.state().labApps.computers).toBe(0);
+    expect(await desk.openExam(FORM)).toBeUndefined();
+    // the computers find the open exam — one hears it, one has the teacher's computer name typed in — and tell
+    // the teacher's laptop
+    const dara = flows[1]!;
+    Object.assign(dara, { options: { ...dara['options'], teacherPort: desk.port } });
+    await dara.lookAt('127.0.0.1');
+    await eventually(() => expect(desk.state().labApps).toEqual({
+      computers: 2, profiles: { word: 2, thonny: 1 },
+      others: [{ ...GIMP, computers: 2 }, { name: 'Notepad++', version: '8.6', exe: 'C:\\Program Files\\Notepad++\\notepad++.exe', computers: 1 }],
+    }));
   });
 });
