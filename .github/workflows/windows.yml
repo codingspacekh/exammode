@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   push:
     branches: [dev]
-    paths: ['src/win/**', 'src/guard/**', 'src/lib/lockdown/**', 'src/lib/guard/**', 'tests/windows/**', '.github/workflows/windows.yml']
+    paths: ['src/win/**', 'src/guard/**', 'src/lib/lockdown/**', 'src/lib/guard/**', 'src/main/shell/**', 'src/main/student/**', 'tests/windows/**', 'tests/e2e/lock.spec.ts', '.github/workflows/windows.yml']
 jobs:
   windows:
     strategy:
@@ -20,3 +20,9 @@ jobs:
         with: { node-version: 24, cache: npm }
       - run: npm ci
       - run: npx vitest run --project windows --silent=false
+      # the built app and the built Guard lock this computer and put it back
+      - name: Download the Electron binary, up to 3 tries
+        shell: bash
+        run: for i in 1 2 3; do node node_modules/electron/install.js && exit 0; sleep 15; done; exit 1
+      - run: npm run build
+      - run: npx playwright test tests/e2e/lock.spec.ts

@@ -31,6 +31,8 @@ const explorerRuns = (): boolean => /explorer\.exe/i.test(out('tasklist.exe', ['
 const notepadRuns = (): boolean => /notepad\.exe/i.test(out('tasklist.exe', ['/fi', 'imagename eq notepad.exe', '/nh']));
 /** Can a program that isn't ExamMode reach the internet? */
 const curlReaches = (): boolean => /^[23]\d\d$/.test(out('curl.exe', ['-s', '-m', '8', '-o', 'NUL', '-w', '%{http_code}', 'https://example.com']).trim());
+/** Where the space for apps starts, from the top of the screen, as Windows itself says. */
+const workAreaTop = (): number => Number(out('powershell.exe', ['-NoProfile', '-Command', 'Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Y']).trim());
 const taskManagerOff = (): boolean => /DisableTaskMgr\s+REG_DWORD\s+0x1/.test(out('reg.exe', ['query', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System', '/v', 'DisableTaskMgr']));
 
 async function freePort(): Promise<number> {
@@ -129,7 +131,7 @@ test('F-07 F-12 F-21 F-23 a lab computer is locked for the exam, closes an app t
   const bar = await windowOf(studentApp, 'bar');
   await expect(bar.getByText('Sokha Chan · PC-14 · set by Ms Srey Leak')).toBeVisible();
   // D6 the bar holds the top of the screen: the work area starts under it
-  await expect.poll(() => studentApp.evaluate(({ screen }) => screen.getPrimaryDisplay().workArea.y), { timeout: 15_000 }).toBeGreaterThanOrEqual(50);
+  await expect.poll(workAreaTop, { timeout: 20_000 }).toBeGreaterThanOrEqual(50);
 
   // F-12 Notepad is started: closed, said on the bar, and a warning on the teacher's card
   spawn('notepad.exe', [], { detached: true, stdio: 'ignore' }).unref();
@@ -153,6 +155,8 @@ test('F-07 F-12 F-21 F-23 a lab computer is locked for the exam, closes an app t
   expect(taskManagerOff()).toBe(false);
   await expect.poll(curlReaches, { timeout: 30_000 }).toBe(true);
   expect(await studentApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().some((w) => w.isKiosk()))).toBe(false);
+  // the top of the screen was given back
+  expect(workAreaTop()).toBe(0);
   const handIns = join(home, 'Hand-ins');
   const run = readdirSync(handIns).find((name) => !name.startsWith('.'))!;
   expect(readFileSync(join(handIns, run, 'Sokha Chan', 'Report.docx'), 'utf8')).toBe('written while locked');
