@@ -382,16 +382,22 @@ describe('M3 an exam from the lobby to the receipts', () => {
     await desk.start();
     await eventually(() => expect(sokha.state().screen).toBe('exam'));
     await sokha.exam!.begin();
-    // someone starts another ExamMode as Sokha on the same computer: the first had stopped, for the teacher's laptop
     Object.assign(other, { options: { ...other['options'], teacherPort: desk.port, pc: 'PC-14' } });
     await other.lookAt('127.0.0.1');
+    // while Sokha's ExamMode is alive, another one in Sokha's name — even with the same computer's name — is
+    // refused: it can't put Sokha out of the exam
+    await eventually(() => expect(sokha.session!.state).toBe('inExam'));
+    await new Promise((r) => setTimeout(r, 150));
+    await sit(other, 'Sokha Chan');
+    expect(other.state()).toMatchObject({ screen: 'join', joinError: 'nameTaken' });
+    expect(desk.state().students.find((s) => s.name === 'Sokha Chan')).toMatchObject({ state: 'inExam' });
+    // Sokha's ExamMode stops (killed: its connection is gone), and ExamMode is started again on that computer:
+    // the first had stopped, for the teacher's laptop
+    sokha.session!.close();
+    await eventually(() => expect(desk.state().students.find((s) => s.name === 'Sokha Chan')!.connected).toBe(false));
     await sit(other, 'Sokha Chan');
     expect(other.state()).toMatchObject({ screen: 'cantJoin', student: { name: 'Sokha Chan' }, exam: { title: FORM.title }, left: { how: 'stoppedSuddenly', pc: 'PC-14' } });
     await eventually(() => expect(desk.state().students.find((s) => s.name === 'Sokha Chan')).toMatchObject({ state: 'left', asksBackFrom: 'PC-14' }));
-    // … and the first one finds that out when it hands in
-    await sokha.askHandIn();
-    await sokha.handIn();
-    await eventually(() => expect(sokha.state()).toMatchObject({ screen: 'join', joinError: 'left' }));
 
     // F-40 Keep out: the waiting ExamMode is told, and is back on the join screen
     await desk.keepOut(desk.state().students.find((s) => s.name === 'Sokha Chan')!.id, ' was seen with a phone ');
