@@ -97,6 +97,8 @@ export class Classroom {
   private readonly tokens = new Map<string, string>();
   private readonly links = new Map<Link, string>();
   private readonly wrongCodes = new Map<string, { count: number; until: number }>();
+  /** how many times files were taken: what is kept has changed when this has */
+  uploads = 0;
   private readonly listeners = new Set<(studentId?: string) => void>();
   private readonly folders: Map<string, string>;
   private readonly roster: Map<string, StudentRow>;
@@ -389,6 +391,7 @@ export class Classroom {
       const folder = this.folderOf(studentId);
       const id = seat.id ?? (await this.save(studentId));
       for (const f of meta.files) if (arrived.has(f.name)) await place(arrived.get(f.name)!, folder, f.name);
+      this.uploads++;
       if (!receipt) {
         await this.store.saveFiles(id, meta.files, 'backup', at);
         seat.files = (await this.store.files(id)).length;

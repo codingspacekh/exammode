@@ -5,7 +5,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
-import { and, asc, desc, eq, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, isNull } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/sqlite-proxy';
 import type { Website } from '@lib/browser/sites';
 import type { ExamApp } from '@lib/profiles/exam-apps';
@@ -309,6 +309,11 @@ export class Store {
 
   events(runId: string): Promise<EventRow[]> {
     return this.db.select().from(schema.events).where(eq(schema.events.runId, runId)).orderBy(asc(schema.events.id));
+  }
+
+  /** A run's events that came after one: what is new since the last look. */
+  eventsAfter(runId: string, afterId: number): Promise<EventRow[]> {
+    return this.db.select().from(schema.events).where(and(eq(schema.events.runId, runId), gt(schema.events.id, afterId))).orderBy(asc(schema.events.id));
   }
 
   /** The latest copy of each file: a newer one takes the older one's place. */

@@ -36,6 +36,8 @@ export interface DeskOptions {
   identity?: Identity;
   /** what went wrong, for the log file */
   log?: (where: string, what: string, error?: unknown) => void;
+  /** the shortest time between two turns of bringing the screens up to date */
+  refreshMs?: number;
   /** opens a website once and answers with the other hosts it loads its files from (§2.6) */
   record?: (start: string) => Promise<string[]>;
 }
@@ -43,6 +45,10 @@ export interface DeskOptions {
 /** Not worth a line in *What's happening*: the lobby's list and the cards show them. */
 const QUIET = ['runOpened', 'joined', 'ready', 'started'];
 const FEED = 100;
+/** How many of a run's events the screens are given: more than a day's exam has, short of a flood. */
+const EVENTS_SHOWN = 3000;
+/** The shortest time between two turns of bringing the screens up to date, while changes keep coming. */
+const REFRESH_MS = 250;
 const MAX_MINUTES = 600;
 
 export class TeacherDesk {
@@ -52,6 +58,10 @@ export class TeacherDesk {
   private readonly listeners = new Set<(state: TeacherState) => void>();
   private refreshing?: Promise<void>;
   private again = false;
+  private builtAt = 0;
+  private library?: Pick<TeacherState, 'classes' | 'exams' | 'labApps' | 'defaults'>;
+  private seen?: { runId: string; lastId: number; items: FeedItem[] };
+  private kept?: { runId: string; mark: string; files: Record<string, KeptFile[]> };
   private closed = false;
 
   private constructor(private readonly store: Store, private readonly server: ClassroomServer, private readonly beacon: BeaconSender, private readonly options: DeskOptions) {}
@@ -276,26 +286,40 @@ export class TeacherDesk {
   private watch(room: Classroom): void {
     this.room = room;
     this.server.add(room);
-    this.unwatch = room.onChange(() => void this.refresh().catch((error: unknown) => this.options.log?.('desk', 'the screens couldn\'t be brought up to date', error)));
+    this.unwatch = room.onChange(() => void this.refresh('room').catch((error: unknown) => this.options.log?.('desk', 'the screens couldn\'t be brought up to date', error)));
   }
 
-  /** Builds the state again and tells the screens. Changes that come while it is being built are one more turn. */
-  private refresh(): Promise<void> {
+  /** Builds the state again and tells the screens. Changes that come while it is being built are one more turn —
+   *  after a moment, so a whole lab changing at once is a few turns a second, not hundreds.
+   *  `what`: `room` when only the run changed (a student's state, an event): the classes, the exams and the lab's
+   *  apps are as they were, and aren't read again. */
+  private refresh(what: 'all' | 'room' = 'all'): Promise<void> {
+    if (what === 'all') this.library = undefined;
     if (this.refreshing) {
       this.again = true;
       return this.refreshing;
     }
+    const every = this.options.refreshMs ?? REFRESH_MS;
     this.refreshing = (async () => {
-      do {
+      for (;;) {
+        // not sooner after the last turn than `every`: the first change is shown at once, a stream of them a few
+        // times a second
+        const wait = this.builtAt + every - Date.now();
+        if (wait > 0) await new Promise((r) => setTimeout(r, wait));
         this.again = false;
+        this.builtAt = Date.now();
         this.current = await this.build();
         for (const listener of this.listeners) listener(this.current);
-      } while (this.again);
+        if (!this.again) break;
+      }
     })().finally(() => void (this.refreshing = undefined));
     return this.refreshing;
   }
 
-  private async build(): Promise<TeacherState> {
+  /** What doesn't change while an exam runs: the classes, the kept exams, the lab's apps. Read once, and again
+   *  only after one of them was changed. */
+  private async shelf(): Promise<Pick<TeacherState, 'classes' | 'exams' | 'labApps' | 'defaults'>> {
+    if (this.library) return this.library;
     const classes = await Promise.all((await this.store.classes()).map(async (c) => ({
       ...c, roster: (await this.store.students(c.id)).map((s) => ({ name: s.name, ...(s.email ? { email: s.email } : {}), ...(s.number !== null ? { number: s.number } : {}) })),
     })));
@@ -304,19 +328,44 @@ export class TeacherDesk {
       files: e.files.map(({ name, bytes }) => ({ name, bytes })), updatedAt: e.updatedAt, runs: e.runs,
     }));
     const last = await this.store.lastExam();
-    const defaults = { teacher: last?.teacher ?? '', classId: last?.classId };
-    const lab = labApps((await this.store.inventory()).map((r) => r.installed));
+    const made = { classes, exams, labApps: labApps((await this.store.inventory()).map((r) => r.installed)), defaults: { teacher: last?.teacher ?? '', classId: last?.classId } };
+    // (changed again while it was being read: this isn't the one to keep)
+    if (!this.again) this.library = made;
+    return made;
+  }
+
+  /** The run's events so far: the ones that came since the last look are added to the ones already read. */
+  private async eventsOf(runId: string, names: Map<string, string>): Promise<FeedItem[]> {
+    if (this.seen?.runId !== runId) this.seen = { runId, lastId: 0, items: [] };
+    const log = this.seen;
+    for (const e of await this.store.eventsAfter(runId, log.lastId)) {
+      log.items.push({ id: e.id, at: e.at, kind: e.kind, studentId: e.studentId ?? undefined, student: e.studentId ? names.get(e.studentId) : undefined, pc: e.pc ?? undefined, details: e.details });
+      log.lastId = e.id;
+    }
+    return log.items;
+  }
+
+  private async build(): Promise<TeacherState> {
+    const shelf = await this.shelf();
     const by = this.options.identity?.licence;
     const licence = by ? { name: by.name, school: by.school, id: by.id } : undefined;
-    if (!this.room) return { screen: 'make', classes, exams, labApps: lab, licence, defaults, students: [], feed: [], events: [], files: {} };
-    const { run, students } = this.room.view();
-    const names = new Map(students.map((s) => [s.id, s.name]));
-    const events: FeedItem[] = (await this.store.events(run.id))
-      .map((e) => ({ id: e.id, at: e.at, kind: e.kind, studentId: e.studentId ?? undefined, student: e.studentId ? names.get(e.studentId) : undefined, pc: e.pc ?? undefined, details: e.details }));
-    const feed = events.filter((e) => !QUIET.includes(e.kind)).slice(-FEED).reverse();
-    const files: Record<string, KeptFile[]> = {};
-    for (const [studentId, kept] of await this.store.runFiles(run.id)) files[studentId] = kept.map(({ name, bytes, kind }) => ({ name, bytes, kind }));
+    // (the run as it is now: it may be put away while the rest is being read)
+    const room = this.room;
+    if (!room) return { screen: 'make', ...shelf, licence, students: [], feed: [], events: [], files: {} };
+    const { run, students } = room.view();
+    const all = await this.eventsOf(run.id, new Map(students.map((s) => [s.id, s.name])));
+    const feed = all.filter((e) => !QUIET.includes(e.kind)).slice(-FEED).reverse();
     const screen = run.endedAt !== undefined ? 'ended' : run.startedAt === undefined ? 'lobby' : 'live';
-    return { screen, classes, exams, labApps: lab, licence, defaults, run, students, feed, events, files };
+    // the files kept from each student (13b, 14): read again only when some were taken since, or the run's
+    // state changed (a hand-in marks them)
+    const mark = `${room.uploads} ${students.map((s) => s.state).join()}`;
+    if (this.kept?.runId !== run.id || this.kept.mark !== mark) {
+      const files: Record<string, KeptFile[]> = {};
+      for (const [studentId, kept] of await this.store.runFiles(run.id)) files[studentId] = kept.map(({ name, bytes, kind }) => ({ name, bytes, kind }));
+      this.kept = { runId: run.id, mark, files };
+    }
+    const files = this.kept.files;
+    // (the screens get the newest events — every one of a school day's exam; the whole log is the exported one)
+    return { screen, ...shelf, licence, run, students, feed, events: all.length > EVENTS_SHOWN ? all.slice(-EVENTS_SHOWN) : [...all], files };
   }
 }

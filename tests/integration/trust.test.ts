@@ -28,7 +28,7 @@ async function room(teacher?: Identity, believes: Trust = trust) {
   const flow = new StudentFlow({ pc: 'PC-14', examRoot: join(root, 'Exam'), bootId: 'boot', remember: join(root, 'exam.json'), discoveryPort: 0, trust: believes, timing: { beatMs: 40, retryMs: 40, clockMs: 20, graceMs: 40 } });
   await flow.start();
   later(() => flow.stop());
-  const desk = await TeacherDesk.open({ db: join(root, 'exammode.db'), handIns: join(root, 'Hand-ins'), port: 0, tickMs: 30, identity: teacher, beacon: { everyMs: 50, port: flow.discoveryPort, targets: () => ['127.0.0.1'] } });
+  const desk = await TeacherDesk.open({ db: join(root, 'exammode.db'), handIns: join(root, 'Hand-ins'), port: 0, tickMs: 30, refreshMs: 0, identity: teacher, beacon: { everyMs: 50, port: flow.discoveryPort, targets: () => ['127.0.0.1'] } });
   later(() => desk.close());
   expect(await desk.openExam(FORM)).toBeUndefined();
   return { root, flow, desk };

@@ -78,7 +78,7 @@ async function lab(over: Partial<DeskOptions> = {}, lockdown?: Lockdown, trust?:
   };
   const flows = [await student('PC-14'), await student('PC-03')];
   const options: DeskOptions = {
-    db: join(root, 'exammode.db'), handIns: join(root, 'Hand-ins'), port: 0, now, tickMs: 30,
+    db: join(root, 'exammode.db'), handIns: join(root, 'Hand-ins'), port: 0, now, tickMs: 30, refreshMs: 0,
     // every lab computer on this one: the beacon is sent to each listener's own port
     beacon: { everyMs: 50, port: flows[0]!.discoveryPort, targets: () => ['127.0.0.1'] }, ...over,
   };

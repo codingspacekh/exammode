@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { BellIcon, BellSlashIcon, CheckIcon, DoorOpenIcon, GlobeIcon, ListIcon, LockIcon, MagnifyingGlassIcon, PlayIcon, PlusIcon, SquaresFourIcon, StopIcon, WarningIcon, WifiSlashIcon } from '@phosphor-icons/react';
 import type { FeedItem, StudentView, TeacherApi, TeacherState } from '@lib/app/state';
 import { formatClock, formatLeft } from '@lib/session/time';
@@ -62,11 +62,22 @@ const Flags = ({ s }: { s: StudentView }) => (s.warnings > 0
   ? <span aria-label={`${s.warnings} warnings`} className="ml-auto inline-flex items-center gap-[3px] font-semibold text-warn-ink"><WarningIcon className="size-3" /> {s.warnings}</span> : null);
 
 /** A student's card: press it for their timeline (13b). */
-function Card({ s, selected, onSelect }: { s: StudentView; selected: boolean; onSelect(): void }) {
+const CARD_FIELDS = ['id', 'name', 'pc', 'state', 'connected', 'warnings', 'extraMinutes', 'files', 'front', 'leftAt', 'asksBackFrom', 'handedInAt', 'receipt'] as const satisfies readonly (keyof StudentView)[];
+/** (every look at the room brings new objects for every student: a card is drawn again only when what it shows
+ *  has changed — with a hundred students and a few looks a second, most haven't) */
+const Card = memo(CardOf, (was, now) => was.selected === now.selected && was.onSelect === now.onSelect && CARD_FIELDS.every((f) => was.s[f] === now.s[f]));
+
+/** The time left, which counts by itself: only this is drawn again four times a second, not the whole room. */
+function TimeLeft({ endsAt }: { endsAt: number }) {
+  const now = useNow();
+  return <span role="timer" className="font-mono text-[18px] font-semibold">{formatLeft(endsAt - now)}</span>;
+}
+
+function CardOf({ s, selected, onSelect }: { s: StudentView; selected: boolean; onSelect(id: string): void }) {
   const look = lookOf(s);
   return (
     <button
-      type="button" aria-label={s.name} aria-pressed={selected} data-look={look} onClick={onSelect}
+      type="button" aria-label={s.name} aria-pressed={selected} data-look={look} onClick={() => onSelect(s.id)}
       className={cn('relative flex flex-col gap-[7px] overflow-hidden rounded-[11px] border border-border bg-card px-3 pt-[11px] pb-2.5 text-left outline-none before:absolute before:inset-y-0 before:left-0 before:w-1 focus-visible:ring-[3px] focus-visible:ring-ring/30',
         CARD[look], selected && 'shadow-[0_0_0_2px_var(--primary)]')}
     >
@@ -119,12 +130,13 @@ function beep(): void {
 /** 13 · The exam, live (F-38, F-39, F-41): a card per student by state, what's happening, more time, the end.
  *  13b: a student's card opens their timeline in the place of *What's happening*. */
 export function Live({ state, api }: { state: TeacherState; api: TeacherApi }) {
-  const now = useNow();
   const [asking, setAsking] = useState<'end' | 'time'>();
   const [filter, setFilter] = useState<Filter>('all');
   const [find, setFind] = useState('');
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [selected, setSelected] = useState<string>();
+  /** a card pressed: its student's timeline; pressed again: closed. (The same function each time, for the cards.) */
+  const pick = useCallback((id: string) => setSelected((was) => (was === id ? undefined : id)), []);
   const [sound, setSound] = useState(true);
   const newest = state.feed[0];
   const heard = useRef(newest?.id);
@@ -145,13 +157,13 @@ export function Live({ state, api }: { state: TeacherState; api: TeacherApi }) {
   const wanted = find.trim().toLowerCase();
   const listed = students.filter((s) => shows(filter, lookOf(s)) && (wanted === '' || s.name.toLowerCase().includes(wanted) || (s.pc ?? '').toLowerCase().includes(wanted)));
   const chosen = students.find((s) => s.id === selected);
-  const select = (id: string) => setSelected(selected === id ? undefined : id);
+  const select = pick;
   return (
     <div className="flex h-screen flex-col">
       <TeacherBar teacher={run.teacher}>
         <ExamName title={run.title} sub={`${run.className} · started ${formatClock(run.startedAt)} · ends ${formatClock(run.endsAt)}`} />
         <span className="inline-flex h-6 items-center gap-1.5 rounded-full bg-ok-soft px-2.5 text-[11.5px] font-semibold text-ok"><i className="size-[7px] rounded-full bg-ok shadow-[0_0_0_3px_rgba(25,135,84,.2)]" />Live</span>
-        <span role="timer" className="font-mono text-[18px] font-semibold">{formatLeft(run.endsAt - now)}</span><span className="text-[12px] text-muted-foreground">left</span>
+        <TimeLeft endsAt={run.endsAt} /><span className="text-[12px] text-muted-foreground">left</span>
         {asking === 'end' && (
           <span role="alertdialog" aria-label="End the exam?" className="flex items-center gap-2">
             <span className="text-[12.5px] text-text-2">End it for everyone and collect their work?</span>
@@ -204,7 +216,7 @@ export function Live({ state, api }: { state: TeacherState; api: TeacherApi }) {
           </div>
           {view === 'grid' ? (
             <div role="group" aria-label="Students" className="grid min-h-0 flex-1 grid-cols-[repeat(auto-fill,minmax(200px,1fr))] content-start gap-2.5 overflow-auto p-0.5">
-              {listed.map((s) => <Card key={s.id} s={s} selected={s.id === selected} onSelect={() => select(s.id)} />)}
+              {listed.map((s) => <Card key={s.id} s={s} selected={s.id === selected} onSelect={pick} />)}
             </div>
           ) : (
             <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-border bg-card">

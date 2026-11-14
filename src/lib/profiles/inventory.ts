@@ -72,8 +72,10 @@ export function labApps(reports: Installed[]): LabApps {
   const others = new Map<string, LabApp>();
   for (const report of reports) {
     for (const id of new Set(report.profiles)) profiles[id] = (profiles[id] ?? 0) + 1;
-    for (const key of new Set(report.apps.map((a) => a.exe.toLowerCase()))) {
-      const app = report.apps.find((a) => a.exe.toLowerCase() === key)!;
+    // (each program once for a computer, whatever its case — and each looked at once)
+    const here = new Map<string, InstalledApp>();
+    for (const app of report.apps) if (!here.has(app.exe.toLowerCase())) here.set(app.exe.toLowerCase(), app);
+    for (const [key, app] of here) {
       const row = others.get(key);
       if (row) row.computers++;
       else others.set(key, { ...app, computers: 1 });
