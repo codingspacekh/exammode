@@ -6,6 +6,8 @@ How ExamMode is built, **in what order**, and **how each part is proven to work*
 - System design (processes, lockdown, protocol, profiles): [`02-architecture.md`](02-architecture.md)
 - UI prototype: [`../design/screens/index.html`](../design/screens/index.html) — approved 2026-11-10
 
+*Revision 8 (2026-11-14): **M2 was started with the gates of M0 and M1 still open** (the teacher: *"I don't have a Windows PC, so can you go ahead"*): M2 runs on the Mac and on GitHub; only its last check needs the lab network (R3), and it is done with M0's lab run. Nothing is merged into `main` until those gates pass.*
+
 *Revision 7 (2026-11-11): **M1 was started while M0's gate is still open** (the teacher chose *Start M1 now*): M1 is pure TypeScript and needs nothing from the lab run, which is still to do and still closes M0. M1's slices were built with profiles before the guard, because `decide()` needs their matching.*
 
 *Revision 6 (2026-11-10): **CI on GitHub after all** (the teacher: *"let's create the GitHub repo and run CI on GitHub then"*) — no Windows virtual machine needed: every push to `dev` or `main` runs `check` on macOS and `check:win` on GitHub's `windows-latest`; the quick check stays as a local `pre-commit` hook (§4.3).*
@@ -413,7 +415,7 @@ Each milestone lists: **goal · build order (TDD slices) · tests written first 
 | Requirements, architecture, milestones | ✅ agreed 2026-11-10 | — | every question answered; reviewed before M0 |
 | M0 Foundations + Windows spike | 🔨 in progress | | Steps 1–4 done; the spike passes all 9 probes on GitHub's Windows Server 2022 and 2025 (`docs/acceptance/M0.md`); **waiting: the 30-minute run on a Windows 10 and a Windows 11 lab computer** |
 | M1 The rules | 🔨 built; waiting for the teacher | | All six slices, test first: 206 unit tests, 100 % coverage of `src/lib` (`docs/acceptance/M1.md`); **waiting: the teacher reads the §2.8 table as tests** (M1.md §2, rows 9–16 need a yes or no) |
-| M2 The classroom network | | | |
+| M2 The classroom network | 🔨 built; waiting for the teacher and the lab | | All six slices, test first: the six stories and 40 simulated students pass (`docs/acceptance/M2.md`); **waiting: a lab computer hears the beacon and joins (R3); the teacher's yes or no to M2.md §3** |
 | M3 Walking skeleton | | | |
 | M4 Locking a lab computer | | | |
 | M5 The apps | | | |

@@ -34,7 +34,9 @@ export class Store {
 
   constructor(path: string) {
     this.sqlite = new DatabaseSync(path);
-    this.sqlite.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
+    // WAL with synchronous = NORMAL: a write is safe from ExamMode stopping at once, and from the power going
+    // after the next flush(); the classroom flushes at the moments that matter (Start, a hand-in, the end)
+    this.sqlite.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON;');
     this.migrate();
     this.db = drizzle(async (sql, params, method) => {
       const statement = this.sqlite.prepare(sql);
@@ -61,6 +63,25 @@ export class Store {
 
   close(): void {
     this.sqlite.close();
+  }
+
+  /** Everything `work` writes is written together, or not at all: one visit to the disk for one thing that happened. */
+  async together<T>(work: () => Promise<T>): Promise<T> {
+    if (this.sqlite.isTransaction) return work();
+    this.sqlite.exec('BEGIN');
+    try {
+      const result = await work();
+      this.sqlite.exec('COMMIT');
+      return result;
+    } catch (error) {
+      this.sqlite.exec('ROLLBACK');
+      throw error;
+    }
+  }
+
+  /** Everything written so far is on the disk for good, even if the power goes (N-05). */
+  flush(): void {
+    this.sqlite.exec('PRAGMA wal_checkpoint(FULL)');
   }
 
   async addClass(name: string, students: NewStudent[]): Promise<{ id: string; students: StudentRow[] }> {

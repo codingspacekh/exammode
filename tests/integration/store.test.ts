@@ -86,6 +86,26 @@ describe('architecture §2.11 the teacher\'s store', () => {
     again.close();
   });
 
+  it('N-05 what belongs together is written together, or not at all', async () => {
+    const store = openStore();
+    const { exam } = await year10(store);
+    const run = await store.openRun(exam.id, { code: '4817', folder: 'f', at: at('08:55') });
+    await expect(store.together(async () => {
+      await store.log(run.id, [{ at: at('09:00'), kind: 'runStarted', details: {} }]);
+      throw new Error('the disk is full');
+    })).rejects.toThrow('the disk is full');
+    expect(await store.events(run.id)).toEqual([]);
+
+    const kinds = await store.together(async () => {
+      await store.log(run.id, [{ at: at('09:00'), kind: 'runStarted', details: {} }]);
+      // inside, another piece of work simply joins in
+      return store.together(async () => (await store.events(run.id)).map((e) => e.kind));
+    });
+    expect(kinds).toEqual(['runStarted']);
+    store.flush();
+    expect(await store.events(run.id)).toHaveLength(1);
+  });
+
   it('the log is kept in the order it was written', async () => {
     const store = openStore();
     const { exam, byName } = await year10(store);

@@ -1,5 +1,7 @@
 # 2. Architecture
 
+*Revision 7 (2026-11-14): M2 — SQLite is Node's own (`node:sqlite`), so nothing is compiled for Electron (§2.11); the server's addresses, the wrong-code limit, and *Let back in* reaching a waiting ExamMode as `joined` (§2.7); a run keeps the time added for everyone, not its end; an attempt also keeps its token (§2.11); backups that aren't in the hand-in are kept apart (§2.9). The cases the documents didn't cover are in [`acceptance/M2.md`](acceptance/M2.md) §3.*
+
 *Revision 6 (2026-11-11): M1 — `decide()` also takes the account's environment and ExamMode's own paths, and knows a browser by its product name as well as its file name (§2.5); the journal is written one entry a line, so a half-written entry can be told apart (§2.4); the cases §2.8's table didn't cover are in [`acceptance/M1.md`](acceptance/M1.md) §2, for the teacher's yes or no.*
 
 *Revision 5 (2026-11-10): CI on GitHub — `check` on macOS and `check:win` on `windows-latest` for every push; `check:quick` stays a local pre-commit hook (§2.14).*
@@ -208,8 +210,20 @@ The browser window has no address box, no DevTools, no downloads, no extensions,
 |---|---|
 | `joined { token, attempt }` / `refused { reason }` | the reply to `join`; `reason` is `codeWrong`, `nameTaken`, `left` … |
 | `start { endsAt }`, `time { endsAt }` | start; added time |
-| `letBackIn`, `end`, `unlock` | the teacher's decisions |
+| `end`, `unlock` | the teacher's decisions: hand in now (time up, or *End the exam*); unlock. **Let back in** reaches an ExamMode that waits after `refused { left }` as `joined`, on the connection it asked on |
 | `receipt { code, files }` | the hand-in was checked |
+
+**The server's addresses** (`src/main/teacher/server.ts`):
+
+| Address | For |
+|---|---|
+| `GET /exams` | the open runs, as the beacon announces them: what a typed-in computer name is asked (F-01) |
+| `GET /runs/<run>/students` | the class list to pick a name from (F-02); an email only where a name is shared |
+| `WS /ws` | `join` or `resume` first, then the messages above |
+| `POST /stopped` | the Guard's `stopped` |
+| `POST /upload` | a backup or a hand-in, multipart: `meta` (who, which files, their SHA-256) first, then the files as `f0`, `f1` … Nothing is taken before `meta` has an attempt's token |
+
+**The code** has four digits, so after five wrong ones a computer waits a minute (F-03).
 
 **Guard → teacher:** a single `stopped { token, pc, instanceId, at }` sent over HTTP when ExamMode's process ends without unlocking; the token (from `watch`) proves which attempt it is about. It is what makes 13b's *stopped suddenly* certain, and not just *no contact*.
 
@@ -234,8 +248,10 @@ The **students' clocks aren't trusted.** `endsAt` comes from the teacher, and ea
 
 - **Exam folder:** `C:\Users\<shared user>\Documents\ExamMode\<run>\<student>\`, made at Start and filled with the given files. Allowed apps open in it (profiles pass it as the working folder or argument). *Exam folder* in the bar opens a read-only list of it inside ExamMode, not File Explorer.
 - **Backups (F-22):** every 2 minutes ExamMode sends the files that changed (by size + modified time, then SHA-256) to the teacher's laptop. The teacher keeps the latest copy per file.
-- **Hand-in (F-16):** ExamMode asks each open allowed app to save (Office through its profile's save command; otherwise a prompt in 09). It sends every made or changed file. The teacher's laptop checks every SHA-256, stores the files in `Hand-ins\<exam>\<student>\`, and answers with a **receipt**: 6 characters from the hash of (run, student, file hashes), shown as `HX7-29Q`.
-- **Leaving / stopped suddenly:** the latest backup *is* the hand-in, marked as such (14).
+- **Hand-in (F-16):** ExamMode asks each open allowed app to save (Office through its profile's save command; otherwise a prompt in 09). It sends every made or changed file. The teacher's laptop checks every SHA-256, stores the files in `Hand-ins\<exam and date>\<student>\`, and answers with a **receipt**: 6 characters from the hash of (run, student, file hashes), shown as `HX7-29Q`.
+- **Leaving / stopped suddenly:** the latest backup *is* the hand-in, marked as such (14). On *Leave*, ExamMode sends a last backup first.
+- **Backups that aren't in the hand-in** (a file deleted since, or put back as it was given) are moved to `Earlier backups\` in the student's folder: kept, but apart.
+- **A file's name** comes from a lab computer, so it is checked before it is written: inside the student's folder, and storable on Windows and macOS (`src/lib/files/names.ts`). An app's lock files (`~$Report.docx`) are never sent.
 - **Afterwards (F-21):** ExamMode deletes the Exam folder only once the teacher has confirmed it has the files: a receipt, including the automatic hand-in at time up or *End the exam*. A folder left behind by a crash is deleted by the next ExamMode start, once the teacher confirms it has the files.
 
 ## 2.10 App profiles
@@ -267,18 +283,18 @@ Data files in `profiles/*.json`, checked by a zod schema in `src/lib/profiles`:
 
 ## 2.11 The teacher's data
 
-SQLite in the teacher's app data folder, through Drizzle:
+SQLite in the teacher's app data folder, through Drizzle. SQLite is Node's own (`node:sqlite`, in Electron too), so there is no native module to build. The tables are in `src/main/teacher/store/schema.ts`; `npm run db:generate` writes the next migration, which is part of the program.
 
 | Table | Columns (main) |
 |---|---|
 | `classes` | id, name |
 | `students` | id, classId, name, email? (unique in a class), number? |
-| `exams` | id, title, classId, minutes, apps (json: profile ids + custom apps), websites (json), rules (json), updatedAt |
+| `exams` | id, title, teacher, classId, minutes, apps (json: profile ids + custom apps), websites (json), rules (json), updatedAt |
 | `exam_files` | examId, name, bytes, sha256 |
-| `runs` | id, examId, code, openedAt, startedAt, endsAt, endedAt |
-| `attempts` | id, runId, studentId, state, pc, instanceId, bootId, joinedAt, leftAt, leftHow, extraMinutes, warnings, handedInAt, receipt |
+| `runs` | id, examId, code, folder, openedAt, startedAt, extraMinutes (added for everyone; the end is worked out), endedAt |
+| `attempts` | id, runId, studentId, state, token, pc, instanceId, bootId, joinedAt, checks, leftAt, leftHow, asksBack, mayReturn, extraMinutes, warnings, handedInAt, handedInHow, receipt — when it was last heard from is not kept: it is counted again after a restart (N-05) |
 | `events` | id, runId, studentId?, pc?, at, kind, details (json) — **append only** |
-| `handin_files` | attemptId, name, bytes, sha256, kind (`handIn` · `timeUp` · `backup`), at |
+| `handin_files` | attemptId, name, bytes, sha256, kind (`handIn` · `timeUp` · `ended` · `backup`), at — the latest copy of each file |
 | `inventory` | pc, apps (json), at |
 
 ## 2.12 Trust: teacher licence and the teacher's key
@@ -334,7 +350,8 @@ exammode/
 | Command | Does |
 |---|---|
 | `npm run dev` | ExamMode in development (`--teacher` or `--student`; the student's lockdown is **off** unless `--lock`) |
-| `npm run class -- --students 30` | a **simulated classroom**: 30 fake students joining, working, leaving, crashing, for the teacher side |
+| `npm run class -- --students 30 --minutes 10 --speed 20` | a **simulated classroom**: a teacher's side and 30 fake students joining, working, losing the network, crashing, handing in; it prints the log as it happens |
+| `npm run db:generate` | after changing a table in `schema.ts`: writes the next migration |
 | `npm test` | unit tests |
 | `npm run test:all` | unit · integration · acceptance · component (· windows on Windows) |
 | `npm run e2e` | build, then Playwright |

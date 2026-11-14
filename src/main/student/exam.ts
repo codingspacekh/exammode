@@ -15,6 +15,7 @@ export interface ExamOptions {
   folder: string;
   backupMs?: number;
   retryMs?: number;
+  graceMs?: number;
   /** sends the files; a test can stand in for the network here */
   send?: typeof fetch;
 }
@@ -22,12 +23,15 @@ export interface ExamOptions {
 export type ExamEvent = { type: 'backedUp'; files: number } | { type: 'handedIn'; receipt: Receipt } | { type: 'handInRefused' };
 
 export const BACKUP_MS = 120_000;
+/** How long ExamMode waits, at time up by its own count, for the teacher's laptop to say so too. */
+export const GRACE_MS = 5000;
 
 export class StudentExam {
   readonly files: ExamFiles;
   receipt?: Receipt;
   private begun?: Promise<void>;
   private timer?: NodeJS.Timeout;
+  private grace?: NodeJS.Timeout;
   private handingIn?: Promise<Receipt | undefined>;
   private busy: Promise<unknown> = Promise.resolve();
   private over = false;
@@ -37,7 +41,10 @@ export class StudentExam {
     this.files = new ExamFiles(options.folder);
     session.on((e) => {
       if (e.type === 'state' && e.state === 'inExam') void this.begin();
-      if (e.type === 'end' || e.type === 'timeUp') void this.handIn();
+      if (e.type === 'end') void this.handIn();
+      // by this computer's own count the time is up: the teacher's laptop says so a moment before or after, and
+      // its word is the one that counts (D5). With no contact, or if it stays silent, hand in anyway
+      if (e.type === 'timeUp') this.grace = setTimeout(() => void this.handIn(), session.state === 'inExam' ? options.graceMs ?? GRACE_MS : 0);
       if (e.type === 'state' && (e.state === 'refused' || e.state === 'closed')) this.stop();
     });
   }
@@ -112,6 +119,7 @@ export class StudentExam {
   stop(): void {
     this.over = true;
     clearInterval(this.timer);
+    clearTimeout(this.grace);
   }
 
   private async finished(receipt: Receipt): Promise<Receipt> {

@@ -89,7 +89,8 @@ interface Seat {
 /** Wrong codes from one computer before it has to wait (F-03): the code has only four digits. */
 export const WRONG_CODES = 5;
 export const WRONG_CODE_WAIT_MS = 60_000;
-/** A hand-in this close to the end counts as *time up*: the student's clock is only nearly the teacher's. */
+/** A hand-in is *time up* when the student was told their time is up, or — with no contact, by their own count —
+ *  when it comes this close to the end or after it: the student's clock is only nearly the teacher's. */
 const TIME_UP_SLACK_MS = 2000;
 /** In a student's folder: backups of files that weren't in the hand-in. */
 export const EARLIER = 'Earlier backups';
@@ -118,6 +119,8 @@ export class Classroom {
   private readonly roster: Map<string, StudentRow>;
   private readonly now: () => number;
   private queue: Promise<unknown> = Promise.resolve();
+  /** what was just written must not be lost even if the power goes: Start, a hand-in, the end */
+  private flush = false;
 
   private constructor(
     private readonly store: Store,
@@ -344,7 +347,8 @@ export class Classroom {
       // backups of files that aren't in the hand-in (deleted since, or put back as they were given) are kept apart
       const handedIn = new Set(meta.files.map((f) => f.name));
       for (const old of await this.store.files(id)) if (!handedIn.has(old.name)) await setAside(folder, old.name, EARLIER);
-      const how = this.handInHow(seat.attempt, at);
+      const how = this.handInHow(seat.attempt, at, seat.toldEnd);
+      this.flush = true;
       await this.store.saveFiles(id, meta.files, how, at);
       seat.receipt = receipt;
       await this.apply(studentId, onHandIn(seat.attempt, how, at));
@@ -437,7 +441,12 @@ export class Classroom {
 
   /** One thing at a time, in the order it arrived: what is in the store is what happened. */
   private inTurn<T>(work: () => Promise<T>): Promise<T> {
-    const done = this.queue.then(work);
+    const done = this.queue.then(async () => {
+      const result = await this.store.together(work);
+      if (this.flush) this.store.flush();
+      this.flush = false;
+      return result;
+    });
     this.queue = done.catch(() => undefined);
     return done;
   }
@@ -452,10 +461,10 @@ export class Classroom {
     return endsAt({ startedAt: this.run.startedAt ?? undefined, minutes: this.exam.minutes, extraMinutes: this.run.extraMinutes }, attempt);
   }
 
-  private handInHow(a: Attempt, at: number): HandInHow {
+  private handInHow(a: Attempt, at: number, toldEnd = false): HandInHow {
     if (this.run.endedAt !== null) return 'ended';
     const end = this.endsAt(a);
-    return end !== undefined && at >= end - TIME_UP_SLACK_MS ? 'timeUp' : 'handIn';
+    return toldEnd || end !== undefined && at >= end - TIME_UP_SLACK_MS ? 'timeUp' : 'handIn';
   }
 
   private receipt(code: string, meta: Upload): Receipt {
@@ -537,6 +546,7 @@ export class Classroom {
 
   private async changeRun(change: Partial<Pick<RunRow, 'startedAt' | 'extraMinutes' | 'endedAt'>>, kind: string, details: Record<string, unknown> = {}): Promise<void> {
     this.run = { ...this.run, ...change };
+    this.flush = true;
     await this.store.updateRun(this.run.id, change);
     await this.store.log(this.run.id, [{ at: this.now(), kind, details }]);
     this.changed();

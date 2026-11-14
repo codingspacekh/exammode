@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { WebSocket } from 'ws';
 import { PROTOCOL_VERSION } from '../../src/lib/protocol/messages';
-import { StudentExam, BACKUP_MS, type Receipt } from '../../src/main/student/exam';
+import { StudentExam, BACKUP_MS, GRACE_MS, type Receipt } from '../../src/main/student/exam';
 import { Session } from '../../src/main/student/session';
 import { BeaconSender } from '../../src/main/teacher/beacon';
 import { Classroom, type StudentView } from '../../src/main/teacher/classroom';
@@ -141,6 +141,8 @@ export class SimStudent {
   exam?: StudentExam;
   /** a pulled network cable: nothing gets through */
   unplugged = false;
+  /** how far this computer's clock has run ahead of the teacher's since it joined */
+  fast = 0;
   private bootId = randomUUID();
 
   constructor(private readonly sim: SimClassroom, readonly id: string, readonly name: string, public pc: string) {}
@@ -157,14 +159,14 @@ export class SimStudent {
     this.session = new Session({
       host: '127.0.0.1', port: server.port, runId: room.id, studentId: over.studentId ?? this.id, code: over.code ?? this.sim.code,
       pc: this.pc, instanceId: randomUUID(), bootId: this.bootId,
-      beatMs: clock.ms(2000), retryMs: clock.ms(2000), clockMs: clock.ms(250), now: clock.now,
+      beatMs: clock.ms(2000), retryMs: clock.ms(2000), clockMs: clock.ms(250), now: () => clock.now() + this.fast,
       connect: (url) => {
         if (this.unplugged) throw new Error('unplugged');
         return new WebSocket(url);
       },
     });
     this.exam = new StudentExam(this.session, {
-      folder: this.folder, backupMs: clock.ms(this.sim.backupMs), retryMs: clock.ms(2000),
+      folder: this.folder, backupMs: clock.ms(this.sim.backupMs), retryMs: clock.ms(2000), graceMs: clock.ms(GRACE_MS),
       send: (...args) => (this.unplugged ? Promise.reject(new Error('unplugged')) : fetch(...args)),
     });
     return this.session.join();

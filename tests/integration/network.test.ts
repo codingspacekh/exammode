@@ -119,8 +119,9 @@ describe('F-02 F-03 F-08 joining over the network', () => {
     expect(heard).toEqual([{ type: 'state', state: 'inExam', reason: undefined }, { type: 'endsAt', endsAt }]);
     expect(dara.session!.endsAt).toBe(endsAt);
     // this computer's idea of the teacher's clock is the teacher's clock, to within the time a message takes
-    expect(Math.abs(dara.session!.teacherNow() - sim.clock.now())).toBeLessThan(2 * SEC);
-    expect(existsSync(dara.folder)).toBe(true);
+    // (time runs 20 times as fast here, and so does the error: 10 s is half a second)
+    expect(Math.abs(dara.session!.teacherNow() - sim.clock.now())).toBeLessThan(10 * SEC);
+    await sim.until(() => existsSync(dara.folder));
   });
 
   it('F-03 a wrong code is refused; F-02 so are a name that isn\'t in the class and one that is taken', async () => {
@@ -396,6 +397,18 @@ describe('F-16 F-17 F-22 files over the network', () => {
       expect(sim.view(s.name)).toMatchObject({ handedInHow: 'timeUp', receipt: expect.stringMatching(/^[2-9A-Z]{3}-[2-9A-Z]{3}$/) });
       expect(readFileSync(join(sim.room.folderOf(s.id), 'answer.txt'), 'utf8')).toBe(`by ${s.name}`);
     }
+  });
+
+  it('F-17 a lab computer whose clock runs ahead waits for the teacher\'s laptop to say the time is up: still marked time up', async () => {
+    const sim = await classroom({ minutes: 1, students: ['Sokha Chan', 'Dara Kim'] });
+    await sim.everyoneReady();
+    await sim.room.start();
+    const dara = sim.student('Dara Kim');
+    await sim.until(() => dara.session!.state === 'inExam');
+    dara.fast = 3 * SEC;
+    await sim.until(() => sim.room.view().students.every((s) => s.state === 'handedIn'), 15_000);
+    expect(sim.view('Dara Kim').handedInHow).toBe('timeUp');
+    expect(sim.view('Sokha Chan').handedInHow).toBe('timeUp');
   });
 
   it('F-41 End the exam collects everyone\'s work; a student with extra time isn\'t cut off at the others\' end', async () => {
