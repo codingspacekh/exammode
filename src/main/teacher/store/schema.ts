@@ -4,6 +4,7 @@
  */
 import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import type { Website } from '@lib/browser/sites';
+import type { ExamApp } from '@lib/profiles/exam-apps';
 import type { AttemptState, CheckResult, HandInHow, LeftHow, Seat } from '@lib/session/attempt';
 
 export const classes = sqliteTable('classes', {
@@ -25,7 +26,7 @@ export const exams = sqliteTable('exams', {
   teacher: text('teacher').notNull(),
   classId: text('class_id').notNull().references(() => classes.id),
   minutes: integer('minutes').notNull(),
-  apps: text('apps', { mode: 'json' }).$type<unknown[]>().notNull(),
+  apps: text('apps', { mode: 'json' }).$type<ExamApp[]>().notNull(),
   websites: text('websites', { mode: 'json' }).$type<Website[]>().notNull(),
   rules: text('rules', { mode: 'json' }).$type<Record<string, unknown>>().notNull(),
   updatedAt: integer('updated_at').notNull(),

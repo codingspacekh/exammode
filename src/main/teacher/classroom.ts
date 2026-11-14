@@ -515,10 +515,10 @@ export class Classroom {
     seat.link = link;
     this.links.set(link, studentId);
     const state = seat.attempt.state as 'checking' | 'ready' | 'inExam';
-    const { title, teacher, minutes, websites } = this.exam;
+    const { title, teacher, minutes, websites, apps } = this.exam;
     link.send({
       v: PROTOCOL_VERSION, type: 'joined', token: seat.token!, now: this.now(), state, endsAt: state === 'inExam' ? this.endsAt(seat.attempt) : undefined,
-      exam: { title, teacher, class: this.className, minutes, websites, files: this.given },
+      exam: { title, teacher, class: this.className, minutes, websites, apps, files: this.given },
     });
     this.changed(studentId);
   }

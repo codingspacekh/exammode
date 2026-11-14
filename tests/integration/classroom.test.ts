@@ -13,7 +13,7 @@ import { at, openStore, tempFolder, year10 } from './helpers';
 const v = 1;
 const MIN = 60_000;
 /** what a student's ExamMode is told about the exam when it joins */
-const EXAM = { title: 'Year 10 ICT — Term 1 practical exam', teacher: 'Ms Srey Leak', class: 'Year 10 A', minutes: 90, websites: [], files: [] };
+const EXAM = { title: 'Year 10 ICT — Term 1 practical exam', teacher: 'Ms Srey Leak', class: 'Year 10 A', minutes: 90, websites: [], apps: [], files: [] };
 
 /** A student's connection that only remembers what it was sent. */
 class FakeLink implements Link {

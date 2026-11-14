@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import type { ExamForm } from '@lib/app/state';
 import { runChecks, type AppToClose } from '@lib/lockdown/checks';
 import { StudentFlow } from '../../src/main/student/flow';
-import type { LockInfo, Lockdown } from '../../src/main/student/lockdown';
+import type { LockEvents, LockInfo, Lockdown } from '../../src/main/student/lockdown';
 import { TeacherDesk, type DeskOptions } from '../../src/main/teacher/desk';
 import { eventually, later, tempFolder } from './helpers';
 
@@ -27,10 +27,21 @@ class FakeLockdown implements Lockdown {
   async check() {
     return { ...runChecks({ guard: true, displays: this.displays, remoteSession: false, remoteTools: [], machine: { manufacturer: 'Dell Inc.', model: 'OptiPlex', bios: '' } }), toClose: this.apps };
   }
-  async lock(info: LockInfo, onClosed: (app: { name: string; kind: string }) => void) {
+  async lock(info: LockInfo, events: LockEvents) {
     if (this.failWith) return this.failWith;
     this.locks.push(info);
-    this.closes = onClosed;
+    this.closes = events.closed;
+    this.says = events.apps;
+    return undefined;
+  }
+  /** the exam's apps that the student opened; one that isn't on this computer can't be */
+  opened: string[] = [];
+  missing = new Set<string>();
+  says: LockEvents['apps'] = () => undefined;
+  async openApp(id: string) {
+    if (this.missing.has(id)) return 'notInstalled' as const;
+    this.opened.push(id);
+    this.says(this.opened.map((o, i) => ({ id: o, front: i === this.opened.length - 1, title: i === this.opened.length - 1 ? 'Report.docx' : undefined })));
     return undefined;
   }
   async unlock() {
@@ -483,7 +494,7 @@ describe('M4 locking the lab computer, in the student\'s flow (F-04–F-07, F-12
     expect(lockdown.locks).toEqual([]);
 
     await sokha.lock();
-    expect(lockdown.locks).toEqual([{ runId: desk.state().run!.id, teacher: { host: '127.0.0.1', port: desk.port }, websites: false, token: sokha.session!.token, instanceId: sokha.session!.seat.instanceId, pc: 'PC-14' }]);
+    expect(lockdown.locks).toEqual([{ runId: desk.state().run!.id, teacher: { host: '127.0.0.1', port: desk.port }, websites: false, token: sokha.session!.token, instanceId: sokha.session!.seat.instanceId, pc: 'PC-14', apps: [], examFolder: sokha.folder }]);
     expect(sokha.state()).toMatchObject({ screen: 'waiting', locked: true, checks: undefined });
     await eventually(() => expect(card(desk, 'Sokha Chan').state).toBe('ready'));
     // pressed twice, or pressed on another screen, it does nothing more
@@ -612,5 +623,51 @@ describe('M4 locking the lab computer, in the student\'s flow (F-04–F-07, F-12
     expect(lockdown.locks).toHaveLength(2);
     expect(lockdown.locks[1]!.token).toBe(sokha.session!.token);
   });
-});
 
+  it('F-11 F-31 the exam\'s apps are the ones the lock lets stay; the exam bar opens them, and the teacher sees which is in front', async () => {
+    const lockdown = new FakeLockdown();
+    const { desk, sokha, sit, card } = await lab({}, lockdown);
+    const apps = [{ profile: 'word' }, { profile: 'vscode' }, { custom: { image: 'C:\\Program Files\\GIMP 2\\bin\\gimp-2.10.exe', name: 'GIMP' } }];
+    expect(await desk.openExam({ ...FORM, apps: [{ custom: { image: 'gimp' } }] })).toMatch(/"gimp" isn't a program's place on a lab computer/);
+    expect(await desk.openExam({ ...FORM, apps })).toBeUndefined();
+    expect(desk.state().exams[0]!.apps).toEqual(apps);
+
+    await sit(sokha, 'Sokha Chan');
+    await eventually(() => expect(sokha.state().checks?.ok).toBe(true));
+    await sokha.lock();
+    expect(lockdown.locks[0]!.apps.map((a) => a.name)).toEqual(['Word', 'VS Code', 'GIMP']);
+    expect(lockdown.locks[0]!.apps[0]!.policies.length).toBeGreaterThan(3);
+    expect(sokha.state().apps).toEqual([
+      { id: 'word', name: 'Word', badge: { text: 'W', color: '#2b579a' }, running: false, front: false },
+      { id: 'vscode', name: 'VS Code', badge: { text: '<>', color: '#1f6fb5' }, running: false, front: false },
+      { id: expect.stringContaining('gimp-2.10.exe'), name: 'GIMP', badge: undefined, running: false, front: false },
+    ]);
+    // before Start nothing opens
+    await sokha.openApp('word');
+    expect(lockdown.opened).toEqual([]);
+    await eventually(() => expect(card(desk, 'Sokha Chan').state).toBe('ready'));
+    await desk.start();
+    await eventually(() => expect(sokha.state().screen).toBe('exam'));
+
+    await sokha.openApp('vscode');
+    await sokha.openApp('word');
+    await sokha.openApp('paint');
+    expect(lockdown.opened).toEqual(['vscode', 'word']);
+    expect(sokha.state().apps.map((a) => `${a.name}:${a.running}:${a.front}`)).toEqual(['Word:true:true', 'VS Code:true:false', 'GIMP:false:false']);
+    await eventually(() => expect(card(desk, 'Sokha Chan').front).toBe('Word · Report.docx'));
+
+    // an app that isn't on this computer says so, and is a note for the teacher
+    lockdown.missing.add('vscode');
+    lockdown.opened = [];
+    await sokha.openApp('vscode');
+    expect(sokha.state().appMissing).toMatchObject({ name: 'VS Code' });
+    await eventually(() => expect(desk.state().feed[0]).toMatchObject({ kind: 'appMissing', student: 'Sokha Chan', details: { app: 'VS Code', why: 'notInstalled' } }));
+    expect(card(desk, 'Sokha Chan').warnings).toBe(0);
+
+    // the exam over, the bar has no apps
+    await sokha.askHandIn();
+    await sokha.handIn();
+    sokha.finish();
+    expect(sokha.state().apps).toEqual([]);
+  });
+});

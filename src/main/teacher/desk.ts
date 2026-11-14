@@ -8,6 +8,7 @@ import { dirname, join } from 'node:path';
 import { parseSite, type Website } from '@lib/browser/sites';
 import { parseRoster } from '@lib/exam/roster';
 import { isSafeName } from '@lib/files/names';
+import { isProgramPath } from '@lib/profiles/exam-apps';
 import type { FileMeta } from '@lib/protocol/messages';
 import type { ExamForm, FeedItem, KeptFile, TeacherState } from '@lib/app/state';
 import { logCsv } from '@lib/exam/log';
@@ -106,6 +107,10 @@ export class TeacherDesk {
     const typed = form.websites.map((w) => w.trim()).filter((w) => w !== '');
     const unreadable = typed.find((w) => !parseSite(w));
     if (unreadable) return { error: `"${unreadable}" isn't a website address. Type it like docs.python.org/* or school.example/exam-page.` };
+    // an app without a profile is given by where its program is on the lab computers
+    const apps = (form.apps ?? []).map((app) => ('custom' in app ? { custom: { ...app.custom, image: app.custom.image.trim() } } : app));
+    const notProgram = apps.find((app) => 'custom' in app && !isProgramPath(app.custom.image));
+    if (notProgram && 'custom' in notProgram) return { error: `"${notProgram.custom.image}" isn't a program's place on a lab computer. Type it like C:\\Program Files\\GIMP 2\\bin\\gimp-2.10.exe.` };
     const given = form.files ?? [];
     const badName = given.find((f) => !isSafeName(f.name) || f.name.includes('/'));
     if (badName) return { error: `"${badName.name}" can't be given: its name has a character that a lab computer can't store.` };
@@ -125,7 +130,7 @@ export class TeacherDesk {
       const was = before?.websites.find((w) => w.url === url);
       websites.push(was ?? { url, hosts: await (this.options.record?.(parseSite(url)!.start).catch(() => []) ?? []) });
     }
-    const exam = { title, teacher, classId, minutes: form.minutes, websites };
+    const exam = { title, teacher, classId, minutes: form.minutes, websites, apps };
     const now = (this.options.now ?? Date.now)();
     const id = before ? before.id : (await this.store.addExam(exam, now)).id;
     if (before) await this.store.changeExam(id, exam, now);
@@ -168,7 +173,7 @@ export class TeacherDesk {
   async copyExam(examId: string): Promise<void> {
     const exam = (await this.store.exams()).find((e) => e.id === examId);
     if (!exam) return;
-    const copy = await this.store.addExam({ title: `${exam.title} (copy)`, teacher: exam.teacher, classId: exam.classId, minutes: exam.minutes, websites: exam.websites }, (this.options.now ?? Date.now)());
+    const copy = await this.store.addExam({ title: `${exam.title} (copy)`, teacher: exam.teacher, classId: exam.classId, minutes: exam.minutes, websites: exam.websites, apps: exam.apps }, (this.options.now ?? Date.now)());
     await cp(this.givenFolder(exam.id), this.givenFolder(copy.id), { recursive: true }).catch(() => undefined);
     await this.store.setExamFiles(copy.id, exam.files.map(({ name, bytes, sha256 }) => ({ name, bytes, sha256 })));
     await this.refresh();
@@ -279,7 +284,7 @@ export class TeacherDesk {
       ...c, roster: (await this.store.students(c.id)).map((s) => ({ name: s.name, ...(s.email ? { email: s.email } : {}), ...(s.number !== null ? { number: s.number } : {}) })),
     })));
     const exams = (await this.store.exams()).map((e) => ({
-      id: e.id, title: e.title, teacher: e.teacher, classId: e.classId, className: e.className, minutes: e.minutes, websites: e.websites.map((w) => w.url),
+      id: e.id, title: e.title, teacher: e.teacher, classId: e.classId, className: e.className, minutes: e.minutes, websites: e.websites.map((w) => w.url), apps: e.apps,
       files: e.files.map(({ name, bytes }) => ({ name, bytes })), updatedAt: e.updatedAt, runs: e.runs,
     }));
     const last = await this.store.lastExam();

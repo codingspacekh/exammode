@@ -78,7 +78,7 @@ describe('11 Make an exam — the minimal form (F-30, F-32)', () => {
 
 describe('11 Make an exam — files to give, saving, changing (F-33, F-35)', () => {
   const classes = [{ id: 'c-1', name: 'Year 10 A', students: 26, roster: [] }];
-  const kept = { id: 'e-1', title: 'Term 1 practical', teacher: 'Ms Srey Leak', classId: 'c-1', className: 'Year 10 A', minutes: 60, websites: ['ict.school.local/exams/y10-term1'], files: [{ name: 'sales.xlsx', bytes: 16_384 }], updatedAt: at('08:00'), runs: 1 };
+  const kept = { id: 'e-1', title: 'Term 1 practical', teacher: 'Ms Srey Leak', classId: 'c-1', className: 'Year 10 A', minutes: 60, websites: ['ict.school.local/exams/y10-term1'], apps: [], files: [{ name: 'sales.xlsx', bytes: 16_384 }], updatedAt: at('08:00'), runs: 1 };
 
   it('F-33 files are added from this computer, listed with their size, and can be taken off', async () => {
     const api = teacherApi();
@@ -134,7 +134,7 @@ describe('11 Make an exam — files to give, saving, changing (F-33, F-35)', () 
 describe('Exams and classes, between exams (F-35, F-43)', () => {
   const roster = [{ name: 'Dara Kim', email: 'dara.kim@school.edu' }, { name: 'Sokha Chan', email: 'sokha.chan@school.edu' }];
   const classes = [{ id: 'c-1', name: 'Year 10 A', students: 2, roster }, { id: 'c-2', name: 'Year 11 B', students: 1, roster: [{ name: 'Kosal Meas' }] }];
-  const exam = (id: string, title: string, over = {}) => ({ id, title, teacher: 'Ms Srey Leak', classId: 'c-1', className: 'Year 10 A', minutes: 90, websites: [], files: [], updatedAt: at('08:00'), runs: 0, ...over });
+  const exam = (id: string, title: string, over = {}) => ({ id, title, teacher: 'Ms Srey Leak', classId: 'c-1', className: 'Year 10 A', minutes: 90, websites: [], apps: [], files: [], updatedAt: at('08:00'), runs: 0, ...over });
   const exams = [exam('e-1', 'Term 1 practical', { runs: 2, files: [{ name: 'sales.xlsx', bytes: 1 }] }), exam('e-2', 'Mock paper 2', { websites: ['a.example/*', 'b.example/*'], minutes: 120 })];
   const home = teacher({ classes, exams, defaults: { teacher: 'Ms Srey Leak', classId: 'c-1' } });
 

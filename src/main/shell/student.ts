@@ -40,6 +40,7 @@ async function lockdownFor(env: NodeJS.ProcessEnv): Promise<WindowsLockdown | un
     guard: (dev && env.EXAMMODE_GUARD_EXE) || join(dirname(process.execPath), 'ExamModeGuard.exe'),
     displays: () => screen.getAllDisplays().length,
     clearClipboard: () => clipboard.clear(),
+    profiles: join(app.getPath('userData'), 'exam-profiles'),
     endpoint: dev && env.EXAMMODE_GUARD_PORT ? { host: '127.0.0.1', port: Number(env.EXAMMODE_GUARD_PORT) } : undefined,
     allowVirtual: dev && env.EXAMMODE_ALLOW_VM === '1',
     alsoAllow, keepReachable,
@@ -90,6 +91,7 @@ export async function runStudent(): Promise<void> {
     giveUp: () => flow.giveUp(),
     finish: () => flow.finish(),
     showQuestions: () => browser?.window.show(),
+    openApp: (id: string) => flow.openApp(id),
     // M3: the computer isn't locked, so the Exam folder opens in the system's own file manager (its own list: M5)
     openFolder: () => {
       if (!flow.folder) return;

@@ -16,6 +16,10 @@ interface Api {
   windows(): { pid: number; title: string }[];
   terminate(pid: number): boolean;
   remoteSession(): boolean;
+  /** the process whose window is in front */
+  foregroundPid(): number;
+  /** maximises these processes' windows and brings one to the front */
+  focus(pids: number[]): boolean;
 }
 let api: Api | undefined;
 
@@ -42,6 +46,9 @@ async function load(): Promise<Api> {
   const GetWindowThreadProcessId = user32.func('uint32 __stdcall GetWindowThreadProcessId(void *hwnd, _Out_ uint32 *pid)');
   const GetWindowTextW = user32.func('int __stdcall GetWindowTextW(void *hwnd, _Out_ void *buf, int max)');
   const GetSystemMetrics = user32.func('int __stdcall GetSystemMetrics(int index)');
+  const GetForegroundWindow = user32.func('void * __stdcall GetForegroundWindow()');
+  const SetForegroundWindow = user32.func('bool __stdcall SetForegroundWindow(void *hwnd)');
+  const ShowWindow = user32.func('bool __stdcall ShowWindow(void *hwnd, int show)');
   const TH32CS_SNAPPROCESS = 0x2;
   const PROCESS_TERMINATE = 0x1;
   const SYNCHRONIZE = 0x100000;
@@ -104,6 +111,35 @@ async function load(): Promise<Api> {
       }
     },
     remoteSession: () => GetSystemMetrics(SM_REMOTESESSION) !== 0,
+    foregroundPid() {
+      const hwnd = GetForegroundWindow();
+      if (!hwnd) return 0;
+      const pid = [0];
+      GetWindowThreadProcessId(hwnd, pid);
+      return pid[0]!;
+    },
+    focus(pids) {
+      let done = false;
+      const each = koffi.register((hwnd: unknown) => {
+        if (IsWindowVisible(hwnd)) {
+          const pid = [0];
+          GetWindowThreadProcessId(hwnd, pid);
+          const titled = GetWindowTextW(hwnd, Buffer.alloc(8), 3) > 0;
+          if (pids.includes(pid[0]!) && titled) {
+            // SW_MAXIMIZE: under the exam bar, as the work area ends there
+            ShowWindow(hwnd, 3);
+            if (!done) done = Boolean(SetForegroundWindow(hwnd));
+          }
+        }
+        return true;
+      }, koffi.pointer(EnumWindowsProc));
+      try {
+        EnumWindows(each, 0);
+      } finally {
+        koffi.unregister(each);
+      }
+      return done;
+    },
   };
   return api;
 }
@@ -168,6 +204,16 @@ export async function prepareProcesses(): Promise<void> {
 export function imageOf(pid: number): string | null {
   if (!api) throw new Error('prepareProcesses() first');
   return api.imageOf(pid);
+}
+
+/** The process whose window is in front; 0 if none. */
+export async function foregroundPid(): Promise<number> {
+  return (await load()).foregroundPid();
+}
+
+/** Maximises these processes' windows and brings one of them to the front. */
+export async function focus(pids: number[]): Promise<boolean> {
+  return (await load()).focus(pids);
 }
 
 export async function terminate(pid: number): Promise<boolean> {

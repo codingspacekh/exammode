@@ -4,6 +4,7 @@
  * without bumping `v` — bump it only when an old client can't ignore the change.
  */
 import { z } from 'zod';
+import { examApp } from '../profiles/exam-apps';
 
 export const PROTOCOL_VERSION = 1;
 
@@ -32,6 +33,8 @@ export type FromStudent = z.infer<typeof fromStudent>;
 export const examInfo = z.object({
   title: id, teacher: id, class: id, minutes: z.int().positive(),
   websites: z.array(z.object({ url: z.string(), hosts: z.array(z.string()) })),
+  /** the exam's apps (F-31): what the lock lets stay, and what the exam bar can start */
+  apps: z.array(examApp).optional(),
   /** the files the teacher gives every student: fetched into the Exam folder at Start (§2.9) */
   files: z.array(fileMeta).optional(),
 });

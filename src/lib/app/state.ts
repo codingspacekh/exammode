@@ -4,6 +4,7 @@
  */
 import type { Website } from '../browser/sites';
 import type { RosterStudent } from '../exam/roster';
+import type { ExamApp } from '../profiles/exam-apps';
 import type { AppToClose, Check, CheckName } from '../lockdown/checks';
 import type { AttemptState, HandInHow, LeftHow } from '../session/attempt';
 
@@ -65,7 +66,7 @@ export interface GivenFile { name: string; bytes: number; path?: string }
 /** An exam that is kept: it can be opened again, changed or copied (F-35). */
 export interface SavedExam {
   id: string; title: string; teacher: string; classId: string; className: string; minutes: number;
-  websites: string[]; files: GivenFile[]; updatedAt: number;
+  websites: string[]; apps: ExamApp[]; files: GivenFile[]; updatedAt: number;
   /** how many times it has been run: an exam that was run can't be deleted, its hand-ins hang on it */
   runs: number;
 }
@@ -85,6 +86,8 @@ export interface ExamForm {
   websites: string[];
   /** the files to give every student (F-33) */
   files?: GivenFile[];
+  /** the apps students may use (F-31); none: only the questions */
+  apps?: ExamApp[];
 }
 
 export interface TeacherState {
@@ -175,8 +178,15 @@ export interface StudentState {
   locked: boolean;
   /** 07: an app that isn't part of the exam was just closed */
   closed?: { name: string; at: number };
+  /** the exam's apps, on the exam bar (05, 06): which are open, and which is in front */
+  apps: BarApp[];
+  /** an app of the exam that couldn't be opened on this computer */
+  appMissing?: { name: string; at: number };
   receipt?: { code: string; files: { name: string; bytes: number }[]; at: number; byItself: boolean };
 }
+
+/** One of the exam's apps, as the exam bar shows it. */
+export interface BarApp { id: string; name: string; badge?: { text: string; color: string }; running: boolean; front: boolean }
 
 export interface StudentApi {
   get(): Promise<StudentState>;
@@ -205,6 +215,8 @@ export interface StudentApi {
   /** Finish (09b): back to how it was */
   finish(): Promise<void>;
   showQuestions(): Promise<void>;
+  /** opens one of the exam's apps under the bar, or brings it to the front (F-11) */
+  openApp(id: string): Promise<void>;
   openFolder(): Promise<void>;
 }
 

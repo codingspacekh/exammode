@@ -8,6 +8,7 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { folderName } from '@lib/files/names';
 import type { FoundExam, JoinError, Name, StudentState } from '@lib/app/state';
+import { examProfiles } from '@lib/profiles/exam-apps';
 import type { ExamInfo } from '@lib/protocol/messages';
 import { Discovery, examsAt, namesOf, type Found } from './discovery';
 import { StudentExam, type Receipt } from './exam';
@@ -210,20 +211,47 @@ export class StudentFlow {
   private async lockNow(session: Session): Promise<string | undefined> {
     const lockdown = this.options.lockdown;
     const found = this.found;
-    if (!lockdown || !found || !session.token) return 'This computer can\'t be locked.';
+    const folder = this.exam?.files.folder;
+    if (!lockdown || !found || !session.token || !folder) return 'This computer can\'t be locked.';
+    const apps = examProfiles(session.exam?.apps ?? []);
+    this.set({ apps: apps.map((a) => ({ id: a.id, name: a.name, badge: a.badge, running: false, front: false })) });
     const wrong = await lockdown.lock({
       runId: found.runId, teacher: { host: found.host, port: found.port }, websites: (session.exam?.websites.length ?? 0) > 0,
-      token: session.token, instanceId: session.seat.instanceId, pc: this.options.pc,
-    }, (app) => {
+      token: session.token, instanceId: session.seat.instanceId, pc: this.options.pc, apps, examFolder: folder,
+    }, {
       // 07: said to the student, and to the teacher at once
-      if (session !== this.session) return;
-      session.report('appClosed', { app: app.name });
-      this.set({ closed: { name: app.name, at: this.now() } });
+      closed: (app) => {
+        if (session !== this.session) return;
+        session.report('appClosed', { app: app.name });
+        this.set({ closed: { name: app.name, at: this.now() } });
+      },
+      // the dots on the exam bar; and the teacher's card says which app is in front, with its window's title
+      apps: (open) => {
+        if (session !== this.session) return;
+        const front = open.find((o) => o.front);
+        const name = apps.find((a) => a.id === front?.id)?.name;
+        session.front = name ? [name, front?.title].filter(Boolean).join(' · ') : undefined;
+        this.set({ apps: this.current.apps.map((a) => ({ ...a, running: open.some((o) => o.id === a.id), front: front?.id === a.id })) });
+      },
     }).catch((error: unknown) => String(error));
     if (!wrong && session === this.session) this.set({ locked: true });
     // (the exam was left while the computer was being locked: put it back)
     if (!wrong && session !== this.session) void lockdown.unlock().catch(() => undefined);
     return wrong;
+  }
+
+  /** One of the exam's apps is pressed on the exam bar: it opens in the Exam folder, under the bar — or comes to
+   *  the front if it is open (F-11). One that isn't on this computer says so, and the teacher's log gets a note. */
+  async openApp(id: string): Promise<void> {
+    const { session, exam } = this;
+    const lockdown = this.options.lockdown;
+    const app = this.current.apps.find((a) => a.id === id);
+    if (!session || !exam || !lockdown || !app || this.current.screen !== 'exam') return;
+    await exam.begin();
+    const wrong = await lockdown.openApp(id).catch(() => 'failed' as const);
+    if (!wrong || session !== this.session) return;
+    session.report('appMissing', { app: app.name, why: wrong });
+    this.set({ appMissing: { name: app.name, at: this.now() } });
   }
 
   /** Something for the teacher's log (a blocked page …). */
@@ -301,7 +329,7 @@ export class StudentFlow {
   }
 
   private fresh(): StudentState {
-    return { screen: 'join', pc: this.options.pc, found: [], names: [], joining: false, clockOffset: 0, contact: true, handingIn: false, locked: false };
+    return { screen: 'join', pc: this.options.pc, found: [], names: [], joining: false, clockOffset: 0, contact: true, handingIn: false, locked: false, apps: [] };
   }
 
   private set(change: Partial<StudentState>): void {
@@ -382,6 +410,6 @@ export class StudentFlow {
     session?.close();
     // the exam is over on this computer, however it ended: it goes back to how it was (F-21)
     if (this.current.locked) void this.options.lockdown?.unlock().catch(() => undefined);
-    this.current = { ...this.current, locked: false, closed: undefined };
+    this.current = { ...this.current, locked: false, closed: undefined, apps: [], appMissing: undefined };
   }
 }

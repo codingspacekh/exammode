@@ -8,6 +8,7 @@ import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 import { and, asc, desc, eq, isNull } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/sqlite-proxy';
 import type { Website } from '@lib/browser/sites';
+import type { ExamApp } from '@lib/profiles/exam-apps';
 import type { FileMeta } from '@lib/protocol/messages';
 import type { Attempt, HandInHow } from '@lib/session/attempt';
 import { migrations } from './migrations/index';
@@ -21,7 +22,7 @@ export type FileRow = typeof schema.handinFiles.$inferSelect;
 export type FileKind = FileRow['kind'];
 
 export interface NewStudent { name: string; email?: string; number?: number }
-export interface NewExam { title: string; teacher: string; classId: string; minutes: number; websites?: Website[] }
+export interface NewExam { title: string; teacher: string; classId: string; minutes: number; websites?: Website[]; apps?: ExamApp[] }
 export type ExamFileRow = typeof schema.examFiles.$inferSelect;
 export interface RunInfo { run: RunRow; exam: ExamRow; className: string }
 export interface LogEntry { studentId?: string; pc?: string; at: number; kind: string; details: Record<string, unknown> }
@@ -132,14 +133,14 @@ export class Store {
   }
 
   async addExam(exam: NewExam, at: number): Promise<ExamRow> {
-    const row: ExamRow = { id: randomUUID(), ...exam, apps: [], websites: exam.websites ?? [], rules: {}, updatedAt: at };
+    const row: ExamRow = { id: randomUUID(), ...exam, apps: exam.apps ?? [], websites: exam.websites ?? [], rules: {}, updatedAt: at };
     await this.db.insert(schema.exams).values(row);
     return row;
   }
 
   /** Changes a kept exam. */
   async changeExam(examId: string, exam: NewExam, at: number): Promise<void> {
-    await this.db.update(schema.exams).set({ ...exam, websites: exam.websites ?? [], updatedAt: at }).where(eq(schema.exams.id, examId));
+    await this.db.update(schema.exams).set({ ...exam, websites: exam.websites ?? [], apps: exam.apps ?? [], updatedAt: at }).where(eq(schema.exams.id, examId));
   }
 
   /** Every kept exam, the one changed last first, with its class's name and how often it was run. */

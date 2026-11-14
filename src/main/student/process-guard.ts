@@ -28,7 +28,11 @@ export class ProcessGuard {
   private sweeping = false;
   private readonly closed = new Set<number>();
 
-  constructor(private readonly procs: Procs, private readonly ctx: Context, private readonly onClosed: (closed: Closed) => void, private readonly now: () => number = Date.now) {}
+  /** `onSweep`: told every process after each look — the lock uses it to say which of the exam's apps are open */
+  constructor(
+    private readonly procs: Procs, private readonly ctx: Context, private readonly onClosed: (closed: Closed) => void,
+    private readonly now: () => number = Date.now, private readonly onSweep?: (all: Proc[]) => void,
+  ) {}
 
   start(everyMs = SWEEP_MS): void {
     this.timer = setInterval(() => void this.sweep().catch(() => undefined), everyMs);
@@ -51,6 +55,7 @@ export class ProcessGuard {
       for (const proc of waiting.filter((p) => !this.couldStay(p, all))) count += await this.close(proc, all);
       if (waiting.some((p) => this.couldStay(p, all))) all = await this.procs.list(true);
       for (const proc of all) count += await this.close(proc, all);
+      this.onSweep?.(all.filter((p) => !this.closed.has(p.pid)));
       return count;
     } finally {
       this.sweeping = false;
