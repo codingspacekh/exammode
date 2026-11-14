@@ -11,7 +11,7 @@ import { folderName, isSafeName, studentFolders } from '@lib/files/names';
 import { receiptCode } from '@lib/files/receipt';
 import { PROTOCOL_VERSION, type FileMeta, type FromStudent, type FromTeacher, type RefusedReason, type Stopped, type Upload } from '@lib/protocol/messages';
 import {
-  addTime, onBeat, onChecks, onEvent, onHandIn, onJoin, onKeepOut, onLeave, onLetBackIn, onReady, onResume, onStart, onStopped, onTick,
+  NO_CONTACT_MS, addTime, onBeat, onChecks, onEvent, onHandIn, onJoin, onKeepOut, onLeave, onLetBackIn, onReady, onResume, onStart, onStopped, onTick,
   type Attempt, type HandInHow, type Result,
 } from '@lib/session/attempt';
 import { endsAt } from '@lib/session/time';
@@ -34,7 +34,7 @@ type Receipt = Extract<FromTeacher, { type: 'receipt' }>;
 
 export type { RunView, StudentView };
 
-export type UploadResult = { ok: true; receipt?: Receipt } | { ok: false; why: 'unknown' | 'refused' | 'mismatch' };
+export type UploadResult = { ok: true; receipt?: Receipt } | { ok: false; why: 'unknown' | 'refused' | 'mismatch' | 'tooMuch' };
 
 export interface ClassroomOptions {
   /** the Hand-ins folder */
@@ -43,6 +43,7 @@ export interface ClassroomOptions {
   now?: () => number;
   /** where an exam's files to give are kept */
   given?: (examId: string) => string;
+  maxBytesPerStudent?: number;
 }
 
 interface Seat {
@@ -58,9 +59,15 @@ interface Seat {
   files?: number;
   /** told that the time is up, or that the exam was ended */
   toldEnd?: boolean;
+  /** a beat has come over `link`: the ExamMode at the other end is alive */
+  beating?: boolean;
+  /** when the teacher was last told this student's files couldn't be kept */
+  failedAt?: number;
 }
 
 /** Wrong codes from one computer before it has to wait (F-03): the code has only four digits. */
+/** What the teacher's laptop keeps from one student, at most: nobody fills its disk. */
+export const MAX_BYTES_PER_STUDENT = 2 * 1024 * 1024 * 1024;
 export const WRONG_CODES = 5;
 export const WRONG_CODE_WAIT_MS = 60_000;
 /** A hand-in is *time up* when the student was told their time is up, or — with no contact, by their own count —
@@ -205,13 +212,27 @@ export class Classroom {
         link.close();
       };
       if (this.run.endedAt !== null) return refuse('ended');
-      if (!this.codeRight(msg.code, link.from)) {
-        await this.store.log(this.run.id, [{ pc: msg.pc, at: this.now(), kind: 'codeWrong', details: {} }]);
-        this.changed();
+      const code = this.codeRight(msg.code, link.from);
+      if (code !== 'right') {
+        // (a computer that is made to wait isn't written down again for every try: the log can't be filled)
+        if (code === 'wrong') {
+          await this.store.log(this.run.id, [{ pc: msg.pc, at: this.now(), kind: 'codeWrong', details: {} }]);
+          this.changed();
+        }
         return refuse('codeWrong');
       }
       const seat = this.seats.get(msg.studentId);
       if (!seat) return refuse('notInClass');
+      // this student's ExamMode is connected and its beats are coming: another one saying it is theirs, even
+      // with the same computer's name, isn't a restart — it would put a classmate out with one message. (One
+      // that really stopped has no connection, or has been silent for longer than a restart takes.)
+      const heard = seat.attempt.lastBeatAt;
+      const alive = seat.link !== undefined && seat.beating === true && heard !== undefined && this.now() - heard < NO_CONTACT_MS;
+      if (alive && seat.attempt.instanceId !== msg.instanceId) {
+        await this.store.log(this.run.id, [{ studentId: msg.studentId, pc: msg.pc, at: this.now(), kind: 'nameTaken', details: { pc: msg.pc } }]);
+        this.changed(msg.studentId);
+        return refuse('nameTaken');
+      }
 
       const result = onJoin(seat.attempt, { pc: msg.pc, instanceId: msg.instanceId, bootId: msg.bootId }, this.now());
       if (result.events.some((e) => e.kind === 'joined' || e.kind === 'cameBack')) this.giveToken(msg.studentId);
@@ -249,7 +270,9 @@ export class Classroom {
       const at = this.now();
       switch (msg.type) {
         case 'checks': return this.apply(studentId, onChecks(seat.attempt, msg.results, at));
-        case 'beat': return this.apply(studentId, onBeat(seat.attempt, msg, at));
+        case 'beat':
+          seat.beating = true;
+          return this.apply(studentId, onBeat(seat.attempt, msg, at));
         case 'event': return this.apply(studentId, onEvent(seat.attempt, msg, at));
         case 'leave': return this.apply(studentId, onLeave(seat.attempt, at));
         case 'ready': {
@@ -324,8 +347,16 @@ export class Classroom {
       const studentId = this.tokens.get(meta.token)!;
       const seat = this.seat(studentId);
       const arrived = new Map(received.map((f) => [f.name, f]));
-      const asAnnounced = meta.files.every((f) => isSafeName(f.name) && arrived.get(f.name)?.sha256 === f.sha256 && arrived.get(f.name)?.bytes === f.bytes);
+      // a hand-in lists every file; the ones this laptop has from a backup, just as they are listed, needn't come
+      // again (a folder of thousands of files goes up in parts)
+      const have = new Map((seat.id !== undefined && meta.kind === 'handIn' ? await this.store.files(seat.id) : []).map((f) => [f.name, f]));
+      const here = (f: FileMeta): boolean => {
+        const got = arrived.get(f.name) ?? have.get(f.name);
+        return got?.sha256 === f.sha256 && got.bytes === f.bytes;
+      };
+      const asAnnounced = meta.files.every((f) => isSafeName(f.name) && here(f));
       if (!asAnnounced || new Set(meta.files.map((f) => f.name)).size !== meta.files.length) return { ok: false, why: 'mismatch' };
+      if (await this.kept(seat) + received.reduce((sum, f) => sum + f.bytes, 0) > (this.options.maxBytesPerStudent ?? MAX_BYTES_PER_STUDENT)) return { ok: false, why: 'tooMuch' };
 
       const receipt = meta.kind === 'handIn' ? await receiptCode(this.run.id, studentId, meta.files) : undefined;
       if (seat.attempt.state === 'handedIn') {
@@ -335,7 +366,7 @@ export class Classroom {
       const at = this.now();
       const folder = this.folderOf(studentId);
       const id = seat.id ?? (await this.save(studentId));
-      for (const f of meta.files) await place(arrived.get(f.name)!, folder, f.name);
+      for (const f of meta.files) if (arrived.has(f.name)) await place(arrived.get(f.name)!, folder, f.name);
       if (!receipt) {
         await this.store.saveFiles(id, meta.files, 'backup', at);
         seat.files = (await this.store.files(id)).length;
@@ -479,22 +510,45 @@ export class Classroom {
     return toldEnd || end !== undefined && at >= end - TIME_UP_SLACK_MS ? 'timeUp' : 'handIn';
   }
 
+  /** How many bytes this laptop keeps from a student. */
+  private async kept(seat: Seat): Promise<number> {
+    return seat.id === undefined ? 0 : (await this.store.files(seat.id)).reduce((sum, f) => sum + f.bytes, 0);
+  }
+
+  /** The laptop couldn't keep a student's files (a full disk, a file open in another program): the teacher is
+   *  told — the student's ExamMode keeps trying. */
+  uploadFailed(token: string, error: unknown): Promise<void> {
+    return this.inTurn(async () => {
+      const studentId = this.tokens.get(token);
+      if (!studentId) return;
+      const why = (error as NodeJS.ErrnoException | undefined)?.code ?? String(error).slice(0, 200);
+      // (said once a minute for a student at most: every try would fill the log)
+      const seat = this.seat(studentId);
+      if (seat.failedAt !== undefined && this.now() - seat.failedAt < 60_000) return;
+      seat.failedAt = this.now();
+      await this.store.log(this.run.id, [{ studentId, pc: seat.attempt.pc, at: this.now(), kind: 'uploadFailed', details: { why } }]);
+      this.changed(studentId);
+    });
+  }
+
   private receipt(code: string, meta: Upload): Receipt {
     return { v: PROTOCOL_VERSION, type: 'receipt', code, files: meta.files };
   }
 
-  /** Five wrong codes from one computer, and it waits a minute: the code can't be found by trying them all. */
-  private codeRight(code: string, from = ''): boolean {
+  /** Five wrong codes from one computer, and it waits a minute: the code can't be found by trying them all.
+   *  `waiting`: not even looked at. (IPv6: by the network, as a computer has many addresses of its own there.) */
+  private codeRight(code: string, from = ''): 'right' | 'wrong' | 'waiting' {
     const at = this.now();
-    const wrong = this.wrongCodes.get(from) ?? { count: 0, until: 0 };
-    if (at < wrong.until) return false;
+    const source = from.includes(':') && !from.startsWith('::ffff:') ? from.split(':').slice(0, 4).join(':') : from;
+    const wrong = this.wrongCodes.get(source) ?? { count: 0, until: 0 };
+    if (at < wrong.until) return 'waiting';
     if (code === this.run.code) {
-      this.wrongCodes.delete(from);
-      return true;
+      this.wrongCodes.delete(source);
+      return 'right';
     }
     const count = wrong.count + 1;
-    this.wrongCodes.set(from, count >= WRONG_CODES ? { count: 0, until: at + WRONG_CODE_WAIT_MS } : { count, until: 0 });
-    return false;
+    this.wrongCodes.set(source, count >= WRONG_CODES ? { count: 0, until: at + WRONG_CODE_WAIT_MS } : { count, until: 0 });
+    return 'wrong';
   }
 
   private giveToken(studentId: string): void {
@@ -513,6 +567,7 @@ export class Classroom {
       seat.link.close();
     }
     seat.link = link;
+    seat.beating = false;
     this.links.set(link, studentId);
     const state = seat.attempt.state as 'checking' | 'ready' | 'inExam';
     const { title, teacher, minutes, websites, apps } = this.exam;

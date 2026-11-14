@@ -14,8 +14,8 @@ import { PROTOCOL_VERSION } from '../../src/lib/protocol/messages';
 import { StudentExam, BACKUP_MS, GRACE_MS, type Receipt } from '../../src/main/student/exam';
 import { Session } from '../../src/main/student/session';
 import { BeaconSender } from '../../src/main/teacher/beacon';
-import { Classroom, type StudentView } from '../../src/main/teacher/classroom';
-import { ClassroomServer } from '../../src/main/teacher/server';
+import { Classroom, type ClassroomOptions, type StudentView } from '../../src/main/teacher/classroom';
+import { ClassroomServer, type ServerOptions } from '../../src/main/teacher/server';
 import { Store, type EventRow } from '../../src/main/teacher/store/store';
 
 /** The prototype's class (design/src): Year 10 A. */
@@ -55,6 +55,9 @@ export interface SimOptions {
   root?: string;
   port?: number;
   beacon?: { port: number; targets: string[] };
+  /** the teacher's side, set up otherwise (a test's own limits) */
+  server?: Partial<ServerOptions>;
+  room?: Partial<ClassroomOptions>;
 }
 
 export class SimClassroom {
@@ -76,8 +79,8 @@ export class SimClassroom {
     const cls = await store.addClass('Year 10 A', names.map((name, i) => ({ name, email: `${name.toLowerCase().replaceAll(' ', '.')}@school.edu`, number: i + 1 })));
     const exam = await store.addExam({ title: options.title ?? 'Year 10 ICT — Term 1 practical exam', teacher: 'Ms Srey Leak', classId: cls.id, minutes: options.minutes ?? 90 }, clock.now());
     const code = options.code ?? '4817';
-    const room = await Classroom.create(store, exam.id, { handIns, now: clock.now, code });
-    const server = new ClassroomServer({ handIns, port: options.port ?? 0, tickMs: clock.ms(1000) });
+    const room = await Classroom.create(store, exam.id, { handIns, now: clock.now, code, ...options.room });
+    const server = new ClassroomServer({ handIns, port: options.port ?? 0, tickMs: clock.ms(1000), ...options.server });
     server.add(room);
     await server.listen();
     const sim = new SimClassroom(store, room, server, clock, root, options.root === undefined, code, options.backupMs ?? BACKUP_MS);

@@ -11,12 +11,13 @@
  *   POST /upload               a backup or a hand-in: `meta` first, then the files as f0, f1 … (F-16, F-22)
  */
 import { createReadStream } from 'node:fs';
+import { statfs } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { pipeline } from 'node:stream/promises';
 import type { AddressInfo } from 'node:net';
 import busboy from 'busboy';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { PROTOCOL_VERSION, inventory, parseFromStudent, stopped, updateReply, upload, type Beacon, type FromTeacher, type Inventory, type Upload } from '@lib/protocol/messages';
+import { MAX_FILES, PROTOCOL_VERSION, inventory, parseFromStudent, stopped, updateReply, upload, type Beacon, type FromTeacher, type Inventory, type Upload } from '@lib/protocol/messages';
 import { signBeacon, signMessage, signUpload, type Identity } from '../../trust/signed';
 import type { Classroom, Link } from './classroom';
 import { discard, newIncoming, receive, type Received } from './handIns';
@@ -25,6 +26,16 @@ export const PORT = 47800;
 const TICK_MS = 1000;
 const SMALL_BODY = 16 * 1024;
 const INVENTORY_BODY = 256 * 1024;
+/** How many connections at once: far more than a lab has computers. */
+export const MAX_SOCKETS = 1000;
+/** A connection that hasn't asked to join by then is closed. */
+export const JOIN_WITHIN_MS = 10_000;
+/** One file, and one request, at most; and what must stay free on the teacher's disk. */
+export const MAX_FILE_BYTES = 500 * 1024 * 1024;
+export const MAX_REQUEST_BYTES = 1024 * 1024 * 1024;
+const FREE_DISK_FLOOR = 500 * 1024 * 1024;
+/** How many computers one address may report installed apps for. */
+const INVENTORY_PER_ADDRESS = 60;
 
 export interface ServerOptions {
   /** the Hand-ins folder: files wait in it while they are checked */
@@ -35,6 +46,10 @@ export interface ServerOptions {
   /** the teacher's licence and key: everything a lab computer must believe is signed with it (F-44). None: a
    *  development build's teacher, which only a development build's ExamMode joins */
   identity?: Identity;
+  /** a connection that hasn't asked to join by then is closed */
+  joinWithinMs?: number;
+  /** what went wrong, for the log file */
+  log?: (where: string, what: string, error?: unknown) => void;
   /** keeps what a lab computer says it has installed; false: it wasn't kept */
   inventory?: (report: Inventory) => Promise<boolean>;
 }
@@ -63,13 +78,21 @@ export class ClassroomServer {
   private readonly http: Server;
   private readonly sockets = new WebSocketServer({ noServer: true, maxPayload: 256 * 1024 });
   private timer?: NodeJS.Timeout;
+  private readonly inventoried = new Map<string, Set<string>>();
 
   constructor(private readonly options: ServerOptions) {
     this.http = createServer((req, res) => void this.answer(req, res).catch(() => json(res, 500, { error: 'failed' })));
     this.http.on('upgrade', (req, socket, head) => {
-      if (new URL(req.url ?? '/', 'http://x').pathname !== '/ws') return socket.destroy();
-      this.sockets.handleUpgrade(req, socket, head, (ws) => this.connected(ws, req.socket.remoteAddress));
+      // (an address that can't be read, or too many connections: nothing a stranger sends may throw here)
+      try {
+        if (new URL(req.url ?? '/', 'http://x').pathname !== '/ws' || this.sockets.clients.size >= MAX_SOCKETS) return socket.destroy();
+        this.sockets.handleUpgrade(req, socket, head, (ws) => this.connected(ws, req.socket.remoteAddress));
+      } catch {
+        socket.destroy();
+      }
     });
+    // a request that never finishes doesn't hold a connection for ever
+    this.http.headersTimeout = 15_000;
   }
 
   /** The port it listens on. */
@@ -101,7 +124,7 @@ export class ClassroomServer {
       this.http.listen(this.options.port ?? PORT, resolve);
     });
     const every = this.options.tickMs ?? TICK_MS;
-    if (every > 0) this.timer = setInterval(() => void this.tick(), every);
+    if (every > 0) this.timer = setInterval(() => void this.tick().catch((error: unknown) => this.options.log?.('classroom', 'the clock\'s tick failed', error)), every);
   }
 
   async tick(): Promise<void> {
@@ -127,8 +150,12 @@ export class ClassroomServer {
     };
     const link: Link = { send: say, close: () => ws.close(), from };
     let room: Classroom | undefined;
+    const idle = setTimeout(() => ws.terminate(), this.options.joinWithinMs ?? JOIN_WITHIN_MS);
     ws.on('error', () => ws.terminate());
-    ws.on('close', () => room?.dropped(link));
+    ws.on('close', () => {
+      clearTimeout(idle);
+      room?.dropped(link);
+    });
     ws.on('message', (data) => {
       let raw: unknown;
       try {
@@ -154,11 +181,15 @@ export class ClassroomServer {
       if (msg.type === 'join') room = this.rooms.get(msg.runId);
       else if (msg.type === 'resume') room = [...this.rooms.values()].find((r) => r.knows(msg.token));
       else if (!room) return;
+      if (room) clearTimeout(idle);
       if (!room) {
         say({ v: PROTOCOL_VERSION, type: 'refused', reason: msg.type === 'join' ? 'ended' : 'notJoined' });
         return ws.close();
       }
-      void room.receive(link, msg).catch(() => ws.close());
+      void room.receive(link, msg).catch((error: unknown) => {
+        this.options.log?.('classroom', `a ${msg.type} message failed`, error);
+        ws.close();
+      });
     });
   }
 
@@ -185,6 +216,11 @@ export class ClassroomServer {
     if (req.method === 'POST' && path === '/inventory') {
       const report = inventory.safeParse(await smallBody(req, INVENTORY_BODY));
       if (!report.success || report.data.v !== PROTOCOL_VERSION) return json(res, 400, { error: 'invalid' });
+      // (one address can't fill the list with computers that aren't there)
+      const from = req.socket.remoteAddress ?? '';
+      const told = this.inventoried.get(from) ?? new Set<string>();
+      if (!told.has(report.data.pc) && told.size >= INVENTORY_PER_ADDRESS) return json(res, 409, { error: 'refused' });
+      this.inventoried.set(from, told.add(report.data.pc));
       const kept = await this.options.inventory?.(report.data) ?? false;
       return json(res, kept ? 200 : 409, kept ? { v: PROTOCOL_VERSION, ok: true } : { error: 'refused' });
     }
@@ -209,9 +245,11 @@ export class ClassroomServer {
     let refused: [number, string] | undefined;
     const refuse = (status: number, error: string): void => void (refused ??= [status, error]);
 
-    const parts = busboy({ headers: req.headers, limits: { fieldSize: 1024 * 1024 } });
-    parts.on('field', (name, value) => {
+    // limits: the list of files in `meta`, each file, how many of them — and room left on the disk
+    const parts = busboy({ headers: req.headers, limits: { fieldSize: 8 * 1024 * 1024, fields: 1, files: MAX_FILES, fileSize: MAX_FILE_BYTES } });
+    parts.on('field', (name, value, info) => {
       if (name !== 'meta' || meta) return;
+      if (info.valueTruncated) return refuse(413, 'tooBig');
       let raw: unknown;
       try {
         raw = JSON.parse(value);
@@ -225,27 +263,52 @@ export class ClassroomServer {
       if (!room) return refuse(401, 'unknown');
       if (room.mayUpload(meta) !== 'ok') refuse(409, 'refused');
     });
+    parts.on('filesLimit', () => refuse(413, 'tooBig'));
+    let bytes = 0;
     parts.on('file', (field, stream) => {
       const announced = meta?.files[Number(field.slice(1))];
       if (!meta) refuse(400, 'invalid');
+      // (a part that is cut off ends with an error: it is refused, not thrown)
+      stream.on('error', () => refuse(400, 'invalid'));
+      stream.on('limit', () => refuse(413, 'tooBig'));
+      stream.on('data', (chunk: Buffer) => {
+        bytes += chunk.length;
+        if (bytes > MAX_REQUEST_BYTES) refuse(413, 'tooBig');
+      });
       if (refused || !announced || !/^f\d+$/.test(field)) return void stream.resume();
-      files.push(receive(announced.name, stream, folder));
+      const file = receive(announced.name, stream, folder);
+      // (waited for below; one that fails before then mustn't be an error nobody heard)
+      file.catch(() => undefined);
+      files.push(file);
     });
     try {
-      await new Promise<void>((resolve, reject) => {
-        parts.on('close', resolve).on('error', reject);
-        req.on('error', reject).pipe(parts);
-      });
+      const free = await statfs(this.options.handIns).then((disk) => disk.bavail * disk.bsize, () => Infinity);
+      if (free < FREE_DISK_FLOOR) {
+        this.options.log?.('upload', `the disk is nearly full: ${Math.round(free / 1024 / 1024)} MB free`);
+        req.resume();
+        return json(res, 507, { error: 'diskFull' });
+      }
+      await pipeline(req, parts);
       const received = await Promise.all(files);
       if (refused) return json(res, ...refused);
       if (!meta || !room) return json(res, 400, { error: 'invalid' });
-      const result = await room.upload(meta, received);
-      if (!result.ok) return json(res, { unknown: 401, refused: 409, mismatch: 422 }[result.why], { error: result.why });
+      let result;
+      try {
+        result = await room.upload(meta, received);
+      } catch (error) {
+        // the laptop couldn't keep the files (a full disk, a file that is open in another program): not the
+        // student's doing, and the teacher is told
+        this.options.log?.('upload', 'the files couldn\'t be kept', error);
+        await room.uploadFailed(meta.token, error).catch(() => undefined);
+        return json(res, 500, { error: 'failed' });
+      }
+      if (!result.ok) return json(res, { unknown: 401, refused: 409, mismatch: 422, tooMuch: 413 }[result.why], { error: result.why });
       const identity = this.options.identity;
       // signed: the teacher's laptop has exactly these files of this student (F-44)
       json(res, 200, { ...(result.receipt ?? { v: PROTOCOL_VERSION, ok: true }), ...(identity ? { sig: signUpload(meta.token, meta.kind, meta.files, identity.privateKey) } : {}) });
     } catch {
-      json(res, 400, { error: 'invalid' });
+      // the request was cut off, or wasn't a form
+      if (!res.headersSent) json(res, 400, { error: 'invalid' });
     } finally {
       await discard(folder);
     }
