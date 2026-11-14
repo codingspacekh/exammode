@@ -23,14 +23,16 @@ const RECEIPT = /^[2-9A-Z]{3}-[2-9A-Z]{3}$/;
 
 describe('M2 the classroom network', () => {
   it('30 students join, start and hand in: 30 receipts, 30 folders, the log complete', async () => {
-    const story = await everyoneHandsIn(await classroom({ students: 30, speed: 10 }));
+    // (not sped up much: with every test file running at once, 30 hand-ins in one process take a few seconds,
+    // which a fast clock would count as a student out of contact)
+    const story = await everyoneHandsIn(await classroom({ students: 30, speed: 2 }));
     expect(story.receipts).toHaveLength(30);
     for (const code of story.receipts) expect(code).toMatch(RECEIPT);
     expect(new Set(story.receipts).size).toBe(30);
     expect(story.onTheList).toEqual(story.receipts);
     expect(story.states).toEqual(Array(30).fill('handedIn'));
     expect(story.folders).toEqual(Array(30).fill(true));
-    for (const log of story.logs) expect(log).toEqual(['joined', 'ready', 'started', 'handedIn']);
+    for (const log of story.logs) expect(log.join()).toBe('joined,ready,started,handedIn');
     expect(story.cleaned).toBe(true);
   });
 

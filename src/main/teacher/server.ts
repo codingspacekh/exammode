@@ -260,7 +260,8 @@ export class ClassroomServer {
       meta = parsed.data;
       room = [...this.rooms.values()].find((r) => r.knows(parsed.data.token));
       if (!room) return refuse(401, 'unknown');
-      if (room.mayUpload(meta) !== 'ok') refuse(409, 'refused');
+      if (room.mayUpload(meta) !== 'ok') return refuse(409, 'refused');
+      void room.heard(meta.token).catch(() => undefined);
     });
     parts.on('filesLimit', () => refuse(413, 'tooBig'));
     let bytes = 0;

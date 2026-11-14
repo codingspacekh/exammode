@@ -331,6 +331,18 @@ export class Classroom {
     return state === 'handedIn' && meta.kind === 'handIn' ? 'ok' : 'refused';
   }
 
+  /** An upload has begun, or was taken: the student's ExamMode is there, whatever its beats are doing meanwhile
+   *  (at time up a whole lab hands in at once). It doesn't bring back one that is already out of contact: its
+   *  own return does, with its record of the gap. */
+  heard(token: string): Promise<void> {
+    return this.inTurn(async () => this.contact(this.tokens.get(token)));
+  }
+
+  private contact(studentId?: string): void {
+    const seat = studentId ? this.seats.get(studentId) : undefined;
+    if (seat?.attempt.state === 'inExam') seat.attempt = { ...seat.attempt, lastBeatAt: this.now() };
+  }
+
   /** A backup (F-22) or a hand-in (F-16): every file is checked against what was announced, then put in the
    *  student's folder. A hand-in is answered with its receipt. */
   async upload(meta: Upload, received: Received[]): Promise<UploadResult> {
@@ -346,6 +358,7 @@ export class Classroom {
       if (may !== 'ok') return { ok: false, why: may };
       const studentId = this.tokens.get(meta.token)!;
       const seat = this.seat(studentId);
+      this.contact(studentId);
       const arrived = new Map(received.map((f) => [f.name, f]));
       // a hand-in lists every file; the ones this laptop has from a backup, just as they are listed, needn't come
       // again (a folder of thousands of files goes up in parts)
