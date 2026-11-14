@@ -8,6 +8,8 @@ import type { Beacon } from '@lib/protocol/messages';
 
 export const BEACON_PORT = 47801;
 export const BEACON_MS = 2000;
+/** What fits in one packet on an ordinary network (1,500 bytes, less the addresses in front of it). */
+export const MAX_PACKET = 1400;
 
 type Interfaces = ReturnType<typeof networkInterfaces>;
 
@@ -54,6 +56,8 @@ export class BeaconSender {
     const targets = (this.options.targets ?? broadcastAddresses)();
     for (const listing of this.listings()) {
       const packet = Buffer.from(JSON.stringify(listing));
+      // one packet, whole: bigger than a network takes in one piece, it would arrive in parts or not at all
+      if (packet.length > MAX_PACKET) continue;
       for (const target of targets) this.socket?.send(packet, this.options.port ?? BEACON_PORT, target, () => undefined);
     }
   }

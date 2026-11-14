@@ -11,6 +11,7 @@ import { connectionOf, signMessage, type Identity } from '../../src/trust/signed
 import { StudentExam } from '../../src/main/student/exam';
 import { StudentFlow } from '../../src/main/student/flow';
 import { Session } from '../../src/main/student/session';
+import { MAX_PACKET } from '../../src/main/teacher/beacon';
 import { TeacherDesk } from '../../src/main/teacher/desk';
 import { eventually, later, tempFolder } from './helpers';
 
@@ -40,6 +41,12 @@ describe('F-44 only a licensed teacher\'s exam, and only that teacher\'s laptop'
   it('a licensed teacher\'s exam is listed, joined, started and handed in — every answer signed and checked', async () => {
     const { flow, desk } = await room(teacher);
     await eventually(() => expect(flow.state().found).toMatchObject([{ title: 'Term 1', teacherKey: teacher.licence.key }]));
+    // the announcement fits in one packet with room to spare — also with the longest title, names and school,
+    // in Khmer (three bytes a letter)
+    const [listing] = desk['server'].listings();
+    expect(Buffer.byteLength(JSON.stringify(listing))).toBeLessThan(900);
+    const longest = { ...listing!, title: 'ក'.repeat(100), teacher: 'ក'.repeat(60), class: 'ក'.repeat(60) };
+    expect(Buffer.byteLength(JSON.stringify(longest))).toBeLessThan(MAX_PACKET);
     await flow.pick(flow.state().found[0]!.runId);
     await flow.join(flow.state().names.find((n) => n.name === 'Sokha Chan')!.id, desk.state().run!.code);
     await eventually(() => expect(desk.state().students.find((s) => s.name === 'Sokha Chan')!.state).toBe('ready'));

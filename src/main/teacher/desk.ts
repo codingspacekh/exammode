@@ -49,6 +49,8 @@ const EVENTS_SHOWN = 3000;
 /** The shortest time between two turns of bringing the screens up to date, while changes keep coming. */
 const REFRESH_MS = 250;
 const MAX_MINUTES = 600;
+const MAX_TITLE = 100;
+const MAX_NAME = 60;
 
 export class TeacherDesk {
   private room?: Classroom;
@@ -128,6 +130,10 @@ export class TeacherDesk {
     const teacher = form.teacher.trim();
     if (teacher === '') return { error: 'Type your name: students see who set the exam.' };
     if (title === '') return { error: 'Give the exam a title.' };
+    // (the title, the teacher's and the class's name go out in the announcement, which has to fit in one packet
+    // — in Khmer a letter is three bytes)
+    if (title.length > MAX_TITLE) return { error: `The title is too long: ${MAX_TITLE} letters at most.` };
+    if (teacher.length > MAX_NAME) return { error: `Your name is too long: ${MAX_NAME} letters at most.` };
     if (!Number.isInteger(form.minutes) || form.minutes < 1 || form.minutes > MAX_MINUTES) return { error: `The time is between 1 minute and ${MAX_MINUTES / 60} hours.` };
     const typed = form.websites.map((w) => w.trim()).filter((w) => w !== '');
     const unreadable = typed.find((w) => !parseSite(w));
@@ -151,6 +157,7 @@ export class TeacherDesk {
     if (!classId) {
       const { students } = parseRoster(form.studentNames);
       if (form.className.trim() === '') return { error: 'Name the class.' };
+      if (form.className.trim().length > MAX_NAME) return { error: `The class's name is too long: ${MAX_NAME} letters at most.` };
       if (students.length === 0) return { error: 'Type the students\' names, one on each line.' };
       classId = (await this.store.addClass(form.className.trim(), students)).id;
     }
@@ -223,6 +230,7 @@ export class TeacherDesk {
     const name = change.name.trim();
     const { students } = parseRoster(change.list);
     if (name === '') return 'Name the class.';
+    if (name.length > MAX_NAME) return `The class's name is too long: ${MAX_NAME} letters at most.`;
     if (students.length === 0) return 'Type or paste the students\' names, one on each line.';
     if (this.current.classes.some((c) => c.id !== change.id && c.name.toLowerCase() === name.toLowerCase())) return `There is already a class called ${name}.`;
     if (change.id && this.room && this.room.view().run.endedAt === undefined && (await this.store.run(this.room.id))?.exam.classId === change.id) return 'This class is in the exam that is open now. Change it afterwards.';

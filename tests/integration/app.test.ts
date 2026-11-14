@@ -103,6 +103,9 @@ describe('F-30 opening an exam (the minimal form of M3)', () => {
     const { desk } = await lab();
     expect(await desk.openExam({ ...FORM, teacher: ' ' })).toMatch(/your name/);
     expect(await desk.openExam({ ...FORM, title: '' })).toMatch(/title/);
+    expect(await desk.openExam({ ...FORM, title: 'x'.repeat(101) })).toMatch(/title is too long/);
+    expect(await desk.openExam({ ...FORM, teacher: 'x'.repeat(61) })).toMatch(/name is too long/);
+    expect(await desk.openExam({ ...FORM, className: 'x'.repeat(61) })).toMatch(/class's name is too long/);
     expect(await desk.openExam({ ...FORM, minutes: 0 })).toMatch(/between 1 minute and 10 hours/);
     expect(await desk.openExam({ ...FORM, minutes: 1.5 })).toMatch(/between/);
     expect(await desk.openExam({ ...FORM, className: '' })).toMatch(/Name the class/);
