@@ -77,9 +77,16 @@ test.afterEach(async () => {
     try { app.process().kill(); } catch { /* gone already */ }
   }
   const journal = join(home, 'journal.json');
-  for (let i = 0; i < 120 && existsSync(journal); i++) await new Promise((r) => setTimeout(r, 500));
+  for (let i = 0; i < 60 && existsSync(journal); i++) await new Promise((r) => setTimeout(r, 500));
   guard?.kill();
   guard = undefined;
+  // Never leave this computer locked: if the journal is still there, a new Guard undoes it as it starts — as it
+  // would after a restart. (A second lock on top of one that wasn't undone would take GitHub's agent off the network.)
+  if (existsSync(journal)) {
+    console.log('[lock] the journal was still there: a new Guard undoes it');
+    const again = await startGuard(await freePort()).catch(() => undefined);
+    again?.kill();
+  }
   out('taskkill.exe', ['/f', '/im', 'charmap.exe']);
   if (!explorerRuns()) spawn('explorer.exe', [], { detached: true, stdio: 'ignore' }).unref();
   for (let i = 0; i < 60 && !explorerRuns(); i++) await new Promise((r) => setTimeout(r, 500));

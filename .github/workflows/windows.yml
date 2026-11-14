@@ -34,6 +34,16 @@ jobs:
       - name: The lock test — locked, an app of the exam, an app closed, handed in, put back
         run: npx playwright test tests/e2e/lock.spec.ts -g "put back after the hand-in"
         timeout-minutes: 8
+      - name: As it was, whatever the test did
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: |
+          netsh advfirewall set allprofiles firewallpolicy blockinbound,allowoutbound
+          if (-not (Get-Process explorer -ErrorAction SilentlyContinue)) { Start-Process explorer.exe }
+      - name: A safety net again
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: Start-Process powershell -WindowStyle Hidden -ArgumentList '-NoProfile','-Command','Start-Sleep 360; netsh advfirewall set allprofiles firewallpolicy blockinbound,allowoutbound; Start-Process explorer.exe'
       - name: The lock test — ExamMode killed
         if: ${{ !cancelled() }}
         run: npx playwright test tests/e2e/lock.spec.ts -g "killed during the exam"
