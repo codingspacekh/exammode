@@ -70,13 +70,18 @@ async function windowOf(app: ElectronApplication, view: string): Promise<Page> {
 test.beforeEach(() => { home = mkdtempSync(join(tmpdir(), 'exammode-lock-')); });
 test.afterEach(async () => {
   // ExamMode gone, the Guard's watchdog puts the computer back; then the Guard itself can go
-  for (const app of apps.splice(0)) await app.close().catch(() => undefined);
+  for (const app of apps.splice(0)) {
+    // (a window that fills the screen may not close when asked: then the program is ended)
+    await Promise.race([app.close().catch(() => undefined), new Promise((r) => setTimeout(r, 10_000))]);
+    try { app.process().kill(); } catch { /* gone already */ }
+  }
   const journal = join(home, 'journal.json');
   for (let i = 0; i < 120 && existsSync(journal); i++) await new Promise((r) => setTimeout(r, 500));
   guard?.kill();
   guard = undefined;
-  if (!explorerRuns()) spawn('explorer.exe', [], { detached: true, stdio: 'ignore' }).unref();
   out('taskkill.exe', ['/f', '/im', 'charmap.exe']);
+  if (!explorerRuns()) spawn('explorer.exe', [], { detached: true, stdio: 'ignore' }).unref();
+  for (let i = 0; i < 60 && !explorerRuns(); i++) await new Promise((r) => setTimeout(r, 500));
   rmSync(home, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
 });
 
