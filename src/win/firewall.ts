@@ -16,7 +16,7 @@ export class Firewall {
 
   /** The three profiles as they are in force. Read once and remembered for a few seconds: a lock asks six times. */
   async profile(name: FirewallProfile): Promise<Profile> {
-    if (!this.profiles || Date.now() - this.profiles.at > 5000) {
+    if (!this.profiles || Date.now() - this.profiles.at > 30_000) {
       type Row = { Name: string; On: string; Out: string; In: string };
       const rows = await powershellJson<Row[] | Row>('Get-NetFirewallProfile -PolicyStore ActiveStore | Select-Object Name,@{n="On";e={"$($_.Enabled)"}},@{n="Out";e={"$($_.DefaultOutboundAction)"}},@{n="In";e={"$($_.DefaultInboundAction)"}}');
       const values = {} as Record<FirewallProfile, Profile>;
@@ -31,19 +31,24 @@ export class Firewall {
   }
 
   async setState(name: FirewallProfile, state: 'on' | 'off'): Promise<void> {
+    const profile = await this.profile(name);
     await this.set(name, 'state', state);
+    profile.state = state;
   }
 
   /** Allow or block what no rule speaks of, going out. What comes in stays as it is. */
   async setOutbound(name: FirewallProfile, outbound: 'allow' | 'block'): Promise<void> {
-    const { inbound } = await this.profile(name);
-    await this.set(name, 'firewallpolicy', `${inbound},${outbound}outbound`);
+    const profile = await this.profile(name);
+    await this.set(name, 'firewallpolicy', `${profile.inbound},${outbound}outbound`);
+    profile.outbound = outbound;
   }
 
+  /** (What was read is kept up to date by hand: reading it again costs a second or more each time.) */
   private async set(name: FirewallProfile, what: string, value: string): Promise<void> {
     const done = await netsh('set', `${name}profile`, what, value);
+    if (done.ok) return;
     this.profiles = undefined;
-    if (!done.ok) throw new Error(`netsh set ${name}profile ${what} ${value}: ${done.out || done.err}`);
+    throw new Error(`netsh set ${name}profile ${what} ${value}: ${done.out || done.err}`);
   }
 
   /** Is there a rule with this name? (netsh says so by its exit code, in any language.) */
