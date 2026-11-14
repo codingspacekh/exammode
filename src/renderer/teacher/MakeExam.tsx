@@ -1,50 +1,71 @@
 import { useState } from 'react';
-import { CheckIcon, ExamIcon, FileTextIcon, GlobeIcon, MinusIcon, PencilSimpleIcon, PlayIcon, PlusIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
-import type { ExamForm, TeacherApi, TeacherState } from '@lib/app/state';
+import { CheckIcon, ExamIcon, FileIcon, FileTextIcon, FolderIcon, GlobeIcon, MinusIcon, PencilSimpleIcon, PlayIcon, PlusIcon, ShieldCheckIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
+import type { ExamForm, GivenFile, SavedExam, TeacherApi, TeacherState } from '@lib/app/state';
+import { parseRoster } from '@lib/exam/roster';
 import { formatMinutes } from '@lib/session/time';
-import { Note } from '@/components/brand';
+import { Note, size } from '@/components/brand';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Section, TeacherBar } from './TeacherBar';
+import { Section, TeacherBar, type Page } from './TeacherBar';
 
 const NEW = 'new';
 const STEP = 5;
 const label = 'mb-[5px] text-[12px] font-semibold text-text-2';
 
-/** 11 · Make an exam — the minimal form of M3 (F-30, F-32): the title, the class, the time, and where the
- *  questions are. Apps, files to give and the rules come with M5 and M6. */
-export function MakeExam({ state, api }: { state: TeacherState; api: TeacherApi }) {
-  const [teacher, setTeacher] = useState(state.defaults.teacher);
-  const [title, setTitle] = useState('');
-  const [classId, setClassId] = useState(state.classes.some((c) => c.id === state.defaults.classId) ? state.defaults.classId! : NEW);
+/** What an exam always does, in this version: said, not switched (the prototype's switches come when a rule can
+ *  really be turned off). */
+const RULES: [string, string][] = [
+  ['Leaving locks the student out', 'They can\'t join again unless you let them back in.'],
+  ['ExamMode closed suddenly counts as leaving', 'A crash, a power cut, Task Manager — you decide who comes back.'],
+  ['Hand in by itself when the time is up', 'Every student\'s work is collected at the end.'],
+  ['A lost network is not leaving', 'The student keeps working, and the gap is reported when contact is back.'],
+];
+
+/** 11 · Make an exam (F-30, F-32, F-33, F-35): the title, the class, the time, where the questions are, the
+ *  files to give. `exam`: the kept exam that is being changed. The exam's apps come with M5. */
+export function MakeExam({ state, api, exam, page, onPage, onClose, cancel = false }: { state: TeacherState; api: TeacherApi; exam?: SavedExam; page?: Page; onPage?: (page: Page) => void; /** back to the list: after Save, or by Cancel when there is a list to go back to */ onClose?: () => void; cancel?: boolean }) {
+  const lastClass = exam?.classId ?? state.defaults.classId;
+  const [teacher, setTeacher] = useState(exam?.teacher ?? state.defaults.teacher);
+  const [title, setTitle] = useState(exam?.title ?? '');
+  const [classId, setClassId] = useState(state.classes.some((c) => c.id === lastClass) ? lastClass! : NEW);
   const [className, setClassName] = useState('');
   const [studentNames, setStudentNames] = useState('');
-  const [minutes, setMinutes] = useState(90);
-  const [where, setWhere] = useState<'paper' | 'website'>('paper');
-  const [websites, setWebsites] = useState(['']);
+  const [minutes, setMinutes] = useState(exam?.minutes ?? 90);
+  const [where, setWhere] = useState<'paper' | 'website'>(exam && exam.websites.length > 0 ? 'website' : 'paper');
+  const [websites, setWebsites] = useState(exam && exam.websites.length > 0 ? exam.websites : ['']);
+  const [files, setFiles] = useState<GivenFile[]>(exam?.files ?? []);
   const [error, setError] = useState<string>();
   const [opening, setOpening] = useState(false);
 
   const kept = state.classes.find((c) => c.id === classId);
-  const students = kept ? kept.students : new Set(studentNames.split('\n').map((n) => n.trim()).filter(Boolean)).size;
+  const students = kept ? kept.students : parseRoster(studentNames).students.length;
   const sites = where === 'website' ? websites.map((w) => w.trim()).filter(Boolean) : [];
   const site = (i: number, value: string) => setWebsites(websites.map((w, at) => (at === i ? value : w)));
 
-  async function open() {
-    const form: ExamForm = { teacher, title, classId: kept?.id, className, studentNames, minutes, websites: sites };
+  const form = (): ExamForm => ({ id: exam?.id, teacher, title, classId: kept?.id, className, studentNames, minutes, websites: sites, files });
+  async function send(how: 'open' | 'saveExam') {
     setOpening(true);
-    setError(await api.open(form));
+    const wrong = await api[how](form());
+    setError(wrong);
     setOpening(false);
+    if (!wrong && how === 'saveExam') onClose?.();
+  }
+  /** The files just chosen take the place of ones with the same name. */
+  async function addFiles() {
+    const chosen = await api.chooseFiles();
+    setFiles([...files.filter((f) => !chosen.some((c) => c.name === f.name)), ...chosen].sort((a, b) => a.name.localeCompare(b.name)));
   }
 
   return (
     <div className="flex h-screen flex-col">
-      <TeacherBar teacher={teacher.trim()}>
-        <Button disabled={opening} onClick={() => void open()}><PlayIcon weight="fill" className="size-3" /> {opening ? 'Opening…' : 'Open for students…'}</Button>
+      <TeacherBar teacher={teacher.trim()} page={page} onPage={onPage}>
+        {cancel && <Button variant="ghost" disabled={opening} onClick={onClose}>Cancel</Button>}
+        <Button variant="outline" disabled={opening} onClick={() => void send('saveExam')}>Save</Button>
+        <Button disabled={opening} onClick={() => void send('open')}><PlayIcon weight="fill" className="size-3" /> {opening ? 'Opening…' : 'Open for students…'}</Button>
       </TeacherBar>
       <div className="flex min-h-0 flex-1 gap-[22px] overflow-hidden px-[26px] py-[22px]">
         <div className="flex min-w-0 flex-1 flex-col gap-3.5 overflow-auto">
@@ -75,7 +96,7 @@ export function MakeExam({ state, api }: { state: TeacherState; api: TeacherApi 
                 <>
                   <div className="col-span-2"><Label htmlFor="class-name" className={label}>The class's name</Label><Input id="class-name" value={className} onChange={(e) => setClassName(e.target.value)} placeholder="Year 10 A" className="h-9" /></div>
                   <div className="col-span-2">
-                    <Label htmlFor="students" className={label}>Students — one name on each line</Label>
+                    <Label htmlFor="students" className={label}>Students — one name on each line (or pasted from a spreadsheet)</Label>
                     <Textarea id="students" value={studentNames} onChange={(e) => setStudentNames(e.target.value)} rows={8} placeholder={'Sokha Chan\nDara Kim\nVannak Sok'} className="min-h-[150px] font-sans" />
                   </div>
                 </>
@@ -101,6 +122,31 @@ export function MakeExam({ state, api }: { state: TeacherState; api: TeacherApi 
               </div>
             )}
           </Section>
+          <Section title={<><FolderIcon /> Files to give</>} sub="Copied into every student's Exam folder when the exam starts. A file a student doesn't change isn't handed in.">
+            {files.length > 0 && (
+              <ul aria-label="Files to give" className="mb-2 overflow-hidden rounded-[10px] border border-border">
+                {files.map((f, i) => (
+                  <li key={f.name} className={`flex items-center gap-2.5 px-3 py-[7px] text-[12.5px] ${i > 0 ? 'border-t border-border' : ''}`}>
+                    <span className="grid size-[22px] flex-none place-items-center rounded-[5px] bg-lost text-white"><FileIcon className="size-3" /></span>
+                    <span className="truncate">{f.name}</span>
+                    <span className="ml-auto flex-none text-[11.5px] text-muted-foreground">{size(f.bytes)}</span>
+                    <Button type="button" variant="ghost" size="icon-sm" aria-label={`Take ${f.name} off`} onClick={() => setFiles(files.filter((x) => x.name !== f.name))}><TrashIcon /></Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Button type="button" variant="ghost" size="sm" onClick={() => void addFiles()}><PlusIcon /> Add files</Button>
+          </Section>
+          <Section title={<><ShieldCheckIcon /> Rules</>} sub="The same for every exam in this version.">
+            <ul aria-label="Rules">
+              {RULES.map(([rule, why], i) => (
+                <li key={rule} className={`flex items-start gap-3 py-2.5 ${i > 0 ? 'border-t border-border' : 'pt-0.5'}`}>
+                  <CheckIcon className="mt-0.5 size-3.5 flex-none text-ok" />
+                  <div><b className="block text-[13px]">{rule}</b><span className="text-[12px] text-muted-foreground">{why}</span></div>
+                </li>
+              ))}
+            </ul>
+          </Section>
         </div>
         <aside className="flex w-[clamp(300px,28%,400px)] flex-col gap-3.5">
           <Section title="Ready to open" className="p-4">
@@ -110,6 +156,7 @@ export function MakeExam({ state, api }: { state: TeacherState; api: TeacherApi 
                 [students > 0, students > 0 ? `${students} students${kept ? ` in ${kept.name}` : ''}` : 'A class with its students'],
                 [true, formatMinutes(minutes)],
                 [where === 'paper' || sites.length > 0, where === 'paper' ? 'Questions on paper — no browser, no internet' : sites.length === 1 ? '1 website' : `${sites.length} websites`],
+                [true, files.length === 0 ? 'No files to give' : `${files.length === 1 ? '1 file' : `${files.length} files`} to give · ${size(files.reduce((sum, f) => sum + f.bytes, 0))}`],
               ].map(([ok, text], i) => (
                 <li key={i} className="flex items-start gap-2">
                   {ok ? <CheckIcon className="mt-px size-3.5 flex-none text-ok" /> : <span className="mt-[5px] size-1.5 flex-none rounded-full bg-input mx-1" />}
@@ -119,7 +166,7 @@ export function MakeExam({ state, api }: { state: TeacherState; api: TeacherApi 
             </ul>
           </Section>
           <Section title="What comes later" className="p-4">
-            <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">This first version doesn't lock the lab computers yet. Choosing the exam's apps, giving out files and the rules come in the next versions.</p>
+            <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">This version doesn't lock the lab computers yet, and the exam's apps aren't chosen here yet. Both come in the next versions.</p>
           </Section>
         </aside>
       </div>

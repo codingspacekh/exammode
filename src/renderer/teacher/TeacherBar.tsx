@@ -1,17 +1,28 @@
 import type { ReactNode } from 'react';
-import { ListBulletsIcon } from '@phosphor-icons/react';
+import { ListBulletsIcon, UsersIcon } from '@phosphor-icons/react';
+import { cn } from '@/lib/utils';
 import { Brand, Pill } from '@/components/brand';
 
 const initials = (name: string): string => name.replace(/^(Ms|Mr|Mrs|Miss|Dr)\.?\s+/i, '').split(/\s+/).map((w) => w[0] ?? '').join('').slice(0, 2).toUpperCase();
 
 /** The top of every teacher screen (.tbar): the name, teacher mode, and what this screen can do on the right. */
-export function TeacherBar({ teacher, children }: { teacher: string; children?: ReactNode }) {
+export type Page = 'exams' | 'classes';
+
+/** `page` and `onPage`: between exams, the teacher moves between the exams and the classes. During a run the
+ *  bar only says where they are. */
+export function TeacherBar({ teacher, children, page = 'exams', onPage }: { teacher: string; children?: ReactNode; page?: Page; onPage?: (page: Page) => void }) {
+  const tab = (on: boolean) => cn('inline-flex h-8 items-center gap-[7px] rounded-[7px] px-3 font-medium text-text-2', on && 'bg-accent text-accent-foreground');
   return (
     <header className="flex h-14 flex-none items-center gap-3.5 border-b border-border bg-card px-[18px]">
       <Brand />
       <Pill tone="done">Teacher</Pill>
       <nav className="ml-2.5 flex gap-0.5">
-        <span aria-current="page" className="inline-flex h-8 items-center gap-[7px] rounded-[7px] bg-accent px-3 font-medium text-accent-foreground"><ListBulletsIcon className="size-3.5" /> Exams</span>
+        {onPage ? (
+          <>
+            <button type="button" aria-current={page === 'exams' ? 'page' : undefined} className={tab(page === 'exams')} onClick={() => onPage('exams')}><ListBulletsIcon className="size-3.5" /> Exams</button>
+            <button type="button" aria-current={page === 'classes' ? 'page' : undefined} className={tab(page === 'classes')} onClick={() => onPage('classes')}><UsersIcon className="size-3.5" /> Classes</button>
+          </>
+        ) : <span aria-current="page" className={tab(true)}><ListBulletsIcon className="size-3.5" /> Exams</span>}
       </nav>
       <span className="flex-1" />
       {children}

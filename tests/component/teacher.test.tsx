@@ -7,6 +7,7 @@ import { After } from '@/teacher/After';
 import { feedLine, timelineLine } from '@/teacher/feed';
 import { Live, lookOf } from '@/teacher/Live';
 import { Lobby } from '@/teacher/Lobby';
+import { Home } from '@/teacher/Home';
 import { MakeExam } from '@/teacher/MakeExam';
 import { at, card, RUN, teacher, teacherApi } from './fakes';
 
@@ -31,7 +32,7 @@ describe('11 Make an exam — the minimal form (F-30, F-32)', () => {
     await user.click(screen.getByRole('button', { name: 'Open for students…' }));
     expect(api.open).toHaveBeenCalledWith({
       teacher: 'Ms Srey Leak', title: 'Year 10 ICT — Term 1 practical exam', classId: undefined, className: 'Year 10 A',
-      studentNames: 'Sokha Chan\nDara Kim\nDara Kim', minutes: 85, websites: [],
+      studentNames: 'Sokha Chan\nDara Kim\nDara Kim', minutes: 85, websites: [], files: [],
     });
   });
 
@@ -72,6 +73,152 @@ describe('11 Make an exam — the minimal form (F-30, F-32)', () => {
     render(<MakeExam state={teacher()} api={teacherApi(teacher(), 'Give the exam a title.')} />);
     await userEvent.click(screen.getByRole('button', { name: 'Open for students…' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Give the exam a title.');
+  });
+});
+
+describe('11 Make an exam — files to give, saving, changing (F-33, F-35)', () => {
+  const classes = [{ id: 'c-1', name: 'Year 10 A', students: 26, roster: [] }];
+  const kept = { id: 'e-1', title: 'Term 1 practical', teacher: 'Ms Srey Leak', classId: 'c-1', className: 'Year 10 A', minutes: 60, websites: ['ict.school.local/exams/y10-term1'], files: [{ name: 'sales.xlsx', bytes: 16_384 }], updatedAt: at('08:00'), runs: 1 };
+
+  it('F-33 files are added from this computer, listed with their size, and can be taken off', async () => {
+    const api = teacherApi();
+    const user = userEvent.setup();
+    render(<MakeExam state={teacher({ classes, defaults: { teacher: 'Ms Srey Leak', classId: 'c-1' } })} api={api} />);
+    expect(screen.getByText('No files to give')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Add files' }));
+    expect(within(screen.getByRole('list', { name: 'Files to give' })).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['marks.csv1 KB']);
+    expect(screen.getByText('1 file to give · 1 KB')).toBeInTheDocument();
+    // the same file chosen again takes the first one's place
+    await user.click(screen.getByRole('button', { name: 'Add files' }));
+    expect(within(screen.getByRole('list', { name: 'Files to give' })).getAllByRole('listitem')).toHaveLength(1);
+    await user.type(screen.getByRole('textbox', { name: 'Title' }), 'Term 1');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(api.saveExam).toHaveBeenCalledWith(expect.objectContaining({ title: 'Term 1', files: [{ name: 'marks.csv', bytes: 1024, path: '/Users/teacher/marks.csv' }] }));
+    await user.click(screen.getByRole('button', { name: 'Take marks.csv off' }));
+    expect(screen.queryByRole('list', { name: 'Files to give' })).not.toBeInTheDocument();
+  });
+
+  it('the rules are said, not switched', () => {
+    render(<MakeExam state={teacher()} api={teacherApi()} />);
+    expect(within(screen.getByRole('list', { name: 'Rules' })).getAllByRole('listitem').map((li) => li.querySelector('b')?.textContent)).toEqual([
+      'Leaving locks the student out', 'ExamMode closed suddenly counts as leaving', 'Hand in by itself when the time is up', 'A lost network is not leaving',
+    ]);
+  });
+
+  it('F-35 a kept exam opens in the form as it was; Save keeps the changes under the same exam', async () => {
+    const api = teacherApi();
+    const closed = vi.fn();
+    render(<MakeExam state={teacher({ classes, exams: [kept] })} api={api} exam={kept} onClose={closed} cancel />);
+    expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('Term 1 practical');
+    expect(screen.getByRole('group', { name: 'Time — counted from Start' })).toHaveTextContent('1 h');
+    expect(screen.getByRole('textbox', { name: 'The question page' })).toHaveValue('ict.school.local/exams/y10-term1');
+    expect(screen.getByRole('list', { name: 'Files to give' })).toHaveTextContent('sales.xlsx16 KB');
+    await userEvent.click(screen.getByRole('button', { name: 'More time' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(api.saveExam).toHaveBeenCalledWith(expect.objectContaining({ id: 'e-1', minutes: 65, classId: 'c-1', files: [{ name: 'sales.xlsx', bytes: 16_384 }] }));
+    expect(closed).toHaveBeenCalledOnce();
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(closed).toHaveBeenCalledTimes(2);
+  });
+
+  it('a form that can\'t be saved stays open and says why', async () => {
+    const closed = vi.fn();
+    render(<MakeExam state={teacher()} api={teacherApi(teacher(), 'Give the exam a title.')} onClose={closed} />);
+    expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Give the exam a title.');
+    expect(closed).not.toHaveBeenCalled();
+  });
+});
+
+describe('Exams and classes, between exams (F-35, F-43)', () => {
+  const roster = [{ name: 'Dara Kim', email: 'dara.kim@school.edu' }, { name: 'Sokha Chan', email: 'sokha.chan@school.edu' }];
+  const classes = [{ id: 'c-1', name: 'Year 10 A', students: 2, roster }, { id: 'c-2', name: 'Year 11 B', students: 1, roster: [{ name: 'Kosal Meas' }] }];
+  const exam = (id: string, title: string, over = {}) => ({ id, title, teacher: 'Ms Srey Leak', classId: 'c-1', className: 'Year 10 A', minutes: 90, websites: [], files: [], updatedAt: at('08:00'), runs: 0, ...over });
+  const exams = [exam('e-1', 'Term 1 practical', { runs: 2, files: [{ name: 'sales.xlsx', bytes: 1 }] }), exam('e-2', 'Mock paper 2', { websites: ['a.example/*', 'b.example/*'], minutes: 120 })];
+  const home = teacher({ classes, exams, defaults: { teacher: 'Ms Srey Leak', classId: 'c-1' } });
+
+  it('with nothing kept yet, the first thing is the form for a new exam (N-13)', () => {
+    render(<Home state={teacher()} api={teacherApi()} />);
+    expect(screen.getByRole('textbox', { name: 'Title' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
+  });
+
+  it('F-35 the kept exams are listed; each can be opened for students again, changed, copied or deleted', async () => {
+    const api = teacherApi(home, 'This exam was run, and its hand-ins and log belong to it: it can\'t be deleted.');
+    const user = userEvent.setup();
+    render(<Home state={home} api={api} />);
+    const rows = screen.getAllByRole('row').slice(1).map((r) => within(r).getAllByRole('cell').slice(0, 6).map((c) => c.textContent?.trim()));
+    expect(rows).toEqual([
+      ['Term 1 practical', 'Year 10 A', '1 h 30 min', 'On paper', '1', '12 Nov 2026 · run 2 times'],
+      ['Mock paper 2', 'Year 10 A', '2 h', '2 websites', '—', '12 Nov 2026'],
+    ]);
+    await user.click(screen.getByRole('button', { name: 'Copy Mock paper 2' }));
+    expect(api.copyExam).toHaveBeenCalledWith('e-2');
+    await user.click(screen.getByRole('button', { name: 'Delete Term 1 practical' }));
+    expect(api.deleteExam).toHaveBeenCalledWith('e-1');
+    expect(await screen.findByRole('alert')).toHaveTextContent('can\'t be deleted');
+    await user.click(screen.getByRole('button', { name: 'Open Mock paper 2 for students' }));
+    expect(api.openSaved).toHaveBeenCalledWith('e-2');
+
+    await user.click(screen.getByRole('button', { name: 'Change Mock paper 2' }));
+    expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('Mock paper 2');
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await user.click(screen.getByRole('button', { name: 'New exam' }));
+    expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('');
+    expect(screen.getByRole('textbox', { name: 'Your name' })).toHaveValue('Ms Srey Leak');
+  });
+
+  it('F-43 a class shows its list as it can be edited; what was read from it is counted, and what is left out is said', async () => {
+    const api = teacherApi(home);
+    const user = userEvent.setup();
+    render(<Home state={home} api={api} />);
+    await user.click(screen.getByRole('button', { name: 'Classes' }));
+    expect(screen.getByRole('button', { name: 'Classes' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('textbox', { name: 'Name' })).toHaveValue('Year 10 A');
+    expect(screen.getByRole('textbox', { name: 'Students' })).toHaveValue('Dara Kim\tdara.kim@school.edu\nSokha Chan\tsokha.chan@school.edu');
+    expect(screen.getByRole('status')).toHaveTextContent('2 students · 2 with a school email');
+
+    await user.click(screen.getByRole('button', { name: /Year 11 B/ }));
+    expect(screen.getByRole('textbox', { name: 'Students' })).toHaveValue('Kosal Meas');
+    await user.type(screen.getByRole('textbox', { name: 'Students' }), '{Enter}kosal meas{Enter}Visal Long');
+    expect(screen.getByRole('status')).toHaveTextContent('2 studentsLine 2 is left out: the same name is on the list already.');
+    await user.click(screen.getByRole('button', { name: 'Save the class' }));
+    expect(api.saveClass).toHaveBeenCalledWith({ id: 'c-2', name: 'Year 11 B', list: 'Kosal Meas\nkosal meas\nVisal Long' });
+    await user.click(screen.getByRole('button', { name: 'Delete the class' }));
+    expect(api.deleteClass).toHaveBeenCalledWith('c-2');
+    await user.click(screen.getByRole('button', { name: 'Exams' }));
+    expect(screen.getByRole('heading', { name: 'Your exams' })).toBeInTheDocument();
+  });
+
+  it('F-43 a new class from a spreadsheet file; it can\'t be saved without a name and at least one student', async () => {
+    const api = teacherApi(home);
+    const user = userEvent.setup();
+    render(<Home state={home} api={api} />);
+    await user.click(screen.getByRole('button', { name: 'Classes' }));
+    await user.click(screen.getByRole('button', { name: 'New class' }));
+    expect(screen.getByRole('button', { name: 'Save the class' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Delete the class' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Read a spreadsheet file…' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('1 student · 1 with a school email');
+    await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Year 9 C');
+    await user.click(screen.getByRole('button', { name: 'Save the class' }));
+    expect(api.saveClass).toHaveBeenCalledWith({ id: undefined, name: 'Year 9 C', list: 'Name,Email\nBopha Ouk,bopha.ouk@school.edu' });
+  });
+
+  it('what the teacher\'s laptop says about a class is shown: something wrong, or news', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<Home state={home} api={teacherApi(home, 'There is already a class called Year 10 A.')} />);
+    await user.click(screen.getByRole('button', { name: 'Classes' }));
+    await user.click(screen.getByRole('button', { name: 'Save the class' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('There is already a class called Year 10 A.');
+    await user.click(screen.getByRole('button', { name: 'Delete the class' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('There is already a class called Year 10 A.');
+    unmount();
+    render(<Home state={home} api={teacherApi(home, 'Saved. 1 student who was taken off stays on the list: earlier exams have their work.')} />);
+    await user.click(screen.getByRole('button', { name: 'Classes' }));
+    await user.click(screen.getByRole('button', { name: 'Save the class' }));
+    expect(await screen.findByRole('note')).toHaveTextContent('Saved. 1 student who was taken off stays');
   });
 });
 

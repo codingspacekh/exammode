@@ -1,5 +1,7 @@
 # 2. Architecture
 
+*Revision 9 (2026-11-14): M6 — `refused { left }` says when and how the student left, for screen 10; `joined` lists the files to give, which a lab computer fetches from `GET /runs/<run>/files/<name>` with its token (§2.7, §2.9); an exam's files are kept beside the database in `exam-files/<exam>/` (§2.11); class lists are read by `src/lib/exam/roster.ts` and the log is written by `src/lib/exam/log.ts`.*
+
 *Revision 8 (2026-11-14): M3 — the state behind the screens lives in the main process without Electron (`teacher/desk.ts`, `student/flow.ts`), and the windows are thin glue in `src/main/shell` (§2.13); `joined` tells a lab computer about the exam, and the beacon carries its length (§2.7); the exam browser's pages are views under ExamMode's own strip, and a blocked page is ExamMode's screen, not a web page (§2.6); `--teacher` until the licence (§2.14).*
 
 *Revision 7 (2026-11-14): M2 — SQLite is Node's own (`node:sqlite`), so nothing is compiled for Electron (§2.11); the server's addresses, the wrong-code limit, and *Let back in* reaching a waiting ExamMode as `joined` (§2.7); a run keeps the time added for everyone, not its end; an attempt also keeps its token (§2.11); backups that aren't in the hand-in are kept apart (§2.9). The cases the documents didn't cover are in [`acceptance/M2.md`](acceptance/M2.md) §3.*
@@ -224,6 +226,7 @@ The browser window has no address box, no DevTools, no downloads, no extensions,
 | `GET /exams` | the open runs, as the beacon announces them: what a typed-in computer name is asked (F-01) |
 | `GET /runs/<run>/students` | the class list to pick a name from (F-02); an email only where a name is shared |
 | `WS /ws` | `join` or `resume` first, then the messages above |
+| `GET /runs/<run>/files/<name>` | a file the teacher gives every student (F-33): only with the token of one of the run's attempts |
 | `POST /stopped` | the Guard's `stopped` |
 | `POST /upload` | a backup or a hand-in, multipart: `meta` (who, which files, their SHA-256) first, then the files as `f0`, `f1` … Nothing is taken before `meta` has an attempt's token |
 

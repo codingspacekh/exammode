@@ -95,9 +95,12 @@ test('a teacher and two students: join, start, a blocked page, hand in, the rece
   });
   const [port, beacon] = [await freePort(), await freeUdpPort()];
   const handIns = join(home, 'Hand-ins');
+  // a file the teacher gives every student (F-33)
+  const marks = join(home, 'marks.csv');
+  writeFileSync(marks, 'name,mark\n');
 
   // ── the teacher opens the exam ────────────────────────────────────────────────────────────────────────────────
-  const teacherApp = await launch('teacher', { EXAMMODE_PORT: String(port), EXAMMODE_BEACON_PORT: String(beacon), EXAMMODE_BEACON_TO: '127.0.0.1', EXAMMODE_HANDINS: handIns, EXAMMODE_EXPORT: join(home, 'Log.csv') }, '--teacher');
+  const teacherApp = await launch('teacher', { EXAMMODE_PORT: String(port), EXAMMODE_BEACON_PORT: String(beacon), EXAMMODE_BEACON_TO: '127.0.0.1', EXAMMODE_HANDINS: handIns, EXAMMODE_EXPORT: join(home, 'Log.csv'), EXAMMODE_CHOOSE: marks }, '--teacher');
   const teacher = await windowOf(teacherApp, 'teacher');
   await expect(teacher).toHaveTitle('ExamMode');
   await teacher.getByRole('textbox', { name: 'Title' }).fill('Year 10 ICT — Term 1 practical exam');
@@ -108,6 +111,8 @@ test('a teacher and two students: join, start, a blocked page, hand in, the rece
   await teacher.getByRole('textbox', { name: 'The question page' }).fill(`${questions}/questions.html`);
   await teacher.getByRole('button', { name: 'Add a website' }).click();
   await teacher.getByRole('textbox', { name: 'Another website 1' }).fill(`${questions}/*`);
+  await teacher.getByRole('button', { name: 'Add files' }).click();
+  await expect(teacher.getByRole('list', { name: 'Files to give' })).toContainText('marks.csv');
   await shot(teacher, '11-make-exam');
   const open = teacher.getByRole('button', { name: 'Open for students…' });
   // the theme's accent (design/src/styles.css --accent)
@@ -173,10 +178,15 @@ test('a teacher and two students: join, start, a blocked page, hand in, the rece
   // ── Sokha works in the Exam folder and hands in ───────────────────────────────────────────────────────────────
   const examRoot = join(home, 'PC-14', 'Exam');
   const folder = join(examRoot, readdirSync(examRoot)[0]!, 'Sokha Chan');
+  // the teacher's file is there, as it was given
+  await expect.poll(() => readdirSync(folder)).toEqual(['marks.csv']);
+  expect(readFileSync(join(folder, 'marks.csv'), 'utf8')).toBe('name,mark\n');
   writeFileSync(join(folder, 'Report.docx'), 'Sokha\'s report');
   await bar.getByRole('button', { name: 'Hand in…' }).click();
   await expect(sokha.getByRole('dialog', { name: 'Hand in your work' })).toBeVisible();
   await expect(sokha.getByRole('list', { name: 'Your work' })).toContainText('Report.docx');
+  // a given file that wasn't changed is listed apart, and isn't handed in
+  await expect(sokha.getByRole('list', { name: 'Your work' })).toContainText('Given by Ms Srey Leak, not changed');
   await shot(sokha, '09-hand-in');
   await sokha.getByRole('button', { name: 'Hand in now' }).click();
   await expect(sokha.getByRole('heading', { name: 'Handed in' })).toBeVisible();
@@ -249,6 +259,14 @@ test('a teacher and two students: join, start, a blocked page, hand in, the rece
   const log = readFileSync(join(home, 'Log.csv'), 'utf8');
   expect(log).toContain('Dara Kim,PC-03,letBackIn,reason: Pressed Leave by mistake');
   expect(log).toContain('Sokha Chan,PC-14,pageBlocked');
+
+  // ── Done: the exam is kept, with its class, to open again next time (F-35, F-43) ──────────────────────────────
+  await teacher.getByRole('button', { name: 'Done' }).click();
+  await expect(teacher.getByRole('row', { name: /Year 10 ICT — Term 1 practical exam Year 10 A 1 h 30 min 2 websites 1 .* run once/ })).toBeVisible();
+  await shot(teacher, '11-exams');
+  await teacher.getByRole('button', { name: 'Classes' }).click();
+  await expect(teacher.getByRole('textbox', { name: 'Students' })).toHaveValue('Dara Kim\nSokha Chan\nVannak Sok');
+  await shot(teacher, '11-classes');
 
   // Finish: ExamMode is as it was
   await sokha.getByRole('button', { name: 'Finish' }).click();

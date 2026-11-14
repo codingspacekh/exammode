@@ -423,6 +423,6 @@ Each milestone lists: **goal · build order (TDD slices) · tests written first 
 | M3 Walking skeleton | 🔨 built; waiting for the teacher and the lab | | The first usable app, unlocked: screens 01, 03, 04, 07b, 09, 09b, 11 (minimal), 12, 13; e2e with a teacher and two students (`docs/acceptance/M3.md`); **waiting: the teacher's look at the screens and yes or no to M3.md §3; the 10-minute trial on lab computers** |
 | M4 Locking a lab computer | | | |
 | M5 The apps | | | |
-| M6 The teacher's whole exam | 🔨 in progress, ahead of M4 and M5 | | Built: 08, 10, 10b, 13b with Let back in / Keep out, Add time, 13's filters and list, the code full screen, 14 and the log (`docs/acceptance/M6.md`). To build: classes, the full *Make an exam* (save, copy, files to give, rules), the 26-student story |
+| M6 The teacher's whole exam | 🔨 built ahead of M4 and M5; waiting for the teacher | | 08, 10, 10b, 13b, Add time, 13 in full, the code full screen, 14 and the log, kept exams, classes, files to give; the 26-student story ends with screen 14's counts (`docs/acceptance/M6.md`). **Waiting: the teacher's look (two screens were never drawn), N-13, yes or no to M6.md §3.** The apps and the checks join these screens with M5 and M4 |
 | M7 Teacher licence & trust | | | |
 | M8 Hardening & v1.0 | | | |

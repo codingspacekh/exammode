@@ -11,7 +11,7 @@ import { Waiting } from './student/Waiting';
 import { After } from './teacher/After';
 import { Live } from './teacher/Live';
 import { Lobby } from './teacher/Lobby';
-import { MakeExam } from './teacher/MakeExam';
+import { Home } from './teacher/Home';
 
 /** The lab computer's own window: the plain screens before and after the exam, and Hand in. */
 export function StudentApp({ api }: { api: StudentApi }) {
@@ -44,8 +44,7 @@ export function TeacherApp({ api }: { api: TeacherApi }) {
   if (state.screen === 'lobby') return <Lobby state={state} api={api} />;
   if (state.screen === 'live') return <Live state={state} api={api} />;
   if (state.screen === 'ended') return <After state={state} api={api} />;
-  // a new form for every exam: it starts from the last one's teacher and class
-  return <MakeExam key={state.classes.length} state={state} api={api} />;
+  return <Home state={state} api={api} />;
 }
 
 /** Which screen a window is was decided by the main process (`?view=`). */

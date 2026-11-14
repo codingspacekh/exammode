@@ -6,6 +6,7 @@ import { killedAndLetBackIn } from '../../scripts/class/stories/killed';
 import { networkDrops } from '../../scripts/class/stories/network';
 import { crashInTheLobby, wrongCodeAndNameTaken } from '../../scripts/class/stories/refused';
 import { timeIsUp } from '../../scripts/class/stories/time-up';
+import { wholeExam, wholeExamOptions } from '../../scripts/class/stories/whole-exam';
 
 /** M2's stories (MILESTONES §6): the simulated classroom against the real teacher's side, over real sockets. */
 let open: SimClassroom | undefined;
@@ -82,5 +83,26 @@ describe('M2 the classroom network', () => {
     expect(story.states).toEqual(Array(40).fill('handedIn'));
     console.log(`N-03 with 40 students — slowest, in ms: ${JSON.stringify(story.ms)}`);
     for (const ms of Object.values(story.ms)) expect(ms).toBeLessThan(2000);
+  });
+});
+
+describe('M6 the teacher\'s whole exam', () => {
+  it('the prototype\'s story with its 26 students ends on screen 14 with the prototype\'s counts', async () => {
+    const story = await wholeExam(await classroom(wholeExamOptions));
+    // 14: Handed in 21 · when time ran out 4 · Left 1 · students with warnings 4
+    expect(story.handedIn).toBe(21);
+    expect(story.timeUp).toEqual(['Panha Choun', 'Piseth Nhem', 'Sothea Nuon', 'Visal Long']);
+    expect(story.left).toEqual(['Vannak Sok: stoppedSuddenly']);
+    expect(story.warnings).toEqual({ 'Dara Kim': 2, 'Seyha Mao': 1, 'Sophea Lim': 1, 'Vannak Sok': 1 });
+    expect(story.receipts).toBe(25);
+    expect(story.folders).toBe(26);
+    expect(story.ended).toBe(true);
+    // on the way: only Mealea was no contact; Vannak was refused and kept out; Bopha's click is a note
+    expect(story.duringGap).toEqual(['Mealea Chea']);
+    expect(story.asked).toBe('left');
+    expect(story.logs.mealea).toEqual(['joined', 'ready', 'started', 'noContact', 'gap', 'handedIn']);
+    expect(story.logs.vannak).toEqual(['joined', 'ready', 'started', 'appClosed', 'stoppedSuddenly', 'asksBack', 'keptOut']);
+    expect(story.logs.bopha).toEqual(['joined', 'ready', 'started', 'pageBlocked', 'handedIn']);
+    expect(story.logs.rithy).toEqual(['joined', 'ready', 'started', 'handedIn']);
   });
 });
