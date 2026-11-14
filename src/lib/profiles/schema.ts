@@ -19,7 +19,12 @@ export const appProfile = z.object({
   name: text,
   /** signer + file name + install folder (with %Variables%) — never the name alone (F-12) */
   match: z.object({ files: z.array(text).min(1), signer: text.optional(), paths: z.array(text).min(1) }),
-  launch: z.object({ args: z.array(z.string().refine(knownPlaceholders, 'only {examFolder} and {examProfile}')) }).default({ args: [] }),
+  /** for the teacher's list: who makes it; for the exam bar: a letter or two on a colour */
+  publisher: text.optional(),
+  badge: z.object({ text: z.string().min(1).max(2), color: z.string().regex(/^#[0-9a-f]{6}$/i) }).optional(),
+  /** `exe`: where the program usually is (with %Variables%; one `*` stands for a version in a folder's name), the
+   *  likeliest first. `args`: what it is started with */
+  launch: z.object({ exe: z.array(text).default([]), args: z.array(z.string().refine(knownPlaceholders, 'only {examFolder} and {examProfile}')).default([]) }).default({ exe: [], args: [] }),
   /** steps before the app starts (its own settings, extensions); each profile's are built in M5 */
   prepare: z.array(z.record(z.string(), z.unknown())).default([]),
   policies: z.array(policy).default([]),

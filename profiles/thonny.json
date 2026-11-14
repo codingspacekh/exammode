@@ -1,0 +1,41 @@
+{
+  "id": "thonny",
+  "name": "Thonny",
+  "publisher": "Thonny",
+  "badge": {
+    "text": "Th",
+    "color": "#5b6472"
+  },
+  "match": {
+    "files": [
+      "thonny.exe",
+      "pythonw.exe",
+      "python.exe"
+    ],
+    "paths": [
+      "%LOCALAPPDATA%\\Programs\\Thonny",
+      "%ProgramFiles%\\Thonny",
+      "%ProgramFiles(x86)%\\Thonny"
+    ]
+  },
+  "launch": {
+    "exe": [
+      "%LOCALAPPDATA%\\Programs\\Thonny\\thonny.exe",
+      "%ProgramFiles%\\Thonny\\thonny.exe",
+      "%ProgramFiles(x86)%\\Thonny\\thonny.exe"
+    ],
+    "args": []
+  },
+  "policies": [],
+  "children": {
+    "allow": [
+      "python.exe",
+      "pythonw.exe",
+      "conhost.exe"
+    ],
+    "never": [
+      "browser"
+    ]
+  },
+  "save": "none"
+}

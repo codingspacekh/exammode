@@ -64,7 +64,7 @@ export function customApp(image: string, signer?: string): AppProfile {
     id: `app:${norm(image)}`,
     name: file.replace(/\.exe$/i, ''),
     match: { files: [file], signer, paths: [image.slice(0, image.length - file.length - 1)] },
-    launch: { args: [] }, prepare: [], policies: [], children: { allow: [], never: ['browser'] }, save: 'none',
+    launch: { exe: [image], args: [] }, prepare: [], policies: [], children: { allow: [], never: ['browser'] }, save: 'none',
   };
 }
 

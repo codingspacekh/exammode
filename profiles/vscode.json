@@ -1,0 +1,73 @@
+{
+  "id": "vscode",
+  "name": "VS Code",
+  "publisher": "Microsoft",
+  "badge": {
+    "text": "<>",
+    "color": "#1f6fb5"
+  },
+  "match": {
+    "files": [
+      "Code.exe"
+    ],
+    "signer": "Microsoft Corporation",
+    "paths": [
+      "%LOCALAPPDATA%\\Programs\\Microsoft VS Code",
+      "%ProgramFiles%\\Microsoft VS Code"
+    ]
+  },
+  "launch": {
+    "exe": [
+      "%LOCALAPPDATA%\\Programs\\Microsoft VS Code\\Code.exe",
+      "%ProgramFiles%\\Microsoft VS Code\\Code.exe"
+    ],
+    "args": [
+      "--user-data-dir",
+      "{examProfile}/data",
+      "--extensions-dir",
+      "{examProfile}/ext",
+      "--disable-workspace-trust",
+      "--skip-welcome",
+      "--new-window",
+      "{examFolder}"
+    ]
+  },
+  "prepare": [
+    {
+      "copyExtensions": [
+        "ms-python.python",
+        "ms-python.debugpy",
+        "ms-python.vscode-pylance"
+      ]
+    },
+    {
+      "settings": {
+        "telemetry.telemetryLevel": "off",
+        "update.mode": "none",
+        "extensions.autoUpdate": false,
+        "extensions.autoCheckUpdates": false,
+        "chat.disableAIFeatures": true,
+        "workbench.enableExperiments": false,
+        "workbench.startupEditor": "none",
+        "security.workspace.trust.enabled": false,
+        "files.autoSave": "afterDelay"
+      }
+    }
+  ],
+  "policies": [],
+  "children": {
+    "allow": [
+      "python.exe",
+      "pythonw.exe",
+      "py.exe",
+      "conhost.exe",
+      "powershell.exe",
+      "cmd.exe",
+      "OpenConsole.exe"
+    ],
+    "never": [
+      "browser"
+    ]
+  },
+  "save": "none"
+}

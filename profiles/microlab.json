@@ -1,0 +1,35 @@
+{
+  "id": "microlab",
+  "name": "MicroLab",
+  "publisher": "CodingSpaceKH",
+  "badge": {
+    "text": "M",
+    "color": "#0d9488"
+  },
+  "match": {
+    "files": [
+      "MicroLab.exe"
+    ],
+    "paths": [
+      "%LOCALAPPDATA%\\Programs\\MicroLab",
+      "%ProgramFiles%\\MicroLab"
+    ]
+  },
+  "launch": {
+    "exe": [
+      "%LOCALAPPDATA%\\Programs\\MicroLab\\MicroLab.exe",
+      "%ProgramFiles%\\MicroLab\\MicroLab.exe"
+    ],
+    "args": []
+  },
+  "policies": [],
+  "children": {
+    "allow": [
+      "MicroLab.exe"
+    ],
+    "never": [
+      "browser"
+    ]
+  },
+  "save": "none"
+}

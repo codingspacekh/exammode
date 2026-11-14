@@ -9,7 +9,7 @@ const proc = (pid: number) => lab.find((p) => p.pid === pid)!;
 
 describe('§2.10 the profile schema', () => {
   it("the architecture's VS Code profile is valid, and kept as written", () => {
-    expect(vscode).toEqual(vscodeJson);
+    expect(vscode).toEqual({ ...vscodeJson, launch: { ...vscodeJson.launch, exe: [] } });
   });
   it('a short profile gets the safe defaults: no arguments, no children, no browser ever', () => {
     const p = appProfile.parse({ id: 'thonny', name: 'Thonny', match: { files: ['thonny.exe'], paths: ['%LOCALAPPDATA%\\Programs\\Thonny'] } });

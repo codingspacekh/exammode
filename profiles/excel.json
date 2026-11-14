@@ -1,0 +1,81 @@
+{
+  "id": "excel",
+  "name": "Excel",
+  "publisher": "Microsoft Office",
+  "badge": {
+    "text": "X",
+    "color": "#217346"
+  },
+  "match": {
+    "files": [
+      "EXCEL.EXE"
+    ],
+    "signer": "Microsoft Corporation",
+    "paths": [
+      "%ProgramFiles%\\Microsoft Office",
+      "%ProgramFiles(x86)%\\Microsoft Office"
+    ]
+  },
+  "launch": {
+    "exe": [
+      "%ProgramFiles%\\Microsoft Office\\root\\Office16\\EXCEL.EXE",
+      "%ProgramFiles%\\Microsoft Office\\Office16\\EXCEL.EXE",
+      "%ProgramFiles(x86)%\\Microsoft Office\\root\\Office16\\EXCEL.EXE",
+      "%ProgramFiles(x86)%\\Microsoft Office\\Office16\\EXCEL.EXE"
+    ],
+    "args": []
+  },
+  "policies": [
+    {
+      "hive": "user",
+      "key": "Software\\Policies\\Microsoft\\Office\\16.0\\Common\\Privacy",
+      "name": "DisconnectedState",
+      "value": 2
+    },
+    {
+      "hive": "user",
+      "key": "Software\\Policies\\Microsoft\\Office\\16.0\\Common\\Privacy",
+      "name": "UserContentDisabled",
+      "value": 2
+    },
+    {
+      "hive": "user",
+      "key": "Software\\Policies\\Microsoft\\Office\\16.0\\Common\\Privacy",
+      "name": "DownloadContentDisabled",
+      "value": 2
+    },
+    {
+      "hive": "user",
+      "key": "Software\\Policies\\Microsoft\\Office\\16.0\\Common\\Privacy",
+      "name": "ControllerConnectedServicesEnabled",
+      "value": 2
+    },
+    {
+      "hive": "user",
+      "key": "Software\\Policies\\Microsoft\\Office\\16.0\\Common\\SignIn",
+      "name": "SignInOptions",
+      "value": 3
+    },
+    {
+      "hive": "user",
+      "key": "Software\\Policies\\Microsoft\\Office\\16.0\\Common\\Internet",
+      "name": "UseOnlineContent",
+      "value": 0
+    },
+    {
+      "hive": "user",
+      "key": "Software\\Policies\\Microsoft\\Office\\16.0\\Excel\\Security",
+      "name": "DisableAllAddins",
+      "value": 1
+    }
+  ],
+  "children": {
+    "allow": [
+      "splwow64.exe"
+    ],
+    "never": [
+      "browser"
+    ]
+  },
+  "save": "office"
+}

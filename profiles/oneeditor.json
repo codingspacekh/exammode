@@ -1,0 +1,37 @@
+{
+  "id": "oneeditor",
+  "name": "OneEditor",
+  "publisher": "CodingSpaceKH",
+  "badge": {
+    "text": "▶",
+    "color": "#7c3aed"
+  },
+  "match": {
+    "files": [
+      "OneEditor.exe"
+    ],
+    "paths": [
+      "%LOCALAPPDATA%\\Programs\\OneEditor",
+      "%ProgramFiles%\\OneEditor"
+    ]
+  },
+  "launch": {
+    "exe": [
+      "%LOCALAPPDATA%\\Programs\\OneEditor\\OneEditor.exe",
+      "%ProgramFiles%\\OneEditor\\OneEditor.exe"
+    ],
+    "args": []
+  },
+  "policies": [],
+  "children": {
+    "allow": [
+      "OneEditor.exe",
+      "ffmpeg.exe",
+      "ffprobe.exe"
+    ],
+    "never": [
+      "browser"
+    ]
+  },
+  "save": "none"
+}

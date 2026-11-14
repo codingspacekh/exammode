@@ -1,0 +1,44 @@
+{
+  "id": "idle",
+  "name": "Python IDLE",
+  "publisher": "Python",
+  "badge": {
+    "text": "Py",
+    "color": "#3a6e9f"
+  },
+  "match": {
+    "files": [
+      "pythonw.exe",
+      "python.exe"
+    ],
+    "signer": "Python Software Foundation",
+    "paths": [
+      "%LOCALAPPDATA%\\Programs\\Python",
+      "%ProgramFiles%",
+      "%ProgramFiles(x86)%"
+    ]
+  },
+  "launch": {
+    "exe": [
+      "%LOCALAPPDATA%\\Programs\\Python\\Python3*\\pythonw.exe",
+      "%ProgramFiles%\\Python3*\\pythonw.exe",
+      "%ProgramFiles(x86)%\\Python3*\\pythonw.exe"
+    ],
+    "args": [
+      "-m",
+      "idlelib"
+    ]
+  },
+  "policies": [],
+  "children": {
+    "allow": [
+      "python.exe",
+      "pythonw.exe",
+      "conhost.exe"
+    ],
+    "never": [
+      "browser"
+    ]
+  },
+  "save": "none"
+}
