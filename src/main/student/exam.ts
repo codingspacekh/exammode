@@ -16,6 +16,8 @@ export interface ExamOptions {
   backupMs?: number;
   retryMs?: number;
   graceMs?: number;
+  /** closes the exam's apps: one that is open in the Exam folder keeps Windows from removing it */
+  closeApps?: () => Promise<void>;
   /** sends the files; a test can stand in for the network here */
   send?: typeof fetch;
 }
@@ -121,7 +123,7 @@ export class StudentExam {
     const backedUp = await this.backUp();
     this.stop();
     this.session.leave();
-    if (backedUp >= 0) await this.files.remove();
+    if (backedUp >= 0) await this.removeFolder();
   }
 
   /** Stops the backups; a hand-in that is still trying gives up. */
@@ -135,9 +137,16 @@ export class StudentExam {
     this.receipt = receipt;
     this.stop();
     this.session.handedIn();
-    await this.files.remove();
+    await this.removeFolder();
     this.emit({ type: 'handedIn', receipt });
     return receipt;
+  }
+
+  /** The teacher has the work: the exam's apps are closed, then the Exam folder is removed (F-21). A folder that
+   *  Windows still holds doesn't keep the student from Handed in: `removeFolder` is asked again at Finish. */
+  async removeFolder(): Promise<void> {
+    await this.options.closeApps?.().catch(() => undefined);
+    await this.files.remove().catch(() => undefined);
   }
 
   private async send(kind: 'backup' | 'handIn', token: string, files: Receipt['files']) {

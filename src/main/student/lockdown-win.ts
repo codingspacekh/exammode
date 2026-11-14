@@ -166,12 +166,29 @@ export class WindowsLockdown implements Lockdown {
     this.keyboard.setBar(hwnd);
   }
 
+  async closeApps(): Promise<void> {
+    await this.closeThese(this.info?.apps ?? []);
+  }
+
+  /** Looks at the processes now — an app opened a moment ago is closed too — and waits until they are gone. */
+  private async closeThese(apps: AppProfile[]): Promise<void> {
+    const env = process.env as Record<string, string>;
+    const pids = new Set([...this.open.values()].flat());
+    this.open = new Map();
+    this.bringForward = undefined;
+    if (apps.length === 0) return;
+    const mine = async (): Promise<number[]> => (await listProcesses(true).catch(() => [])).filter((p) => apps.some((a) => matches(p, a, env))).map((p) => p.pid);
+    for (const pid of await mine()) pids.add(pid);
+    for (const pid of pids) await terminate(pid).catch(() => false);
+    for (let i = 0; i < 20 && pids.size > 0 && (await mine()).length > 0; i++) await new Promise((r) => setTimeout(r, 100));
+  }
+
   async unlock(): Promise<void> {
     this.guardLoop?.stop();
     this.guardLoop = undefined;
     // the exam's apps are closed with the exam, and their exam settings removed
-    for (const pids of this.open.values()) for (const pid of pids) await terminate(pid).catch(() => false);
-    this.open = new Map();
+    const apps = this.info?.apps ?? [];
+    await this.closeThese(apps);
     this.told = '';
     const runId = this.info?.runId;
     this.info = undefined;

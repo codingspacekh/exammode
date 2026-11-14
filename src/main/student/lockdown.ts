@@ -37,6 +37,8 @@ export interface Lockdown {
   /** Opens one of the exam's apps in the Exam folder, under the bar — or brings it to the front if it is open
    *  (F-11). Answers `notInstalled` or `failed` if it couldn't. */
   openApp(id: string): Promise<'notInstalled' | 'failed' | undefined>;
+  /** Closes the exam's apps that are open: the exam is over, and its folder is about to be removed. */
+  closeApps(): Promise<void>;
   /** Puts the computer back as it was (F-21). */
   unlock(): Promise<void>;
 }

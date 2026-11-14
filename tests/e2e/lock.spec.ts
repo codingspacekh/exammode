@@ -14,6 +14,9 @@ import { _electron as electron, expect, test, type ElectronApplication, type Pag
  * and Finish everything is as it was. Then: ExamMode is killed, and the Guard tells the teacher and unlocks.
  */
 test.skip(process.platform !== 'win32', 'the lock is Windows only');
+// It locks the computer it runs on for real: only where that was asked for, and where something puts the computer
+// back if the test is lost (the windows workflow's safety net).
+test.skip(process.env.EXAMMODE_LOCK_TEST !== '1', 'set EXAMMODE_LOCK_TEST=1 to lock this computer for the test');
 
 const electronExe = createRequire(import.meta.url)('electron') as unknown as string;
 const apps: ElectronApplication[] = [];
@@ -179,6 +182,10 @@ test('F-07 F-12 F-21 F-23 a lab computer is locked for the exam, closes an app t
   await bar.getByRole('button', { name: 'Hand in…' }).click();
   await student.getByRole('button', { name: 'Hand in now' }).click();
   await expect(student.getByRole('heading', { name: 'Handed in' })).toBeVisible({ timeout: 30_000 });
+  step('handed in');
+  // the exam's app was closed for the Exam folder to be removed; the computer stays locked until Finish
+  expect(charmapRuns()).toBe(false);
+  expect(existsSync(join(root, readdirSync(root)[0] ?? '-', 'Sokha Chan'))).toBe(false);
   expect(explorerRuns()).toBe(false);
   await student.getByRole('button', { name: 'Finish' }).click();
   await expect(student.getByRole('heading', { name: 'Join your exam' })).toBeVisible();

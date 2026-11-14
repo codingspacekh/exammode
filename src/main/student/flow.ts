@@ -140,7 +140,7 @@ export class StudentFlow {
       now: this.now, ...this.options.timing,
     });
     const folder = join(this.options.examRoot, folderName(`${exam.title} ${exam.runId.slice(0, 8)}`), folderName(student.name));
-    const work = new StudentExam(session, { folder, backupMs: this.options.timing?.backupMs, retryMs: this.options.timing?.retryMs, graceMs: this.options.timing?.graceMs });
+    const work = new StudentExam(session, { folder, backupMs: this.options.timing?.backupMs, retryMs: this.options.timing?.retryMs, graceMs: this.options.timing?.graceMs, closeApps: async () => this.options.lockdown?.closeApps() });
     this.session = session;
     this.exam = work;
     this.byItself = false;
@@ -310,6 +310,8 @@ export class StudentFlow {
   /** Finish (09b): ExamMode is as it was before the exam. */
   finish(): void {
     if (this.current.screen !== 'handedIn') return;
+    // an Exam folder that Windows still held at the hand-in is removed now
+    void this.exam?.removeFolder();
     this.forget();
     this.leaveSession();
     this.current = { ...this.fresh(), found: this.current.found };

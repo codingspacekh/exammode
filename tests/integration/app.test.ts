@@ -44,6 +44,11 @@ class FakeLockdown implements Lockdown {
     this.says(this.opened.map((o, i) => ({ id: o, front: i === this.opened.length - 1, title: i === this.opened.length - 1 ? 'Report.docx' : undefined })));
     return undefined;
   }
+  closedApps = 0;
+  async closeApps() {
+    this.closedApps++;
+    this.opened = [];
+  }
   async unlock() {
     this.unlocks++;
   }
@@ -665,8 +670,13 @@ describe('M4 locking the lab computer, in the student\'s flow (F-04–F-07, F-12
     expect(card(desk, 'Sokha Chan').warnings).toBe(0);
 
     // the exam over, the bar has no apps
+    await sokha.openApp('word');
     await sokha.askHandIn();
+    expect(lockdown.closedApps).toBe(0);
     await sokha.handIn();
+    // the teacher has the work: the exam's apps are closed, so the Exam folder can be removed
+    expect(lockdown.closedApps).toBe(1);
+    expect(lockdown.opened).toEqual([]);
     sokha.finish();
     expect(sokha.state().apps).toEqual([]);
   });

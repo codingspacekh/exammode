@@ -125,7 +125,7 @@ export class ExamFiles {
 
   /** Once the teacher has the work (F-21). */
   remove(): Promise<void> {
-    return rm(this.folder, { recursive: true, force: true, maxRetries: 5 });
+    return rm(this.folder, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
 }
 
