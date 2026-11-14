@@ -12,7 +12,7 @@ const EXAM = { runId: 'run-1', title: 'Year 10 ICT — Term 1 practical exam', t
 export function student(over: Partial<StudentState> = {}): StudentState {
   return {
     screen: 'join', pc: 'PC-14', found: [EXAM, { ...EXAM, runId: 'run-2', title: 'Year 11 ICT — Mock paper 2', teacher: 'Mr Dara Ouk', class: 'Year 11 B', minutes: 120 }],
-    names: [], joining: false, clockOffset: 0, contact: true, handingIn: false, ...over,
+    names: [], joining: false, clockOffset: 0, contact: true, handingIn: false, locked: false, ...over,
   };
 }
 
@@ -30,12 +30,12 @@ export function studentApi(state: StudentState = student()): StudentApi & { tell
   return {
     get: vi.fn(async () => state), onState: (l) => { listeners.add(l); return () => void listeners.delete(l); },
     tell: (next) => listeners.forEach((l) => l(next)),
-    pick: done(), lookAt: done(), join: done(), askHandIn: done(), keepWorking: done(), handIn: done(), askLeave: done(), leave: done(), giveUp: done(), finish: done(), showQuestions: done(), openFolder: done(),
+    pick: done(), lookAt: done(), join: done(), checkAgain: done(), lock: done(), backOut: done(), askHandIn: done(), keepWorking: done(), handIn: done(), askLeave: done(), leave: done(), giveUp: done(), finish: done(), showQuestions: done(), openFolder: done(),
   };
 }
 
 export function card(name: string, over: Partial<StudentView> = {}): StudentView {
-  return { id: name, name, state: 'notJoined', connected: false, warnings: 0, extraMinutes: 0, files: 0, ...over };
+  return { id: name, name, state: 'notJoined', connected: false, warnings: 0, extraMinutes: 0, files: 0, failed: [], ...over };
 }
 
 export function teacher(over: Partial<TeacherState> = {}): TeacherState {

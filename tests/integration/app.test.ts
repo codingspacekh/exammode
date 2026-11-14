@@ -3,7 +3,9 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { ExamForm } from '@lib/app/state';
+import { runChecks, type AppToClose } from '@lib/lockdown/checks';
 import { StudentFlow } from '../../src/main/student/flow';
+import type { LockInfo, Lockdown } from '../../src/main/student/lockdown';
 import { TeacherDesk, type DeskOptions } from '../../src/main/teacher/desk';
 import { eventually, later, tempFolder } from './helpers';
 
@@ -13,12 +15,35 @@ const FORM: ExamForm = {
   studentNames: 'Sokha Chan\nDara Kim\n\n  Vannak Sok  \nDara Kim', minutes: 90, websites: [],
 };
 
-async function lab(over: Partial<DeskOptions> = {}) {
+/** A lab computer's lock that only remembers what it was asked. */
+class FakeLockdown implements Lockdown {
+  displays = 1;
+  apps: AppToClose[] = [{ name: 'Google Chrome', pids: [10, 11], windows: 2 }, { name: 'notepad', pids: [20], windows: 1, unsaved: 'notes.txt' }];
+  locks: LockInfo[] = [];
+  unlocks = 0;
+  failWith?: string;
+  /** an app that isn't allowed is closed during the exam */
+  closes: (app: { name: string; kind: string }) => void = () => undefined;
+  async check() {
+    return { ...runChecks({ guard: true, displays: this.displays, remoteSession: false, remoteTools: [], machine: { manufacturer: 'Dell Inc.', model: 'OptiPlex', bios: '' } }), toClose: this.apps };
+  }
+  async lock(info: LockInfo, onClosed: (app: { name: string; kind: string }) => void) {
+    if (this.failWith) return this.failWith;
+    this.locks.push(info);
+    this.closes = onClosed;
+    return undefined;
+  }
+  async unlock() {
+    this.unlocks++;
+  }
+}
+
+async function lab(over: Partial<DeskOptions> = {}, lockdown?: Lockdown) {
   const root = await tempFolder();
   const clock = { ahead: 0 };
   const now = () => Date.now() + clock.ahead;
   const student = async (pc: string) => {
-    const flow = new StudentFlow({ pc, examRoot: join(root, pc), bootId: `boot-${pc}`, discoveryPort: 0, now, timing: { beatMs: 40, retryMs: 40, clockMs: 20, graceMs: 40 } });
+    const flow = new StudentFlow({ pc, examRoot: join(root, pc), bootId: `boot-${pc}`, discoveryPort: 0, now, lockdown: pc === 'PC-14' ? lockdown : undefined, timing: { beatMs: 40, retryMs: 40, clockMs: 20, graceMs: 40 } });
     await flow.start();
     later(() => flow.stop());
     return flow;
@@ -440,3 +465,122 @@ describe('M3 an exam from the lobby to the receipts', () => {
     await expect(TeacherDesk.open({ ...options, db: join(await tempFolder(), 'other.db'), port: desk.port })).rejects.toThrow(/EADDRINUSE/);
   });
 });
+
+describe('M4 locking the lab computer, in the student\'s flow (F-04–F-07, F-12, F-21)', () => {
+  async function locking() {
+    const lockdown = new FakeLockdown();
+    const l = await lab({}, lockdown);
+    await l.desk.openExam(FORM);
+    return { ...l, lockdown };
+  }
+
+  it('after Join the computer is checked and the apps to close are listed; locking it makes the student ready', async () => {
+    const { desk, sokha, sit, card, lockdown } = await locking();
+    await sit(sokha, 'Sokha Chan');
+    await eventually(() => expect(sokha.state().checks?.checks).toHaveLength(4));
+    expect(sokha.state()).toMatchObject({ screen: 'checks', locked: false, checks: { ok: true, locking: false, toClose: [{ name: 'Google Chrome', windows: 2 }, { name: 'notepad', unsaved: 'notes.txt' }] } });
+    await eventually(() => expect(card(desk, 'Sokha Chan')).toMatchObject({ state: 'checking', failed: [] }));
+    expect(lockdown.locks).toEqual([]);
+
+    await sokha.lock();
+    expect(lockdown.locks).toEqual([{ runId: desk.state().run!.id, teacher: { host: '127.0.0.1', port: desk.port }, websites: false, token: sokha.session!.token, instanceId: sokha.session!.seat.instanceId, pc: 'PC-14' }]);
+    expect(sokha.state()).toMatchObject({ screen: 'waiting', locked: true, checks: undefined });
+    await eventually(() => expect(card(desk, 'Sokha Chan').state).toBe('ready'));
+    // pressed twice, or pressed on another screen, it does nothing more
+    await sokha.lock();
+    await sokha.checkAgain();
+    sokha.backOut();
+    expect(lockdown.locks).toHaveLength(1);
+    expect(sokha.state().screen).toBe('waiting');
+  });
+
+  it('F-04 a computer that fails a check can\'t be locked, and the teacher sees why; fixed and checked again, it can', async () => {
+    const { desk, sokha, sit, card, lockdown } = await locking();
+    lockdown.displays = 2;
+    await sit(sokha, 'Sokha Chan');
+    await eventually(() => expect(sokha.state().checks?.checks).toHaveLength(4));
+    expect(sokha.state().checks).toMatchObject({ ok: false, checks: [{ check: 'guard', ok: true }, { check: 'oneScreen', ok: false, found: '2 screens' }, {}, {}] });
+    await eventually(() => expect(card(desk, 'Sokha Chan').failed).toEqual(['oneScreen']));
+    expect(desk.state().feed[0]).toMatchObject({ kind: 'checkFailed', student: 'Sokha Chan', details: { check: 'oneScreen' } });
+    await sokha.lock();
+    expect(lockdown.locks).toEqual([]);
+
+    lockdown.displays = 1;
+    await sokha.checkAgain();
+    expect(sokha.state().checks?.ok).toBe(true);
+    await eventually(() => expect(card(desk, 'Sokha Chan').failed).toEqual([]));
+    await sokha.lock();
+    expect(sokha.state()).toMatchObject({ screen: 'waiting', locked: true });
+  });
+
+  it('a computer that can\'t be locked says why, and isn\'t ready', async () => {
+    const { desk, sokha, sit, card, lockdown } = await locking();
+    lockdown.failWith = 'ExamMode Guard didn\'t answer.';
+    await sit(sokha, 'Sokha Chan');
+    await eventually(() => expect(sokha.state().checks?.ok).toBe(true));
+    await sokha.lock();
+    expect(sokha.state()).toMatchObject({ screen: 'checks', locked: false, checks: { locking: false, error: 'ExamMode Guard didn\'t answer.' } });
+    expect(card(desk, 'Sokha Chan').state).toBe('checking');
+    lockdown.failWith = undefined;
+    await sokha.lock();
+    expect(sokha.state().screen).toBe('waiting');
+  });
+
+  it('Back on the checks takes the student off the teacher\'s list; nothing was locked', async () => {
+    const { desk, sokha, sit, card, lockdown } = await locking();
+    await sit(sokha, 'Sokha Chan');
+    await eventually(() => expect(sokha.state().screen).toBe('checks'));
+    sokha.backOut();
+    expect(sokha.state()).toMatchObject({ screen: 'join', names: [{}, {}, {}] });
+    expect(sokha.state().joinError).toBeUndefined();
+    await eventually(() => expect(card(desk, 'Sokha Chan').state).toBe('notJoined'));
+    expect(lockdown.unlocks).toBe(0);
+  });
+
+  it('F-12 an app closed during the exam is said to the student and counts as a warning for the teacher; F-21 Finish unlocks', async () => {
+    const { desk, sokha, sit, card, lockdown } = await locking();
+    await sit(sokha, 'Sokha Chan');
+    await eventually(() => expect(sokha.state().checks?.ok).toBe(true));
+    await sokha.lock();
+    await eventually(() => expect(card(desk, 'Sokha Chan').state).toBe('ready'));
+    await desk.start();
+    await eventually(() => expect(sokha.state().screen).toBe('exam'));
+
+    lockdown.closes({ name: 'Google Chrome', kind: 'browser' });
+    expect(sokha.state().closed).toMatchObject({ name: 'Google Chrome' });
+    await eventually(() => expect(card(desk, 'Sokha Chan').warnings).toBe(1));
+    expect(desk.state().feed[0]).toMatchObject({ kind: 'appClosed', student: 'Sokha Chan', details: { app: 'Google Chrome' } });
+
+    await sokha.askHandIn();
+    await sokha.handIn();
+    // still locked on the receipt: Finish is what puts the computer back
+    expect(sokha.state()).toMatchObject({ screen: 'handedIn', locked: true });
+    expect(lockdown.unlocks).toBe(0);
+    sokha.finish();
+    expect(sokha.state()).toMatchObject({ screen: 'join', locked: false });
+    expect(sokha.state().closed).toBeUndefined();
+    expect(lockdown.unlocks).toBe(1);
+  });
+
+  it('F-15 F-18 leaving unlocks; a student who is let back in is locked again before the exam opens', async () => {
+    const { desk, sokha, sit, card, lockdown } = await locking();
+    await sit(sokha, 'Sokha Chan');
+    await eventually(() => expect(sokha.state().checks?.ok).toBe(true));
+    await sokha.lock();
+    await eventually(() => expect(card(desk, 'Sokha Chan').state).toBe('ready'));
+    await desk.start();
+    await eventually(() => expect(sokha.state().screen).toBe('exam'));
+    await sokha.askLeave();
+    await sokha.leave();
+    expect(lockdown.unlocks).toBe(1);
+    expect(sokha.state().locked).toBe(false);
+
+    await sit(sokha, 'Sokha Chan');
+    expect(sokha.state()).toMatchObject({ screen: 'cantJoin', locked: false });
+    await desk.letBackIn(card(desk, 'Sokha Chan').id, 'Pressed Leave by mistake');
+    await eventually(() => expect(sokha.state()).toMatchObject({ screen: 'exam', locked: true }));
+    expect(lockdown.locks).toHaveLength(2);
+    expect(lockdown.locks[1]!.token).toBe(sokha.session!.token);
+  });
+});
+

@@ -10,6 +10,7 @@ import type { FoundExam, JoinError, StudentState } from '@lib/app/state';
 import type { ExamInfo } from '@lib/protocol/messages';
 import { Discovery, examsAt, namesOf, type Found } from './discovery';
 import { StudentExam, type Receipt } from './exam';
+import type { Lockdown } from './lockdown';
 import { Session, type SessionOptions } from './session';
 
 export interface FlowOptions {
@@ -24,6 +25,8 @@ export interface FlowOptions {
   /** the teacher's port, for a computer name that was typed in */
   teacherPort?: number;
   now?: () => number;
+  /** locks this computer for an exam; none: exams run unlocked (a Mac, a development build) */
+  lockdown?: Lockdown;
   /** for tests: faster beats and retries */
   timing?: Pick<SessionOptions, 'beatMs' | 'retryMs' | 'clockMs'> & { backupMs?: number; graceMs?: number };
 }
@@ -40,6 +43,8 @@ export class StudentFlow {
   private typed: FoundExam[] = [];
   /** the hand-in was started by the clock or by the teacher, not by the student */
   private byItself = false;
+  /** the computer is being locked again after Let back in */
+  private relocking = false;
   /** the exam that was joined, as it was found */
   private found?: FoundExam;
   private readonly now: () => number;
@@ -140,6 +145,60 @@ export class StudentFlow {
     return { runId: found.runId, title: info?.title ?? found.title, teacher: info?.teacher ?? found.teacher, minutes: info?.minutes ?? found.minutes ?? 0, hasQuestions: (info?.websites.length ?? 0) > 0 };
   }
 
+  /** 02: looks at the computer again — a second screen was unplugged, an app was closed. The teacher's list
+   *  follows. */
+  async checkAgain(): Promise<void> {
+    const { session } = this;
+    const lockdown = this.options.lockdown;
+    if (!session || !lockdown || this.current.screen !== 'checks' || this.current.checks?.locking) return;
+    const checked = await lockdown.check();
+    if (session !== this.session || this.current.screen !== 'checks') return;
+    session.checks(checked.checks.map(({ check, ok }) => ({ check, ok })));
+    this.set({ checks: { ...checked, locking: false } });
+  }
+
+  /** 02: *Close the apps and continue* — the computer is locked, and the teacher's list says ready (F-05–F-07). */
+  async lock(): Promise<void> {
+    const { session } = this;
+    const checks = this.current.checks;
+    if (!session || this.current.screen !== 'checks' || !checks?.ok || checks.locking) return;
+    this.set({ checks: { ...checks, locking: true, error: undefined } });
+    const wrong = await this.lockNow(session);
+    if (session !== this.session) return;
+    if (wrong) return this.set({ checks: { ...checks, locking: false, error: wrong } });
+    session.ready();
+    this.set({ checks: undefined });
+    this.sessionIs(session);
+  }
+
+  /** 02: Back — before Start that only takes the student off the teacher's list. */
+  backOut(): void {
+    if (this.current.screen !== 'checks' || this.current.checks?.locking) return;
+    this.session?.leave();
+    this.leaveSession();
+    this.current = { ...this.fresh(), found: this.current.found, picked: this.current.picked, names: this.current.names };
+    this.tell();
+  }
+
+  private async lockNow(session: Session): Promise<string | undefined> {
+    const lockdown = this.options.lockdown;
+    const found = this.found;
+    if (!lockdown || !found || !session.token) return 'This computer can\'t be locked.';
+    const wrong = await lockdown.lock({
+      runId: found.runId, teacher: { host: found.host, port: found.port }, websites: (session.exam?.websites.length ?? 0) > 0,
+      token: session.token, instanceId: session.seat.instanceId, pc: this.options.pc,
+    }, (app) => {
+      // 07: said to the student, and to the teacher at once
+      if (session !== this.session) return;
+      session.report('appClosed', { app: app.name });
+      this.set({ closed: { name: app.name, at: this.now() } });
+    }).catch((error: unknown) => String(error));
+    if (!wrong && session === this.session) this.set({ locked: true });
+    // (the exam was left while the computer was being locked: put it back)
+    if (!wrong && session !== this.session) void lockdown.unlock().catch(() => undefined);
+    return wrong;
+  }
+
   /** Something for the teacher's log (a blocked page …). */
   report(kind: string, details: Record<string, unknown>): void {
     this.session?.report(kind, details);
@@ -208,7 +267,7 @@ export class StudentFlow {
   // ── inside ────────────────────────────────────────────────────────────────────────────────────────────────────
 
   private fresh(): StudentState {
-    return { screen: 'join', pc: this.options.pc, found: [], names: [], joining: false, clockOffset: 0, contact: true, handingIn: false };
+    return { screen: 'join', pc: this.options.pc, found: [], names: [], joining: false, clockOffset: 0, contact: true, handingIn: false, locked: false };
   }
 
   private set(change: Partial<StudentState>): void {
@@ -232,15 +291,35 @@ export class StudentFlow {
   private sessionIs(session: Session): void {
     const during = ['handIn', 'leave', 'handedIn'].includes(this.current.screen);
     switch (session.state) {
-      case 'checking':
-        // M3: nothing is checked or locked yet (M4), so the computer is ready at once — also when the teacher's
-        // laptop took this student back as a new arrival after a long gap in the lobby
-        session.checks([]);
-        session.ready();
-        return this.set({ screen: 'waiting', contact: true, lostAt: undefined });
+      case 'checking': {
+        // (also when the teacher's laptop took this student back as a new arrival after a long gap in the lobby)
+        const lockdown = this.options.lockdown;
+        if (!lockdown) {
+          // nothing to lock this computer with: the exam runs unlocked
+          session.checks([]);
+          session.ready();
+          return this.set({ screen: 'waiting', contact: true, lostAt: undefined });
+        }
+        // locked already (the gap in the lobby): ready again, without asking twice
+        if (this.current.locked) {
+          session.ready();
+          return this.set({ screen: 'waiting', contact: true, lostAt: undefined });
+        }
+        if (this.current.screen === 'checks') return this.set({ contact: true, lostAt: undefined });
+        this.set({ screen: 'checks', contact: true, lostAt: undefined, checks: { checks: [], ok: false, toClose: [], locking: false } });
+        return void this.checkAgain();
+      }
       case 'ready': return this.set({ screen: 'waiting', contact: true, lostAt: undefined });
-      // also after Let back in: the exam opens here by itself (F-18)
-      case 'inExam': return this.set({ screen: during ? this.current.screen : 'exam', contact: true, lostAt: undefined, left: undefined, exam: this.examOf(session.exam) });
+      // also after Let back in: the exam opens here by itself (F-18) — and the computer locks again first
+      case 'inExam':
+        if (this.options.lockdown && !this.current.locked && !this.relocking) {
+          this.relocking = true;
+          void this.lockNow(session).then((wrong) => {
+            this.relocking = false;
+            if (wrong && session === this.session) session.report('ruleChanged', { what: 'This computer couldn\'t be locked again', why: wrong });
+          });
+        }
+        return this.set({ screen: during ? this.current.screen : 'exam', contact: true, lostAt: undefined, left: undefined, exam: this.examOf(session.exam) });
       case 'noContact': return this.set({ contact: false, lostAt: this.current.lostAt ?? this.now() });
       case 'waiting': return this.set({ screen: 'cantJoin', left: session.left, contact: true });
       case 'refused': return this.backToJoin(session.reason ?? 'left');
@@ -267,5 +346,8 @@ export class StudentFlow {
     this.exam = undefined;
     exam?.stop();
     session?.close();
+    // the exam is over on this computer, however it ended: it goes back to how it was (F-21)
+    if (this.current.locked) void this.options.lockdown?.unlock().catch(() => undefined);
+    this.current = { ...this.current, locked: false, closed: undefined };
   }
 }

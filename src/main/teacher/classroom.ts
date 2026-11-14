@@ -16,6 +16,7 @@ import {
 } from '@lib/session/attempt';
 import { endsAt } from '@lib/session/time';
 import type { RunView, StudentView } from '@lib/app/state';
+import type { CheckName } from '@lib/lockdown/checks';
 import { place, setAside, type Received } from './handIns';
 import type { ExamRow, RunRow, Store, StudentRow } from './store/store';
 
@@ -181,6 +182,7 @@ export class Classroom {
           id: s.id, name: s.name, state: a.state, pc: a.pc, front: a.front, connected: seat.link !== undefined, warnings: a.warnings,
           extraMinutes: a.extraMinutes, joinedAt: a.joinedAt, endsAt: this.endsAt(a), leftAt: a.leftAt, leftHow: a.leftHow, asksBackFrom: a.asksBack?.pc,
           handedInAt: a.handedInAt, handedInHow: a.handedInHow, receipt: seat.receipt, files: seat.files ?? 0,
+          failed: a.state === 'checking' ? (a.checks ?? []).filter((c) => !c.ok).map((c) => c.check as CheckName) : [],
         };
       }),
     };

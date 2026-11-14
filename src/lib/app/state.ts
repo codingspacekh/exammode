@@ -4,6 +4,7 @@
  */
 import type { Website } from '../browser/sites';
 import type { RosterStudent } from '../exam/roster';
+import type { AppToClose, Check, CheckName } from '../lockdown/checks';
 import type { AttemptState, HandInHow, LeftHow } from '../session/attempt';
 
 // ── the teacher's side ──────────────────────────────────────────────────────────────────────────────────────────
@@ -30,6 +31,8 @@ export interface StudentView {
   receipt?: string;
   /** how many files the teacher's laptop has from this student */
   files: number;
+  /** the checks this student's computer didn't pass (12: *can't start*) */
+  failed: CheckName[];
 }
 
 export interface RunView {
@@ -143,8 +146,8 @@ export interface FileLine { name: string; bytes: number; modified: number }
 export type JoinError = 'codeWrong' | 'nameTaken' | 'notInClass' | 'left' | 'keptOut' | 'handedIn' | 'notJoined' | 'ended' | 'update' | 'unreachable';
 
 export interface StudentState {
-  /** `leave`: 08 · `cantJoin`: 10, waiting for the teacher */
-  screen: 'join' | 'waiting' | 'exam' | 'handIn' | 'leave' | 'handedIn' | 'cantJoin';
+  /** `checks`: 02 · `leave`: 08 · `cantJoin`: 10, waiting for the teacher */
+  screen: 'join' | 'checks' | 'waiting' | 'exam' | 'handIn' | 'leave' | 'handedIn' | 'cantJoin';
   /** this computer's name */
   pc: string;
   found: FoundExam[];
@@ -166,6 +169,12 @@ export interface StudentState {
   /** 09 and 08: what will go, and what was given and left alone */
   handIn?: { files: FileLine[]; unchanged: FileLine[] };
   handingIn: boolean;
+  /** 02: the computer's checks, the apps that will be closed, and whether it is being locked now */
+  checks?: { checks: Check[]; ok: boolean; toClose: AppToClose[]; locking: boolean; error?: string };
+  /** the computer is locked for the exam (F-07) */
+  locked: boolean;
+  /** 07: an app that isn't part of the exam was just closed */
+  closed?: { name: string; at: number };
   receipt?: { code: string; files: { name: string; bytes: number }[]; at: number; byItself: boolean };
 }
 
@@ -176,6 +185,12 @@ export interface StudentApi {
   /** the teacher's computer name, typed in when no exam is found (F-01) */
   lookAt(host: string): Promise<void>;
   join(studentId: string, code: string): Promise<void>;
+  /** 02: look at the computer again, after something was fixed */
+  checkAgain(): Promise<void>;
+  /** 02: close the apps that aren't part of the exam, and lock */
+  lock(): Promise<void>;
+  /** 02: Back */
+  backOut(): Promise<void>;
   /** Hand in… : lists the files (09) */
   askHandIn(): Promise<void>;
   /** back to the exam from Hand in (09) or Leave (08) */
