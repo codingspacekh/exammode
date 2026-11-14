@@ -9,11 +9,8 @@ import { and, asc, eq, isNull } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/sqlite-proxy';
 import type { FileMeta } from '@lib/protocol/messages';
 import type { Attempt, HandInHow } from '@lib/session/attempt';
+import { migrations } from './migrations/index';
 import * as schema from './schema';
-
-const migrations = Object.entries(import.meta.glob<string>('./migrations/*.sql', { query: '?raw', import: 'default', eager: true }))
-  .sort(([a], [b]) => a.localeCompare(b))
-  .map(([, sql]) => sql);
 
 export type StudentRow = typeof schema.students.$inferSelect;
 export type ExamRow = typeof schema.exams.$inferSelect;

@@ -55,7 +55,7 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   { files: ['**/*.{ts,tsx,mts}'], languageOptions: { parserOptions: { ecmaFeatures: { jsx: true } } } },
-  { files: ['scripts/**/*.mjs', '*.mjs'], languageOptions: { globals: { console: 'readonly', process: 'readonly' } } },
+  { files: ['scripts/**/*.mjs', '*.mjs'], languageOptions: { globals: { console: 'readonly', process: 'readonly', URL: 'readonly' } } },
   { files: ['src/lib/**/*.{ts,tsx}'], rules: lib },
   { files: ['src/renderer/**/*.{ts,tsx}'], rules: renderer },
   { files: ['src/renderer/**/*.tsx'], ignores: ['src/renderer/components/ui/**'], rules: controls },

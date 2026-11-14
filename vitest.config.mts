@@ -32,8 +32,8 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/lib/**', 'src/main/**', 'src/guard/**'],
-      // index.ts is Electron glue (the window), proven by the e2e tests
-      exclude: ['src/main/index.ts'],
+      // index.ts is Electron glue (the window), proven by the e2e tests; the migrations are generated SQL
+      exclude: ['src/main/index.ts', 'src/main/teacher/store/migrations/**'],
       // MILESTONES §3: the rules are held highest
       thresholds: {
         'src/lib/session/**': { lines: 95, branches: 95, functions: 95, statements: 95 },

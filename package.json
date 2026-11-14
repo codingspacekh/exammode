@@ -26,7 +26,9 @@
     "e2e": "npm run build && playwright test",
     "ui:add": "node scripts/ui-add.mjs",
     "prepare": "git config core.hooksPath .githooks || true",
-    "spike:win": "node spikes/windows/run-all.mjs"
+    "spike:win": "node spikes/windows/run-all.mjs",
+    "db:generate": "drizzle-kit generate && node scripts/migrations.mjs",
+    "class": "tsx scripts/class/cli.ts"
   },
   "dependencies": {
     "busboy": "^1.6.0",
