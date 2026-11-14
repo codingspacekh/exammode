@@ -92,6 +92,8 @@ export const WRONG_CODE_WAIT_MS = 60_000;
 /** A hand-in is *time up* when the student was told their time is up, or — with no contact, by their own count —
  *  when it comes this close to the end or after it: the student's clock is only nearly the teacher's. */
 const TIME_UP_SLACK_MS = 2000;
+/** Hand-ins and the run's own changes are on the disk for good within this long. */
+const FLUSH_MS = 50;
 /** In a student's folder: backups of files that weren't in the hand-in. */
 export const EARLIER = 'Earlier backups';
 
@@ -119,8 +121,7 @@ export class Classroom {
   private readonly roster: Map<string, StudentRow>;
   private readonly now: () => number;
   private queue: Promise<unknown> = Promise.resolve();
-  /** what was just written must not be lost even if the power goes: Start, a hand-in, the end */
-  private flush = false;
+  private flushing?: Promise<void>;
 
   private constructor(
     private readonly store: Store,
@@ -320,7 +321,14 @@ export class Classroom {
 
   /** A backup (F-22) or a hand-in (F-16): every file is checked against what was announced, then put in the
    *  student's folder. A hand-in is answered with its receipt. */
-  upload(meta: Upload, received: Received[]): Promise<UploadResult> {
+  async upload(meta: Upload, received: Received[]): Promise<UploadResult> {
+    const result = await this.taken(meta, received);
+    // the receipt is given only once the hand-in can't be lost, even if the power goes
+    if (result.ok && result.receipt) await this.flushed();
+    return result;
+  }
+
+  private taken(meta: Upload, received: Received[]): Promise<UploadResult> {
     return this.inTurn(async () => {
       const may = this.mayUpload(meta);
       if (may !== 'ok') return { ok: false, why: may };
@@ -348,7 +356,6 @@ export class Classroom {
       const handedIn = new Set(meta.files.map((f) => f.name));
       for (const old of await this.store.files(id)) if (!handedIn.has(old.name)) await setAside(folder, old.name, EARLIER);
       const how = this.handInHow(seat.attempt, at, seat.toldEnd);
-      this.flush = true;
       await this.store.saveFiles(id, meta.files, how, at);
       seat.receipt = receipt;
       await this.apply(studentId, onHandIn(seat.attempt, how, at));
@@ -441,14 +448,28 @@ export class Classroom {
 
   /** One thing at a time, in the order it arrived: what is in the store is what happened. */
   private inTurn<T>(work: () => Promise<T>): Promise<T> {
-    const done = this.queue.then(async () => {
-      const result = await this.store.together(work);
-      if (this.flush) this.store.flush();
-      this.flush = false;
-      return result;
-    });
+    const done = this.queue.then(() => this.store.together(work));
     this.queue = done.catch(() => undefined);
     return done;
+  }
+
+  /** What was written is on the disk for good when this is done (N-05). Asked for many times at once — 40 hand-ins
+   *  at time up — it is one visit to the disk for all of them. */
+  private flushed(): Promise<void> {
+    this.flushing ??= new Promise((resolve) => {
+      setTimeout(() => {
+        this.queue = this.queue.then(() => {
+          this.flushing = undefined;
+          try {
+            this.store.flush();
+          } catch {
+            // the store was closed meanwhile: closing it wrote everything
+          }
+          resolve();
+        });
+      }, FLUSH_MS);
+    });
+    return this.flushing;
   }
 
   private seat(studentId: string): Seat {
@@ -546,7 +567,7 @@ export class Classroom {
 
   private async changeRun(change: Partial<Pick<RunRow, 'startedAt' | 'extraMinutes' | 'endedAt'>>, kind: string, details: Record<string, unknown> = {}): Promise<void> {
     this.run = { ...this.run, ...change };
-    this.flush = true;
+    void this.flushed();
     await this.store.updateRun(this.run.id, change);
     await this.store.log(this.run.id, [{ at: this.now(), kind, details }]);
     this.changed();
