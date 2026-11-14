@@ -110,7 +110,7 @@ export async function runStudent(): Promise<void> {
       const made = bar;
       bar.once('ready-to-show', () => {
         made.showInactive();
-        // locked: the bar is an AppBar, like the taskbar — apps fill the space under it and can't cover it (D6)
+        // locked: the bar holds the top of the screen — apps fill the space under it and can't cover it (D6)
         if (lockdown && flow.state().locked) void reserve(made);
       });
     }
@@ -140,12 +140,13 @@ export async function runStudent(): Promise<void> {
 
   let barHandle: bigint | undefined;
   let appbar: typeof import('../../win/appbar') | undefined;
-  /** Registers the bar's window with Windows as an AppBar at the top of the screen. */
+  /** Keeps the top of the screen for the bar's window. */
   async function reserve(win: BrowserWindow): Promise<void> {
     appbar ??= await import('../../win/appbar');
     const display = screen.getPrimaryDisplay();
     const hwnd = win.getNativeWindowHandle().readBigUInt64LE(0);
-    const top = await appbar.reserveTop(hwnd, Math.round(display.size.width * display.scaleFactor), Math.round(BAR * display.scaleFactor));
+    const px = (dip: number) => Math.round(dip * display.scaleFactor);
+    const top = await appbar.reserveTop(hwnd, px(display.size.width), px(BAR), px(display.size.height));
     if (top === undefined || win.isDestroyed()) return;
     barHandle = hwnd;
     lockdown?.setBar(hwnd);
