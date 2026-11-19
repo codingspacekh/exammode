@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CheckIcon, MonitorIcon, PlayIcon, UserIcon, WarningIcon } from '@phosphor-icons/react';
-import type { StudentView, TeacherApi, TeacherState } from '@contracts/ipc/state';
+import type { StudentView, TeacherApi, TeacherState } from '@contracts/ipc/teacher';
 import { formatClock, formatMinutes } from '@domain/session/time';
 import { Pill } from '@/components/brand';
 import { Button } from '@/components/ui/button';

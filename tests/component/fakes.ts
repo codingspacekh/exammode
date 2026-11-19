@@ -1,5 +1,7 @@
 import { vi } from 'vitest';
-import type { BrowserApi, BrowserState, StudentApi, StudentState, StudentView, TeacherApi, TeacherState } from '@contracts/ipc/state';
+import type { BrowserApi, BrowserState } from '@contracts/ipc/browser';
+import type { StudentApi, StudentState } from '@contracts/ipc/student';
+import type { StudentView, TeacherApi, TeacherState } from '@contracts/ipc/teacher';
 
 /** The prototype's exam (MILESTONES §3.1), as the screens are told it. */
 export const at = (clock: string): number => {

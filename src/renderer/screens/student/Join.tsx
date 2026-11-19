@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ArrowRightIcon, DesktopIcon, ExamIcon, InfoIcon, WarningIcon } from '@phosphor-icons/react';
-import type { JoinError, StudentApi, StudentState } from '@contracts/ipc/state';
+import type { JoinError, StudentApi, StudentState } from '@contracts/ipc/student';
 import { formatMinutes } from '@domain/session/time';
 import { Note } from '@/components/brand';
 import { Button } from '@/components/ui/button';

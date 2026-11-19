@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { ExamForm, TeacherState } from '@contracts/ipc/state';
+import type { ExamForm, TeacherState } from '@contracts/ipc/teacher';
 import type { FromStudent } from '@contracts/network/messages';
 import type { Classroom } from '@application/teacher/classroom';
 import { TeacherDesk } from '@application/teacher/desk';

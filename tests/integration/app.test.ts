@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { ExamForm } from '@contracts/ipc/state';
+import type { ExamForm } from '@contracts/ipc/teacher';
 import { runChecks, type AppToClose } from '@domain/lockdown/checks';
 import { StudentFlow } from '@application/student/flow';
 import type { LockEvents, LockInfo, Lockdown } from '@application/student/lockdown';

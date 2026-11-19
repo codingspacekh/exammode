@@ -5,7 +5,7 @@
  * (src/domain/browser/sites.ts). Electron glue: proven by the e2e tests.
  */
 import { BrowserWindow, WebContentsView, session, type Rectangle, type Session } from 'electron';
-import type { BrowserState, BrowserTab } from '@contracts/ipc/state';
+import type { BrowserState, BrowserTab } from '@contracts/ipc/browser';
 import { allowsPage, decide, examSites, hostOf, type ExamSite, type Website } from '@domain/browser/sites';
 import { createWindow } from './windows';
 

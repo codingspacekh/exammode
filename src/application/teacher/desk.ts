@@ -12,7 +12,7 @@ import { parseRoster } from '@domain/exam/roster';
 import { isSafeName } from '@domain/files/names';
 import { isProgramPath } from '@domain/profiles/exam-apps';
 import type { FileMeta } from '@contracts/network/messages';
-import type { ExamForm, FeedItem, KeptFile, TeacherState } from '@contracts/ipc/state';
+import type { ExamForm, FeedItem, KeptFile, TeacherState } from '@contracts/ipc/teacher';
 import { logCsv } from '@domain/exam/log';
 import { BeaconSender, type BeaconOptions } from '@infrastructure/network/beacon';
 import { hashFile } from '@infrastructure/fs/files';

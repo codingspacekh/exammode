@@ -1,5 +1,5 @@
 import { CheckCircleIcon, UserIcon } from '@phosphor-icons/react';
-import type { StudentApi, StudentState } from '@contracts/ipc/state';
+import type { StudentApi, StudentState } from '@contracts/ipc/student';
 import { formatClock } from '@domain/session/time';
 import { size } from '@/components/brand';
 import { Button } from '@/components/ui/button';

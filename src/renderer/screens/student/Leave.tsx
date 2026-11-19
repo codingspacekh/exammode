@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { DoorOpenIcon, FileIcon, UserIcon } from '@phosphor-icons/react';
-import type { StudentApi, StudentState } from '@contracts/ipc/state';
+import type { StudentApi, StudentState } from '@contracts/ipc/student';
 import { formatClock } from '@domain/session/time';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';

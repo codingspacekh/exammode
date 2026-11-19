@@ -1,5 +1,5 @@
 import { ClockIcon, FileIcon, FloppyDiskIcon, UploadSimpleIcon, UserIcon } from '@phosphor-icons/react';
-import type { FileLine, StudentApi, StudentState } from '@contracts/ipc/state';
+import type { FileLine, StudentApi, StudentState } from '@contracts/ipc/student';
 import { formatClock } from '@domain/session/time';
 import { Note, size } from '@/components/brand';
 import { Button } from '@/components/ui/button';

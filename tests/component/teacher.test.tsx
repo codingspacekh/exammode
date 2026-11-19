@@ -1,7 +1,7 @@
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { FeedItem } from '@contracts/ipc/state';
+import type { FeedItem } from '@contracts/ipc/teacher';
 import { TeacherApp } from '@/App';
 import { After } from '@/screens/teacher/After';
 import { EVENT_KINDS, QUIET } from '@domain/exam/events';

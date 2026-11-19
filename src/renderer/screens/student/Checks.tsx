@@ -1,5 +1,5 @@
 import { ArrowLeftIcon, CheckIcon, ClipboardIcon, UserIcon, WarningIcon, XIcon } from '@phosphor-icons/react';
-import type { StudentApi, StudentState } from '@contracts/ipc/state';
+import type { StudentApi, StudentState } from '@contracts/ipc/student';
 import { Note } from '@/components/brand';
 import { Button } from '@/components/ui/button';
 import { checkWords } from '@/lib/checks';

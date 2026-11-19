@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CopyIcon, FileTextIcon, FolderIcon, GlobeIcon, PencilSimpleIcon, PlayIcon, PlusIcon, TrashIcon, UploadSimpleIcon, UsersIcon, WarningIcon } from '@phosphor-icons/react';
-import type { ClassChoice, SavedExam, TeacherApi, TeacherState } from '@contracts/ipc/state';
+import type { ClassChoice, SavedExam, TeacherApi, TeacherState } from '@contracts/ipc/teacher';
 import { parseRoster, rosterText } from '@domain/exam/roster';
 import { formatMinutes } from '@domain/session/time';
 import { Note } from '@/components/brand';

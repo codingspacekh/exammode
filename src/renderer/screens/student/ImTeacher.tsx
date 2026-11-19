@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CheckCircleIcon, CopyIcon, EnvelopeSimpleIcon, FileArrowUpIcon, SealCheckIcon, WarningIcon } from '@phosphor-icons/react';
-import type { LicenceLoaded, StudentApi, TeacherRequestForm } from '@contracts/ipc/state';
+import type { LicenceLoaded, StudentApi, TeacherRequestForm } from '@contracts/ipc/student';
 import { Note } from '@/components/brand';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';

@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { WebSocketServer } from 'ws';
-import type { ExamForm } from '@contracts/ipc/state';
+import type { ExamForm } from '@contracts/ipc/teacher';
 import { PROTOCOL_VERSION } from '@contracts/network/messages';
 import { newKeyPair } from '@infrastructure/crypto/keys';
 import { issue } from '@infrastructure/crypto/licence';

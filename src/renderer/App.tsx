@@ -1,4 +1,6 @@
-import type { BrowserApi, StudentApi, TeacherApi } from '@contracts/ipc/state';
+import type { BrowserApi } from '@contracts/ipc/browser';
+import type { StudentApi } from '@contracts/ipc/student';
+import type { TeacherApi } from '@contracts/ipc/teacher';
 import { useRemote } from '@/lib/remote';
 import { BrowserShell } from './screens/student/BrowserShell';
 import { CantJoin } from './screens/student/CantJoin';

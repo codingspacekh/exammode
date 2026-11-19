@@ -1,14 +1,7 @@
 /**
- * The classroom server on the teacher's laptop (architecture §2.7): HTTP and WebSocket on port 47800. It only
- * carries messages: every decision is the Classroom's (classroom.ts).
- *
- *   GET  /exams                the open runs, as the beacon announces them (F-01, for a typed-in computer name)
- *   GET  /runs/<run>/students  the class list to pick a name from (F-02)
- *   WS   /ws                   join or resume first, then the rest of the protocol
- *   GET  /runs/<run>/files/<f>  a file the teacher gives every student, with the attempt's token (F-33)
- *   POST /stopped              the Guard: ExamMode's process ended without unlocking (F-20)
- *   POST /inventory            a lab computer's installed apps, for Add an app (F-31a)
- *   POST /upload               a backup or a hand-in: `meta` first, then the files as f0, f1 … (F-16, F-22)
+ * The classroom server on the teacher's laptop (architecture §2.7): HTTP and WebSocket on PORTS.classroom. Its
+ * routes and its errors are the contract's (src/contracts/network/http.ts); it only carries messages: every
+ * decision is the Classroom's (classroom.ts).
  */
 import { createReadStream } from 'node:fs';
 import { statfs } from 'node:fs/promises';
@@ -19,11 +12,12 @@ import { networkInterfaces } from 'node:os';
 import busboy from 'busboy';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { MAX_FILE_BYTES, MAX_FILES, PROTOCOL_VERSION, inventory, parseFromStudent, stopped, updateReply, upload, type Beacon, type FromTeacher, type Inventory, type Upload } from '@contracts/network/messages';
+import { ERRORS, PORTS, TOKEN_HEADER, WS_PATH, matchRoute, type HttpError } from '@contracts/network/http';
 import { connectionOf, signBeacon, signMessage, signUpload, type Identity } from '../crypto/signed';
 import type { Classroom, Link } from '@application/teacher/classroom';
 import { discard, incomingFolder, newIncoming, receive, type Received } from '../fs/hand-ins';
 
-export const PORT = 47800;
+export const PORT = PORTS.classroom;
 const TICK_MS = 1000;
 const SMALL_BODY = 16 * 1024;
 const INVENTORY_BODY = 256 * 1024;
@@ -57,6 +51,8 @@ export interface ServerOptions {
 const json = (res: ServerResponse, status: number, body: unknown): void => {
   res.writeHead(status, { 'content-type': 'application/json' }).end(JSON.stringify(body));
 };
+/** An error, by its name in the contract: its status and `{ error }`. */
+const fail = (res: ServerResponse, error: HttpError): void => json(res, ERRORS[error], { error });
 
 async function smallBody(req: IncomingMessage, limit = SMALL_BODY): Promise<unknown> {
   const chunks: Buffer[] = [];
@@ -87,11 +83,11 @@ export class ClassroomServer {
   private readonly inventoried = new Map<string, Set<string>>();
 
   constructor(private readonly options: ServerOptions) {
-    this.http = createServer((req, res) => void this.answer(req, res).catch(() => json(res, 500, { error: 'failed' })));
+    this.http = createServer((req, res) => void this.answer(req, res).catch(() => fail(res, 'failed')));
     this.http.on('upgrade', (req, socket, head) => {
       // (an address that can't be read, or too many connections: nothing a stranger sends may throw here)
       try {
-        if (new URL(req.url ?? '/', 'http://x').pathname !== '/ws' || this.sockets.clients.size >= MAX_SOCKETS) return socket.destroy();
+        if (new URL(req.url ?? '/', 'http://x').pathname !== WS_PATH || this.sockets.clients.size >= MAX_SOCKETS) return socket.destroy();
         this.sockets.handleUpgrade(req, socket, head, (ws) => this.connected(ws, req.socket.remoteAddress));
       } catch {
         socket.destroy();
@@ -205,85 +201,86 @@ export class ClassroomServer {
   // ── HTTP ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
   private async answer(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    const path = new URL(req.url ?? '/', 'http://x').pathname;
-    if (req.method === 'GET' && path === '/exams') return json(res, 200, this.listings());
-    const students = /^\/runs\/([^/]+)\/students$/.exec(path);
-    if (req.method === 'GET' && students) {
-      const room = this.rooms.get(decodeURIComponent(students[1]!));
-      return room?.listing() ? json(res, 200, { v: PROTOCOL_VERSION, students: room.names() }) : json(res, 404, { error: 'noSuchRun' });
+    const matched = matchRoute(req.method, new URL(req.url ?? '/', 'http://x').pathname);
+    switch (matched?.route) {
+      case 'exams': return json(res, 200, this.listings());
+      case 'students': {
+        const room = this.rooms.get(matched.params.run);
+        return room?.listing() ? json(res, 200, { v: PROTOCOL_VERSION, students: room.names() }) : fail(res, 'noSuchRun');
+      }
+      case 'given': {
+        // a file the teacher gives every student: only for one of the run's students, by their token
+        const token = req.headers[TOKEN_HEADER];
+        const file = typeof token === 'string' ? this.rooms.get(matched.params.run)?.givenFile(token, matched.params.name) : undefined;
+        if (!file) return fail(res, 'notFound');
+        res.writeHead(200, { 'content-type': 'application/octet-stream' });
+        return void (await pipeline(createReadStream(file), res).catch(() => res.destroy()));
+      }
+      case 'stopped': return this.stopped(req, res);
+      case 'inventory': {
+        const report = inventory.safeParse(await smallBody(req, INVENTORY_BODY));
+        if (!report.success || report.data.v !== PROTOCOL_VERSION) return fail(res, 'invalid');
+        // (one address can't fill the list with computers that aren't there)
+        const from = req.socket.remoteAddress ?? '';
+        const told = this.inventoried.get(from) ?? new Set<string>();
+        if (!told.has(report.data.pc) && told.size >= INVENTORY_PER_ADDRESS) return fail(res, 'refused');
+        this.inventoried.set(from, told.add(report.data.pc));
+        const kept = await this.options.inventory?.(report.data) ?? false;
+        return kept ? json(res, 200, { v: PROTOCOL_VERSION, ok: true }) : fail(res, 'refused');
+      }
+      case 'upload': return this.upload(req, res);
+      case undefined: return fail(res, 'notFound');
     }
-    const given = /^\/runs\/([^/]+)\/files\/([^/]+)$/.exec(path);
-    if (req.method === 'GET' && given) {
-      // a file the teacher gives every student: only for one of the run's students, by their token
-      const token = req.headers['x-exammode-token'];
-      const file = typeof token === 'string' ? this.rooms.get(decodeURIComponent(given[1]!))?.givenFile(token, decodeURIComponent(given[2]!)) : undefined;
-      if (!file) return json(res, 404, { error: 'notFound' });
-      res.writeHead(200, { 'content-type': 'application/octet-stream' });
-      return void (await pipeline(createReadStream(file), res).catch(() => res.destroy()));
-    }
-    if (req.method === 'POST' && path === '/stopped') return this.stopped(req, res);
-    if (req.method === 'POST' && path === '/inventory') {
-      const report = inventory.safeParse(await smallBody(req, INVENTORY_BODY));
-      if (!report.success || report.data.v !== PROTOCOL_VERSION) return json(res, 400, { error: 'invalid' });
-      // (one address can't fill the list with computers that aren't there)
-      const from = req.socket.remoteAddress ?? '';
-      const told = this.inventoried.get(from) ?? new Set<string>();
-      if (!told.has(report.data.pc) && told.size >= INVENTORY_PER_ADDRESS) return json(res, 409, { error: 'refused' });
-      this.inventoried.set(from, told.add(report.data.pc));
-      const kept = await this.options.inventory?.(report.data) ?? false;
-      return json(res, kept ? 200 : 409, kept ? { v: PROTOCOL_VERSION, ok: true } : { error: 'refused' });
-    }
-    if (req.method === 'POST' && path === '/upload') return this.upload(req, res);
-    json(res, 404, { error: 'notFound' });
   }
 
   private async stopped(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const msg = stopped.safeParse(await smallBody(req));
-    if (!msg.success) return json(res, 400, { error: 'invalid' });
+    if (!msg.success) return fail(res, 'invalid');
     for (const room of this.rooms.values()) if (await room.stopped(msg.data)) return json(res, 200, { v: PROTOCOL_VERSION, ok: true });
-    json(res, 404, { error: 'unknown' });
+    // (no attempt has that token: nothing to stop — not an error the Guard should try again)
+    fail(res, 'notFound');
   }
 
   /** `meta` says who sends which files; it must come first, so nothing is taken from a stranger. */
   private async upload(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    if (!req.headers['content-type']?.startsWith('multipart/form-data')) return json(res, 400, { error: 'invalid' });
+    if (!req.headers['content-type']?.startsWith('multipart/form-data')) return fail(res, 'invalid');
     const folder = await newIncoming(this.options.handIns);
     const files: Promise<Received>[] = [];
     let meta: Upload | undefined;
     let room: Classroom | undefined;
-    let refused: [number, string] | undefined;
-    const refuse = (status: number, error: string): void => void (refused ??= [status, error]);
+    let refused: HttpError | undefined;
+    const refuse = (error: HttpError): void => void (refused ??= error);
 
     // limits: the list of files in `meta`, each file, how many of them — and room left on the disk
     const parts = busboy({ headers: req.headers, limits: { fieldSize: 8 * 1024 * 1024, fields: 1, files: MAX_FILES, fileSize: MAX_FILE_BYTES } });
     parts.on('field', (name, value, info) => {
       if (name !== 'meta' || meta) return;
-      if (info.valueTruncated) return refuse(413, 'tooBig');
+      if (info.valueTruncated) return refuse('tooBig');
       let raw: unknown;
       try {
         raw = JSON.parse(value);
       } catch {
-        return refuse(400, 'invalid');
+        return refuse('invalid');
       }
       const parsed = upload.safeParse(raw);
-      if (!parsed.success || parsed.data.v !== PROTOCOL_VERSION) return refuse(400, 'invalid');
+      if (!parsed.success || parsed.data.v !== PROTOCOL_VERSION) return refuse('invalid');
       meta = parsed.data;
       room = [...this.rooms.values()].find((r) => r.knows(parsed.data.token));
-      if (!room) return refuse(401, 'unknown');
-      if (room.mayUpload(meta) !== 'ok') return refuse(409, 'refused');
+      if (!room) return refuse('unknown');
+      if (room.mayUpload(meta) !== 'ok') return refuse('refused');
       void room.heard(meta.token).catch(() => undefined);
     });
-    parts.on('filesLimit', () => refuse(413, 'tooBig'));
+    parts.on('filesLimit', () => refuse('tooBig'));
     let bytes = 0;
     parts.on('file', (field, stream) => {
       const announced = meta?.files[Number(field.slice(1))];
-      if (!meta) refuse(400, 'invalid');
+      if (!meta) refuse('invalid');
       // (a part that is cut off ends with an error: it is refused, not thrown)
-      stream.on('error', () => refuse(400, 'invalid'));
-      stream.on('limit', () => refuse(413, 'tooBig'));
+      stream.on('error', () => refuse('invalid'));
+      stream.on('limit', () => refuse('tooBig'));
       stream.on('data', (chunk: Buffer) => {
         bytes += chunk.length;
-        if (bytes > MAX_REQUEST_BYTES) refuse(413, 'tooBig');
+        if (bytes > MAX_REQUEST_BYTES) refuse('tooBig');
       });
       if (refused || !announced || !/^f\d+$/.test(field)) return void stream.resume();
       const file = receive(announced.name, stream, folder);
@@ -296,12 +293,12 @@ export class ClassroomServer {
       if (free < FREE_DISK_FLOOR) {
         this.options.log?.('upload', `the disk is nearly full: ${Math.round(free / 1024 / 1024)} MB free`);
         req.resume();
-        return json(res, 507, { error: 'diskFull' });
+        return fail(res, 'diskFull');
       }
       await pipeline(req, parts);
       const received = await Promise.all(files);
-      if (refused) return json(res, ...refused);
-      if (!meta || !room) return json(res, 400, { error: 'invalid' });
+      if (refused) return fail(res, refused);
+      if (!meta || !room) return fail(res, 'invalid');
       let result;
       try {
         result = await room.upload(meta, received);
@@ -310,15 +307,15 @@ export class ClassroomServer {
         // student's doing, and the teacher is told
         this.options.log?.('upload', 'the files couldn\'t be kept', error);
         await room.uploadFailed(meta.token, error).catch(() => undefined);
-        return json(res, 500, { error: 'failed' });
+        return fail(res, 'failed');
       }
-      if (!result.ok) return json(res, { unknown: 401, refused: 409, mismatch: 422, tooMuch: 413 }[result.why], { error: result.why });
+      if (!result.ok) return fail(res, result.why);
       const identity = this.options.identity;
       // signed: the teacher's laptop has exactly these files of this student (F-44)
       json(res, 200, { ...(result.receipt ?? { v: PROTOCOL_VERSION, ok: true }), ...(identity ? { sig: signUpload(meta.token, meta.kind, meta.files, identity.privateKey) } : {}) });
     } catch {
       // the request was cut off, or wasn't a form
-      if (!res.headersSent) json(res, 400, { error: 'invalid' });
+      if (!res.headersSent) fail(res, 'invalid');
     } finally {
       await discard(folder);
     }

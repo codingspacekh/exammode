@@ -12,6 +12,7 @@ import { changed, nextSnapshot, toHash, type FileStat, type HashedFile, type Sna
 import { handInList } from '@domain/files/handIn';
 import { isSafeName, isWorkFile } from '@domain/files/names';
 import { MAX_FILE_BYTES, PROTOCOL_VERSION, type FileMeta, type Upload } from '@contracts/network/messages';
+import { errorOf, pathOf as routePath, type HttpError } from '@contracts/network/http';
 
 export { hashFile };
 
@@ -36,7 +37,8 @@ export async function listFiles(folder: string): Promise<FileStat[]> {
 
 const meta = ({ name, bytes, sha256 }: HashedFile): FileMeta => ({ name, bytes, sha256 });
 
-export type Sent = { ok: true; body: unknown } | { ok: false; status: number };
+/** The teacher's laptop's answer: its body (checked by the caller), or the error it named. */
+export type Sent = { ok: true; body: unknown } | { ok: false; status: number; error?: HttpError };
 
 /** Sends files to the teacher's laptop: who and what first, then each file (the server's POST /upload). */
 export async function sendFiles(base: string, upload: Upload, folder: string, send: typeof fetch = fetch, /** the listed files that go with it: all of them, unless the teacher's laptop has some already */ attach: FileMeta[] = upload.files): Promise<Sent> {
@@ -51,8 +53,9 @@ export async function sendFiles(base: string, upload: Upload, folder: string, se
   }
   // a laptop that takes the connection and then says nothing doesn't hold the hand-in up for minutes: a minute,
   // and what a slow network (1 MB a second) needs for these files
-  const res = await send(`${base}/upload`, { method: 'POST', body: form, signal: AbortSignal.timeout(60_000 + Math.ceil(bytes / 1000)) });
-  return res.ok ? { ok: true, body: await res.json() } : { ok: false, status: res.status };
+  const res = await send(`${base}${routePath('upload')}`, { method: 'POST', body: form, signal: AbortSignal.timeout(60_000 + Math.ceil(bytes / 1000)) });
+  if (res.ok) return { ok: true, body: await res.json() };
+  return { ok: false, status: res.status, error: errorOf(res.status, await res.json().catch(() => undefined)) };
 }
 
 /** How much goes in one request: a folder of thousands of files goes up in parts. */

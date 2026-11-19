@@ -22,6 +22,7 @@ import { ownerOfConnection } from '@infrastructure/windows/tcp';
 import { WindowsSystem } from '@infrastructure/windows/system';
 import { Guard } from '@application/guard/guard';
 import { GUARD, serve } from '@infrastructure/guard/channel';
+import { ERRORS, urlOf } from '@contracts/network/http';
 
 const args = process.argv.slice(2);
 const all = (flag: string): string[] => args.flatMap((a, i) => (a === flag && args[i + 1] ? [args[i + 1]!] : []));
@@ -44,9 +45,9 @@ const guard = new Guard({
   // F-20: the teacher's laptop is told at once; a few tries, as its network may just be coming back
   report: async (watched, stopped) => {
     for (let attempt = 0; attempt < 3; attempt++) {
-      const told = await fetch(`http://${watched.teacher.host}:${watched.teacher.port}/stopped`, {
+      const told = await fetch(urlOf(watched.teacher, 'stopped'), {
         method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(stopped), signal: AbortSignal.timeout(3000),
-      }).then((r) => r.ok || r.status === 404, () => false);
+      }).then((r) => r.ok || r.status === ERRORS.notFound, () => false);
       if (told) return;
     }
     say(`the teacher's laptop couldn't be told that ExamMode stopped on ${watched.pc}`);

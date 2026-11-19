@@ -1,5 +1,5 @@
 import { DoorOpenIcon, ExamIcon, HourglassIcon, UserIcon } from '@phosphor-icons/react';
-import type { StudentState } from '@contracts/ipc/state';
+import type { StudentState } from '@contracts/ipc/student';
 import { formatMinutes } from '@domain/session/time';
 import { Note } from '@/components/brand';
 import { Calm, Card } from './Calm';

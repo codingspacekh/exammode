@@ -15,7 +15,7 @@ import {
   type Attempt, type HandInHow, type Result,
 } from '@domain/session/attempt';
 import { endsAt } from '@domain/session/time';
-import type { RunView, StudentView } from '@contracts/ipc/state';
+import type { RunView, StudentView } from '@contracts/ipc/teacher';
 import type { CheckName } from '@domain/lockdown/checks';
 import { place, setAside, type Received } from '@infrastructure/fs/hand-ins';
 import type { ExamRow, RunRow, Store, StudentRow } from '@infrastructure/persistence/store';

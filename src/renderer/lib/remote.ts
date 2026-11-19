@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { ExamModeApi } from '@contracts/ipc/state';
+import type { ExamModeApi } from '@contracts/ipc/api';
 
 declare global {
   interface Window { exammode: ExamModeApi }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowClockwiseIcon, ArrowLeftIcon, CaretLeftIcon, CaretRightIcon, ExamIcon, GlobeIcon, LockIcon, ShieldCheckIcon, XCircleIcon, XIcon } from '@phosphor-icons/react';
-import type { BrowserApi, BrowserState } from '@contracts/ipc/state';
+import type { BrowserApi, BrowserState } from '@contracts/ipc/browser';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 

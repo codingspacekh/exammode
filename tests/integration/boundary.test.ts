@@ -91,7 +91,7 @@ describe('architecture §2.2: the composition roots and the screens', () => {
     expect(await problems(importing('* as x', 'node:fs'), 'src/renderer/x.ts')).toContain(PACKAGE);
     expect(await problems(importing('* as x', '@application/teacher/desk'), 'src/renderer/x.ts')).toContain(LAYER);
     expect(await problems(importing('* as x', '@infrastructure/crypto/keys'), 'src/renderer/x.ts')).toContain(LAYER);
-    expect(await problems(importing('* as x', '@contracts/ipc/state'), 'src/renderer/x.ts')).toEqual([]);
+    expect(await problems(importing('* as x', '@contracts/ipc/teacher'), 'src/renderer/x.ts')).toEqual([]);
   });
   it('the preload knows only the contracts', async () => {
     expect(await problems(importing('* as x', '@contracts/ipc/calls'), 'src/preload/x.ts')).toEqual([]);

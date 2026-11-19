@@ -14,7 +14,8 @@ import { mkdirSync } from 'node:fs';
 import { hostname, uptime } from 'node:os';
 import { dirname, join } from 'node:path';
 import { app, clipboard, dialog, screen, shell, type BrowserWindow } from 'electron';
-import type { BrowserApi, BrowserState, StudentApi, StudentState } from '@contracts/ipc/state';
+import type { BrowserState } from '@contracts/ipc/browser';
+import type { StudentState } from '@contracts/ipc/student';
 import { StudentFlow } from '@application/student/flow';
 import type { WindowsLockdown } from '@infrastructure/windows/lockdown';
 import { ExamBrowser } from './browser';
@@ -84,7 +85,7 @@ export async function runStudent(): Promise<void> {
   let browser: ExamBrowser | undefined;
   let browserState: BrowserState = { tabs: [], active: 0, sites: [] };
 
-  const tellBrowser = serve<BrowserState, BrowserApi>('browser', () => browserState, {
+  const tellBrowser = serve('browser', () => browserState, {
     select: (tab: number) => browser?.select(tab),
     close: (tab: number) => browser?.close(tab),
     back: () => browser?.back(),
@@ -93,7 +94,7 @@ export async function runStudent(): Promise<void> {
     toQuestions: () => browser?.toQuestions(),
   }, () => [browser?.window]);
 
-  const tell = serve<StudentState, StudentApi>('student', () => flow.state(), {
+  const tell = serve('student', () => flow.state(), {
     pick: (runId: string) => flow.pick(runId),
     lookAt: (host: string) => flow.lookAt(host),
     join: (studentId: string, code: string) => flow.join(studentId, code),
@@ -135,10 +136,12 @@ export async function runStudent(): Promise<void> {
     },
     // not locked (a development build): the Exam folder opens in the system's own file manager. Locked, there is
     // none, and the bar doesn't offer it
-    openFolder: () => {
+    openFolder: async () => {
       if (!flow.folder) return;
       mkdirSync(flow.folder, { recursive: true });
-      return shell.openPath(flow.folder);
+      // (the system says what went wrong in words, not by throwing)
+      const failed = await shell.openPath(flow.folder);
+      if (failed) log('folder', `the Exam folder couldn't be opened: ${failed}`);
     },
   }, () => [main, bar]);
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CheckIcon, ClockIcon, FileCsvIcon, FileIcon, FolderIcon, LockIcon, MagnifyingGlassIcon, WarningIcon } from '@phosphor-icons/react';
-import type { KeptFile, StudentView, TeacherApi, TeacherState } from '@contracts/ipc/state';
+import type { KeptFile, StudentView, TeacherApi, TeacherState } from '@contracts/ipc/teacher';
 import { formatClock } from '@domain/session/time';
 import { Pill, size } from '@/components/brand';
 import { Button } from '@/components/ui/button';

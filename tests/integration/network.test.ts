@@ -516,7 +516,7 @@ describe('F-16 F-17 F-22 files over the network', () => {
     const lobby = await classroom();
     await lobby.student('Dara Kim').sit();
     const early = await sendFiles(url(lobby, ''), uploadOf(lobby.student('Dara Kim').session!.token!, 'backup', [good]), dara.folder);
-    expect(early).toEqual({ ok: false, status: 409 });
+    expect(early).toEqual({ ok: false, status: 409, error: 'refused' });
   });
 
   it('a backup of a file that is deleted before the hand-in is kept apart on the teacher\'s laptop', async () => {

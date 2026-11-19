@@ -6,10 +6,11 @@
 import type { ReportKind } from '@domain/exam/events';
 import { randomBytes } from 'node:crypto';
 import { WebSocket } from 'ws';
-import { MAX_LOCAL_LOG, PROTOCOL_VERSION, parseFromTeacher, type ExamInfo, type FromStudent, type FromTeacher, type RefusedReason } from '@contracts/network/messages';
+import { MAX_LOCAL_LOG, PROTOCOL_VERSION, parseFromTeacher, type ExamInfo, type FromStudent, type FromTeacher, type LeftInfo, type RefusedReason } from '@contracts/network/messages';
 import type { CheckResult } from '@domain/session/attempt';
 import { checkMessage, connectionOf } from '@infrastructure/crypto/signed';
 import { clockOffset, isTimeUp, teacherTime } from '@domain/session/time';
+import { WS_PATH, baseOf } from '@contracts/network/http';
 
 export type SessionState =
   /** not connected yet, or asking */
@@ -60,7 +61,7 @@ export class Session {
   /** the exam, as the teacher's laptop described it when this ExamMode joined */
   exam?: ExamInfo;
   /** refused because the student left: when, how and on which computer */
-  left?: { at: number; how: 'pressedLeave' | 'stoppedSuddenly'; pc: string };
+  left?: LeftInfo;
   /** the app in front, sent with every beat */
   front?: string;
 
@@ -87,7 +88,7 @@ export class Session {
 
   /** `http://host:port`, for the files. */
   get base(): string {
-    return `http://${this.options.host}:${this.options.port}`;
+    return baseOf(this.options);
   }
 
   /** The licensed teacher's key, if this exam has one. */
@@ -211,7 +212,7 @@ export class Session {
   private open(): void {
     let ws: WebSocket;
     try {
-      ws = (this.options.connect ?? ((url) => new WebSocket(url)))(`ws://${this.options.host}:${this.options.port}/ws`);
+      ws = (this.options.connect ?? ((url) => new WebSocket(url)))(`${baseOf(this.options, 'ws')}${WS_PATH}`);
     } catch {
       return this.lost();
     }

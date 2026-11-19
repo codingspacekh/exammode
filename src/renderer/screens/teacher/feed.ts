@@ -1,4 +1,4 @@
-import type { FeedItem } from '@contracts/ipc/state';
+import type { FeedItem } from '@contracts/ipc/teacher';
 import type { Tone } from '@/components/brand';
 
 /** A line of *What's happening* (13) in words, with the colour of its mark. Nothing: not worth a line. */

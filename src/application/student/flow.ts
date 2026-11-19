@@ -14,13 +14,14 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { folderName } from '@domain/files/names';
-import type { FoundExam, JoinError, Name, StudentState } from '@contracts/ipc/state';
+import type { FoundExam, JoinError, Name, StudentState } from '@contracts/ipc/student';
 import { examProfiles } from '@domain/profiles/exam-apps';
 import type { ExamInfo } from '@contracts/network/messages';
 import { ANYONE, Discovery, examsAt, listed, namesOf, type Found } from '@infrastructure/network/discovery';
 import { StudentExam, type Receipt } from './exam';
 import type { Lockdown } from './lockdown';
 import { Session, type SessionOptions } from './session';
+import { urlOf } from '@contracts/network/http';
 
 export interface FlowOptions {
   /** this computer's name */
@@ -426,13 +427,13 @@ export class StudentFlow {
     const read = this.options.installed;
     if (!read) return;
     for (const { host, port } of exams) {
-      const teacher = `${host}:${port}`;
+      const teacher = urlOf({ host, port }, 'inventory');
       if (this.toldInstalled.has(teacher)) continue;
       this.toldInstalled.add(teacher);
       this.installed ??= read().catch(() => undefined);
       void this.installed.then(async (installed) => {
         if (!installed) return;
-        const res = await fetch(`http://${teacher}/inventory`, {
+        const res = await fetch(teacher, {
           method: 'POST', headers: { 'content-type': 'application/json' }, signal: AbortSignal.timeout(5000),
           body: JSON.stringify({ v: PROTOCOL_VERSION, pc: this.options.pc, ...installed }),
         });

@@ -8,6 +8,7 @@ import { fromTeacher, type FileMeta, type FromTeacher } from '@contracts/network
 import { checkUpload } from '@infrastructure/crypto/signed';
 import { ExamFiles, batches, sendFiles, uploadOf } from '@infrastructure/fs/exam-folder';
 import type { Session } from './session';
+import { TOKEN_HEADER, pathOf, type HttpError } from '@contracts/network/http';
 
 export type Receipt = Extract<FromTeacher, { type: 'receipt' }>;
 
@@ -75,7 +76,7 @@ export class StudentExam {
     const { token, exam, base, seat } = this.session;
     if (!token || !exam?.files?.length) return;
     const send = this.options.send ?? fetch;
-    await this.files.give(exam.files, (name) => send(`${base}/runs/${encodeURIComponent(seat.runId)}/files/${encodeURIComponent(name)}`, { headers: { 'x-exammode-token': token } }));
+    await this.files.give(exam.files, (name) => send(`${base}${pathOf('given', { run: seat.runId, name })}`, { headers: { [TOKEN_HEADER]: token } }));
   }
 
   /** Sends the files that changed since the last backup. Answers how many went; -1 if the teacher's laptop
@@ -92,7 +93,7 @@ export class StudentExam {
 
   /** The changed files, in parts (a folder of thousands of files isn't one request). What went is remembered as
    *  gone; `answer`: the teacher's laptop's word when it didn't take a part. */
-  private async sendChanged(token: string): Promise<{ sent: number; status?: number }> {
+  private async sendChanged(token: string): Promise<{ sent: number; error?: HttpError }> {
     void this.sayTooBig();
     const { files, sent } = await this.files.toBackUp();
     const done: FileMeta[] = [];
@@ -101,7 +102,7 @@ export class StudentExam {
       if (!result?.ok || !this.believed(result.body, token, 'backup', part)) {
         sent(done);
         if (done.length > 0) this.emit({ type: 'backedUp', files: done.length });
-        return { sent: -1, status: result && !result.ok ? result.status : undefined };
+        return { sent: -1, error: result && !result.ok ? result.error : undefined };
       }
       done.push(...part);
     }
@@ -143,19 +144,19 @@ export class StudentExam {
    *  every file — the teacher's laptop has them all by then. */
   private async tryHandIn(token: string): Promise<Receipt | 'again' | 'refused'> {
     const backedUp = await this.sendChanged(token);
-    // (409: no more backups are taken — handed in already and the receipt was lost, or no longer in the exam: the
-    // hand-in's own answer says which)
-    if (backedUp.sent < 0 && backedUp.status !== 409) return backedUp.status === 401 ? this.refusedByTeacher() : 'again';
+    // (refused: no more backups are taken — handed in already and the receipt was lost, or no longer in the exam:
+    // the hand-in's own answer says which)
+    if (backedUp.sent < 0 && backedUp.error !== 'refused') return backedUp.error === 'unknown' ? this.refusedByTeacher() : 'again';
     const files = await this.files.toHandIn();
     const result = await this.send('handIn', token, files, []);
     if (result?.ok && this.believed(result.body, token, 'handIn', files)) {
       const receipt = fromTeacher.safeParse(result.body);
       const { runId, studentId } = this.session.seat;
       if (receipt.success && receipt.data.type === 'receipt' && receipt.data.code === await receiptCode(runId, studentId, files)) return this.finished(receipt.data);
-    } else if (result && !result.ok && (result.status === 401 || result.status === 409)) {
+    } else if (result && !result.ok && (result.error === 'unknown' || result.error === 'refused')) {
       // no longer in the exam for the teacher's laptop (left, or kept out)
       return this.refusedByTeacher();
-    } else if (result && !result.ok && result.status === 422) {
+    } else if (result && !result.ok && result.error === 'mismatch') {
       // the laptop doesn't have what this computer thought it had: everything goes again
       this.files.forget();
     }

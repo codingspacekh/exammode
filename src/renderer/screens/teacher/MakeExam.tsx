@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AppWindowIcon, CheckIcon, ExamIcon, FileIcon, FileTextIcon, FolderIcon, GlobeIcon, MinusIcon, PencilSimpleIcon, PlayIcon, PlusIcon, SealCheckIcon, ShieldCheckIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
-import type { ExamForm, GivenFile, SavedExam, TeacherApi, TeacherState } from '@contracts/ipc/state';
+import type { ExamForm, GivenFile, SavedExam, TeacherApi, TeacherState } from '@contracts/ipc/teacher';
 import { parseRoster } from '@domain/exam/roster';
 import { BUILTIN } from '@domain/profiles/builtin';
 import { appLabel, type ExamApp } from '@domain/profiles/exam-apps';

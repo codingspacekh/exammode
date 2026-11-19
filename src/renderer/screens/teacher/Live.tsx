@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { BellIcon, BellSlashIcon, CheckIcon, DoorOpenIcon, GlobeIcon, ListIcon, LockIcon, MagnifyingGlassIcon, PlayIcon, PlusIcon, SquaresFourIcon, StopIcon, WarningIcon, WifiSlashIcon } from '@phosphor-icons/react';
-import type { FeedItem, StudentView, TeacherApi, TeacherState } from '@contracts/ipc/state';
+import type { FeedItem, StudentView, TeacherApi, TeacherState } from '@contracts/ipc/teacher';
 import { formatClock, formatLeft } from '@domain/session/time';
 import { Pill, type Tone } from '@/components/brand';
 import { Button } from '@/components/ui/button';

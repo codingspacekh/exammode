@@ -5,8 +5,9 @@
 import { createSocket, type Socket } from 'node:dgram';
 import { networkInterfaces } from 'node:os';
 import type { Beacon } from '@contracts/network/messages';
+import { PORTS } from '@contracts/network/http';
 
-export const BEACON_PORT = 47801;
+export const BEACON_PORT = PORTS.beacon;
 export const BEACON_MS = 2000;
 /** What fits in one packet on an ordinary network (1,500 bytes, less the addresses in front of it). */
 export const MAX_PACKET = 1400;

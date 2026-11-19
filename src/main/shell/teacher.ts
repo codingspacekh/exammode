@@ -8,7 +8,7 @@ import type { Identity } from '@infrastructure/crypto/signed';
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { app, BrowserWindow, dialog, shell } from 'electron';
-import type { ExamForm, TeacherApi, TeacherState } from '@contracts/ipc/state';
+import type { ExamForm } from '@contracts/ipc/teacher';
 import { hostOf } from '@domain/browser/sites';
 import { TeacherDesk } from '@application/teacher/desk';
 import { createWindow, serve } from './windows';
@@ -56,7 +56,7 @@ export async function runTeacher(identity?: Identity): Promise<void> {
 
   const win = createWindow('teacher', { width: 1440, height: 900, minWidth: 1280, minHeight: 720 });
   win.once('ready-to-show', () => win.show());
-  const tell = serve<TeacherState, TeacherApi>('teacher', () => desk.state(), {
+  const tell = serve('teacher', () => desk.state(), {
     open: (form: ExamForm) => desk.openExam(form),
     saveExam: async (form: ExamForm) => {
       const saved = await desk.saveExam(form);
@@ -82,10 +82,12 @@ export async function runTeacher(identity?: Identity): Promise<void> {
     keepOut: (studentId: string, reason: string) => desk.keepOut(studentId, reason),
     addTime: (minutes: number, studentId?: string) => desk.addTime(minutes, studentId),
     done: () => desk.done(),
-    openFolder: (studentId?: string) => {
+    openFolder: async (studentId?: string) => {
       const folder = (studentId ? desk.folderOf(studentId) : desk.folder) ?? handIns;
       mkdirSync(folder, { recursive: true });
-      return shell.openPath(folder);
+      // (the system says what went wrong in words, not by throwing)
+      const failed = await shell.openPath(folder);
+      if (failed) log('folder', `the hand-ins folder couldn't be opened: ${failed}`);
     },
     exportLog: async () => {
       // (tests say where; a teacher is asked)

@@ -1,5 +1,5 @@
 import { DoorOpenIcon, ExamIcon, FolderIcon, LockIcon, UploadSimpleIcon, WarningIcon, WifiSlashIcon } from '@phosphor-icons/react';
-import type { StudentApi, StudentState } from '@contracts/ipc/state';
+import type { StudentApi, StudentState } from '@contracts/ipc/student';
 import { formatClock, formatLeft } from '@domain/session/time';
 import { Brand } from '@/components/brand';
 import { Button } from '@/components/ui/button';

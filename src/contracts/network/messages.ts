@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { examApp } from '@domain/profiles/exam-apps';
 import { installedApp, MAX_APPS } from '@domain/profiles/inventory';
 import { licence } from '@domain/trust/licence';
+import type { AttemptRefusal } from '@domain/session/attempt';
 
 export const PROTOCOL_VERSION = 1;
 
@@ -61,13 +62,18 @@ export type ExamInfo = z.infer<typeof examInfo>;
 
 export const refusedReason = z.enum(['codeWrong', 'nameTaken', 'notInClass', 'left', 'keptOut', 'handedIn', 'notJoined', 'ended', 'update']);
 export type RefusedReason = z.infer<typeof refusedReason>;
+/** Every refusal of the rules (domain/session) can be said on the network. */
+export const RULES_REFUSALS_ARE_SAID: AttemptRefusal extends RefusedReason ? true : never = true;
+
+/** For a student who left: when and how, and on which computer — what screen 10 tells them (F-18). */
+export const leftInfo = z.object({ at: time, how: z.enum(['pressedLeave', 'stoppedSuddenly']), pc: z.string().max(200) });
+export type LeftInfo = z.infer<typeof leftInfo>;
 
 export const fromTeacher = z.discriminatedUnion('type', [
   // `now` is the teacher's clock, for the student's offset to it (§2.8). It is also what a student who waits
   // after `refused: left` hears when the teacher lets them back in (F-40)
   z.object({ v, type: z.literal('joined'), token: id, now: time, state: z.enum(['checking', 'ready', 'inExam']), endsAt: time.optional(), exam: examInfo.optional() }),
-  // `left`: for a student who left, when and how — what screen 10 tells them (F-18)
-  z.object({ v, type: z.literal('refused'), reason: refusedReason, left: z.object({ at: time, how: z.enum(['pressedLeave', 'stoppedSuddenly']), pc: z.string() }).optional() }),
+  z.object({ v, type: z.literal('refused'), reason: refusedReason, left: leftInfo.optional() }),
   z.object({ v, type: z.literal('start'), endsAt: time }),
   z.object({ v, type: z.literal('time'), endsAt: time }),
   z.object({ v, type: z.literal('end') }),

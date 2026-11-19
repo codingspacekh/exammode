@@ -5,8 +5,8 @@
  */
 import { createSocket, type Socket } from 'node:dgram';
 import { lookup } from 'node:dns/promises';
-import { z } from 'zod';
 import { PROTOCOL_VERSION, beacon, type Beacon } from '@contracts/network/messages';
+import { PORTS, ROUTES, urlOf } from '@contracts/network/http';
 import type { Trust } from '@domain/trust/licence';
 import { teacherOf } from '../crypto/signed';
 
@@ -70,7 +70,7 @@ export class Discovery {
     });
     await new Promise<void>((resolve, reject) => {
       socket.once('error', reject);
-      socket.bind(this.options.port ?? 47801, resolve);
+      socket.bind(this.options.port ?? PORTS.beacon, resolve);
     });
     this.socket = socket;
     this.timer = setInterval(() => this.tell(), 1000);
@@ -106,22 +106,21 @@ export class Discovery {
 }
 
 /** The exams open on a computer whose name or address was typed in (F-01's fallback). None if it can't be reached. */
-export async function examsAt(host: string, port = 47800, now: () => number = Date.now, get: typeof fetch = fetch, trust: Trust = ANYONE): Promise<Found[]> {
+export async function examsAt(host: string, port: number = PORTS.classroom, now: () => number = Date.now, get: typeof fetch = fetch, trust: Trust = ANYONE): Promise<Found[]> {
   try {
     // the name is looked up first: an announcement counts only when it comes from one of the addresses in it
     const address = await lookup(host, { family: 4 }).then((found) => found.address, () => host);
-    const res = await get(`http://${address}:${port}/exams`, { signal: AbortSignal.timeout(3000) });
-    const exams = z.array(beacon).safeParse(await res.json());
+    const res = await get(urlOf({ host: address, port }, 'exams'), { signal: AbortSignal.timeout(3000) });
+    const exams = ROUTES.exams.reply.safeParse(await res.json());
     return exams.success ? exams.data.filter((e) => e.v === PROTOCOL_VERSION).flatMap((e) => listed(e, trust, address, now()) ?? []) : [];
   } catch {
     return [];
   }
 }
 
-const classList = z.object({ students: z.array(z.object({ id: z.string(), name: z.string(), email: z.string().optional() })) });
-
 /** The class list of an exam, to pick a name from (F-02). */
 export async function namesOf(exam: { host: string; port: number; runId: string }, get: typeof fetch = fetch): Promise<Name[]> {
-  const res = await get(`http://${exam.host}:${exam.port}/runs/${encodeURIComponent(exam.runId)}/students`, { signal: AbortSignal.timeout(3000) });
-  return res.ok ? classList.parse(await res.json()).students : [];
+  const res = await get(urlOf(exam, 'students', { run: exam.runId }), { signal: AbortSignal.timeout(3000) });
+  const list = res.ok ? ROUTES.students.reply.safeParse(await res.json()) : undefined;
+  return list?.success ? list.data.students : [];
 }

@@ -4,10 +4,11 @@
  */
 import { join } from 'node:path';
 import { app, BrowserWindow, ipcMain, type BrowserWindowConstructorOptions } from 'electron';
-import type { Handlers } from '@contracts/ipc/calls';
+import { channel, type ApiOf, type Handlers, type Side, type StateOf } from '@contracts/ipc/calls';
+import type { View } from '@contracts/ipc/api';
 import { devEnv } from './env';
 
-export type View = 'student' | 'teacher' | 'bar' | 'browser';
+export type { View };
 
 /** Where the built app is: set once by index.ts. */
 let out = '';
@@ -32,11 +33,14 @@ export function createWindow(view: View, options: BrowserWindowConstructorOption
   return win;
 }
 
-/** Answers a side's calls from its screens (`name:call`), and gives back how to push its state to them. */
-export function serve<S, Api>(name: string, get: () => S, calls: Handlers<Api>, windows: () => (BrowserWindow | undefined)[]): (state: S) => void {
-  ipcMain.handle(`${name}:get`, () => get());
-  for (const [call, run] of Object.entries(calls)) ipcMain.handle(`${name}:${call}`, (_event, ...args) => (run as (...a: unknown[]) => unknown)(...args));
+/** Answers a side's calls from its screens (contracts/ipc/calls.ts' channels), and gives back how to push its
+ *  state to them. */
+export function serve<S extends Side>(side: S, get: () => StateOf<ApiOf[S]>, calls: Handlers<ApiOf[S]>, windows: () => (BrowserWindow | undefined)[]): (state: StateOf<ApiOf[S]>) => void {
+  ipcMain.handle(channel.get(side), () => get());
+  for (const [call, run] of Object.entries(calls) as [string, (...a: unknown[]) => unknown][]) {
+    ipcMain.handle(channel.call(side, call), (_event, ...args) => run(...args));
+  }
   return (state) => {
-    for (const win of windows()) if (win && !win.isDestroyed()) win.webContents.send(`${name}:state`, state);
+    for (const win of windows()) if (win && !win.isDestroyed()) win.webContents.send(channel.state(side), state);
   };
 }

@@ -35,8 +35,9 @@ export interface Attempt {
   warnings: number;
 }
 
-export type RefusedReason = 'nameTaken' | 'left' | 'keptOut' | 'handedIn' | 'notJoined';
-export type Reply = { type: 'joined' } | { type: 'refused'; reason: RefusedReason };
+/** Why the rules refuse a join or a return (the protocol has a few more of its own: contracts/network). */
+export type AttemptRefusal = 'nameTaken' | 'left' | 'keptOut' | 'handedIn' | 'notJoined';
+export type Reply = { type: 'joined' } | { type: 'refused'; reason: AttemptRefusal };
 export interface LogEvent { kind: string; at: number; details: Record<string, unknown> }
 export interface Result { attempt: Attempt; events: LogEvent[]; reply?: Reply }
 
@@ -47,7 +48,7 @@ export const WARNINGS: readonly EventKind[] = ['appClosed', 'displayAdded', 'rul
 
 const JOINED: Reply = { type: 'joined' };
 const same = (attempt: Attempt): Result => ({ attempt, events: [] });
-const refused = (attempt: Attempt, reason: RefusedReason, events: LogEvent[] = []): Result => ({ attempt, events, reply: { type: 'refused', reason } });
+const refused = (attempt: Attempt, reason: AttemptRefusal, events: LogEvent[] = []): Result => ({ attempt, events, reply: { type: 'refused', reason } });
 const event = (kind: string, at: number, details: Record<string, unknown> = {}): LogEvent => ({ kind, at, details });
 const beforeStart = (a: Attempt) => a.state === 'checking' || a.state === 'ready';
 const sitting = (a: Attempt) => a.state === 'inExam' || a.state === 'noContact';

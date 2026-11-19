@@ -14,6 +14,7 @@ import { newKeyPair, publicOf } from '@infrastructure/crypto/keys';
 import { checkLicence } from '@infrastructure/crypto/licence';
 import { request, requestText, type Licence, type LicenceCheck, type Trust } from '@domain/trust/licence';
 import type { Identity } from '@infrastructure/crypto/signed';
+import type { TeacherRequestForm } from '@contracts/ipc/student';
 
 /** Seals a secret so only this computer's account can open it. */
 export interface Vault { seal(secret: string): string; open(sealed: string): string }
@@ -21,7 +22,8 @@ export interface Vault { seal(secret: string): string; open(sealed: string): str
 export const PLAIN: Vault = { seal: (secret) => secret, open: (sealed) => sealed };
 
 const stored = z.object({ publicKey: z.string(), sealed: z.string() });
-export interface RequestForm { name: string; school: string; email: string; check: string; note?: string }
+/** What a teacher says about themselves (F-44): the screens' form. */
+export type RequestForm = TeacherRequestForm;
 const WRONG: Record<string, string> = {
   name: 'Type your name.', school: 'Type your school\'s name.', email: 'Type your school email address.',
   check: 'Say where it can be checked that you teach there: your school\'s staff page, say.', note: 'The note is too long.',
