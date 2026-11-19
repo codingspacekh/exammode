@@ -2,12 +2,12 @@ import { existsSync, readFileSync } from 'node:fs';
 import { appendFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { apply, read, type Change, type SystemState } from '@lib/lockdown/journal';
-import { plan } from '@lib/lockdown/plan';
-import type { Stopped } from '@lib/protocol/messages';
-import { alive, Guard, type GuardOptions, type System, type Watched } from '../../src/guard/guard';
-import { planAsked, type LockAsk } from '@lib/lockdown/plan';
-import { GuardClient, serve } from '../../src/guard/pipe';
+import { apply, read, type Change, type SystemState } from '@domain/lockdown/journal';
+import { plan } from '@domain/lockdown/plan';
+import type { Stopped } from '@contracts/network/messages';
+import { alive, Guard, type GuardOptions, type System, type Watched } from '@application/guard/guard';
+import { planAsked, type LockAsk } from '@domain/lockdown/plan';
+import { GuardClient, serve } from '@infrastructure/guard/channel';
 import { eventually, later, tempFolder } from './helpers';
 
 /** A computer as plain data (the journal's own model), which can be told to fail. */

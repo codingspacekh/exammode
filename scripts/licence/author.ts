@@ -2,14 +2,14 @@
  * The author's side of teacher licences (F-44, architecture §2.12): the author's key, and signing a licence for a
  * teacher's request. The private key never leaves the author's computer: it is kept outside the repository, in
  * the author's home folder, locked with a passphrase. What is public — the key's public half — goes into
- * `src/lib/trust/author.json`, and so into every ExamMode.
+ * `src/domain/trust/author.json`, and so into every ExamMode.
  */
 import { createCipheriv, createDecipheriv, generateKeyPairSync, randomBytes, scryptSync } from 'node:crypto';
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { publicOf } from '../../src/trust/keys';
-import { issue } from '../../src/trust/licence';
-import { parseRequest, type Licence, type Request } from '@lib/trust/licence';
+import { publicOf } from '@infrastructure/crypto/keys';
+import { issue } from '@infrastructure/crypto/licence';
+import { parseRequest, type Licence, type Request } from '@domain/trust/licence';
 
 const KEY = 'exammode-author-key.json';
 /** scrypt, made slow and memory-hungry on purpose (256 MB, about a second): each guess at the passphrase costs that. */

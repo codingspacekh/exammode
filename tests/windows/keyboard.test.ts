@@ -1,7 +1,7 @@
 import koffi from 'koffi';
 import { describe, expect, it } from 'vitest';
-import { RULES, VK } from '@lib/guard/keys';
-import { KeyboardHook } from '../../src/win/keyboard';
+import { RULES, VK } from '@domain/guard/keys';
+import { KeyboardHook } from '@infrastructure/windows/keyboard';
 
 /** M4's keyboard hook against real Windows (T7): key presses are made by Windows itself (keybd_event), and a
  *  second hook that only watches says which of them still get through. */

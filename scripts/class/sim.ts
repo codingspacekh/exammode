@@ -10,13 +10,13 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { WebSocket } from 'ws';
-import { PROTOCOL_VERSION } from '../../src/lib/protocol/messages';
-import { StudentExam, BACKUP_MS, GRACE_MS, type Receipt } from '../../src/main/student/exam';
-import { Session } from '../../src/main/student/session';
-import { BeaconSender } from '../../src/main/teacher/beacon';
-import { Classroom, type ClassroomOptions, type StudentView } from '../../src/main/teacher/classroom';
-import { ClassroomServer, type ServerOptions } from '../../src/main/teacher/server';
-import { Store, type EventRow } from '../../src/main/teacher/store/store';
+import { PROTOCOL_VERSION } from '@contracts/network/messages';
+import { StudentExam, BACKUP_MS, GRACE_MS, type Receipt } from '@application/student/exam';
+import { Session } from '@application/student/session';
+import { BeaconSender } from '@infrastructure/network/beacon';
+import { Classroom, type ClassroomOptions, type StudentView } from '@application/teacher/classroom';
+import { ClassroomServer, type ServerOptions } from '@infrastructure/network/server';
+import { Store, type EventRow } from '@infrastructure/persistence/store';
 
 /** The prototype's class (design/src): Year 10 A. */
 export const YEAR_10_A = [
@@ -155,13 +155,17 @@ export class SimStudent {
     return join(this.sim.root, 'lab', this.pc, 'ExamMode', this.name);
   }
 
+  /** This start of ExamMode (each start is a new one). */
+  instanceId = '';
+
   /** ExamMode starts on the lab computer and asks to join. Every start is a new ExamMode (a new instanceId). */
   async join(over: { code?: string; pc?: string; studentId?: string } = {}) {
     const { clock, server, room } = this.sim;
     if (over.pc) this.pc = over.pc;
+    this.instanceId = randomUUID();
     this.session = new Session({
       host: '127.0.0.1', port: server.port, runId: room.id, studentId: over.studentId ?? this.id, code: over.code ?? this.sim.code,
-      pc: this.pc, instanceId: randomUUID(), bootId: this.bootId,
+      pc: this.pc, instanceId: this.instanceId, bootId: this.bootId,
       beatMs: clock.ms(2000), retryMs: clock.ms(2000), clockMs: clock.ms(250), now: () => clock.now() + this.fast,
       connect: (url) => {
         if (this.unplugged) throw new Error('unplugged');

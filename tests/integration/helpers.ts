@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach } from 'vitest';
-import { Store } from '../../src/main/teacher/store/store';
+import { Store } from '@infrastructure/persistence/store';
 
 const cleanups: (() => Promise<void> | void)[] = [];
 /** Runs after the test, last first: close what was opened, delete what was made. */

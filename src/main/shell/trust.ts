@@ -5,9 +5,9 @@
  * author (`EXAMMODE_AUTHOR_KEYS`).
  */
 import { app, safeStorage } from 'electron';
-import { trustOf } from '@lib/trust/author';
-import type { Trust } from '@lib/trust/licence';
-import { PLAIN, TeacherLicence, type Vault } from '../teacher/licence';
+import { trustOf } from '@domain/trust/author';
+import type { Trust } from '@domain/trust/licence';
+import { PLAIN, TeacherLicence, type Vault } from '@application/licence/licence';
 import { devEnv } from './env';
 
 export function trust(env: NodeJS.ProcessEnv = devEnv()): Trust {

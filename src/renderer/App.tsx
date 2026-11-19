@@ -1,18 +1,18 @@
-import type { BrowserApi, StudentApi, TeacherApi } from '@lib/app/state';
+import type { BrowserApi, StudentApi, TeacherApi } from '@contracts/ipc/state';
 import { useRemote } from '@/lib/remote';
-import { BrowserShell } from './student/BrowserShell';
-import { CantJoin } from './student/CantJoin';
-import { Checks } from './student/Checks';
-import { ExamBar } from './student/ExamBar';
-import { HandedIn } from './student/HandedIn';
-import { HandIn } from './student/HandIn';
-import { Join } from './student/Join';
-import { Leave } from './student/Leave';
-import { Waiting } from './student/Waiting';
-import { After } from './teacher/After';
-import { Live } from './teacher/Live';
-import { Lobby } from './teacher/Lobby';
-import { Home } from './teacher/Home';
+import { BrowserShell } from './screens/student/BrowserShell';
+import { CantJoin } from './screens/student/CantJoin';
+import { Checks } from './screens/student/Checks';
+import { ExamBar } from './screens/student/ExamBar';
+import { HandedIn } from './screens/student/HandedIn';
+import { HandIn } from './screens/student/HandIn';
+import { Join } from './screens/student/Join';
+import { Leave } from './screens/student/Leave';
+import { Waiting } from './screens/student/Waiting';
+import { After } from './screens/teacher/After';
+import { Live } from './screens/teacher/Live';
+import { Lobby } from './screens/teacher/Lobby';
+import { Home } from './screens/teacher/Home';
 
 /** The lab computer's own window: the plain screens before and after the exam, and Hand in. */
 export function StudentApp({ api }: { api: StudentApi }) {

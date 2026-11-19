@@ -17,7 +17,7 @@ import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
-import { fingerprint } from '../../src/trust/keys';
+import { fingerprint } from '@infrastructure/crypto/keys';
 import { fileName, give, init, issued, MIN_PASSPHRASE, read } from './author';
 
 const args = process.argv.slice(2);
@@ -28,7 +28,7 @@ const flag = (name: string): string | undefined => {
 const home = flag('--home') ?? process.env.EXAMMODE_AUTHOR_HOME ?? join(homedir(), '.codingspacekh');
 const out = flag('--out') ?? '.';
 const yes = args.includes('--yes') && args.splice(args.indexOf('--yes'), 1).length > 0;
-const SETTINGS = fileURLToPath(new URL('../../src/lib/trust/author.json', import.meta.url));
+const SETTINGS = fileURLToPath(new URL('../../src/domain/trust/author.json', import.meta.url));
 
 /** Asks a question; `unseen`: what is typed isn't shown. */
 function ask(question: string, unseen = false): Promise<string> {
@@ -62,7 +62,7 @@ async function main(): Promise<void> {
     const settings = JSON.parse(await readFile(SETTINGS, 'utf8')) as { keys: string[] };
     if (!settings.keys.includes(key)) settings.keys.push(key);
     await writeFile(SETTINGS, `${JSON.stringify(settings, null, 2)}\n`);
-    console.log(`Made. Its public half is now in src/lib/trust/author.json (${fingerprint(key)}): commit that file — every ExamMode built from here on believes this key's licences.`);
+    console.log(`Made. Its public half is now in src/domain/trust/author.json (${fingerprint(key)}): commit that file — every ExamMode built from here on believes this key's licences.`);
     return;
   }
   if (what === 'list') {

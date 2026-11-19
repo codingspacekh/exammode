@@ -1,10 +1,10 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { newKeyPair } from '../../src/trust/keys';
-import { issue } from '../../src/trust/licence';
-import { parseRequest } from '@lib/trust/licence';
-import { TeacherLicence, licenceLine, type Vault } from '../../src/main/teacher/licence';
+import { newKeyPair } from '@infrastructure/crypto/keys';
+import { issue } from '@infrastructure/crypto/licence';
+import { parseRequest } from '@domain/trust/licence';
+import { TeacherLicence, licenceLine, type Vault } from '@application/licence/licence';
 import { tempFolder } from './helpers';
 
 const author = newKeyPair();

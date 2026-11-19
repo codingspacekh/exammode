@@ -1,14 +1,14 @@
-import type { Trust } from '@lib/trust/licence';
-import type { Installed } from '@lib/profiles/inventory';
+import type { Trust } from '@domain/trust/licence';
+import type { Installed } from '@domain/profiles/inventory';
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { ExamForm } from '@lib/app/state';
-import { runChecks, type AppToClose } from '@lib/lockdown/checks';
-import { StudentFlow } from '../../src/main/student/flow';
-import type { LockEvents, LockInfo, Lockdown } from '../../src/main/student/lockdown';
-import { TeacherDesk, type DeskOptions } from '../../src/main/teacher/desk';
+import type { ExamForm } from '@contracts/ipc/state';
+import { runChecks, type AppToClose } from '@domain/lockdown/checks';
+import { StudentFlow } from '@application/student/flow';
+import type { LockEvents, LockInfo, Lockdown } from '@application/student/lockdown';
+import { TeacherDesk, type DeskOptions } from '@application/teacher/desk';
 import { eventually, later, tempFolder } from './helpers';
 
 /** M3: the teacher's side and the student's side as the app runs them, without their windows, on this computer. */

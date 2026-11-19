@@ -2,15 +2,15 @@
  * ExamMode in teacher mode: one window (the exams and classes, 11, 12, 13, 14) showing the teacher's desk (desk.ts). Electron glue:
  * proven by the e2e tests.
  */
-import { fileLog } from '../log';
+import { fileLog } from '@infrastructure/log';
 import { devEnv } from './env';
-import type { Identity } from '../../trust/signed';
+import type { Identity } from '@infrastructure/crypto/signed';
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { app, BrowserWindow, dialog, shell } from 'electron';
-import type { ExamForm, TeacherApi, TeacherState } from '@lib/app/state';
-import { hostOf } from '@lib/browser/sites';
-import { TeacherDesk } from '../teacher/desk';
+import type { ExamForm, TeacherApi, TeacherState } from '@contracts/ipc/state';
+import { hostOf } from '@domain/browser/sites';
+import { TeacherDesk } from '@application/teacher/desk';
 import { createWindow, serve } from './windows';
 
 const number = (text: string | undefined): number | undefined => (text ? Number(text) : undefined);

@@ -1,0 +1,213 @@
+/**
+ * Locking a real lab computer (architecture §2.4, §2.5): the checks through Windows, the lock through the Guard,
+ * and — while the exam runs — the process guard's loop and the keyboard hook in ExamMode itself. Windows glue:
+ * its parts are proven one by one by the windows tests, and together by the windows e2e test.
+ */
+import { spawn } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
+import { access, readdir, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { lookup } from 'node:dns/promises';
+import { LISTS } from '@domain/guard/lists';
+import { appName, appsToClose, runChecks, unsavedIn } from '@domain/lockdown/checks';
+import { builtin } from '@domain/profiles/builtin';
+import { fileName, matches } from '@domain/profiles/match';
+import type { AppProfile } from '@domain/profiles/schema';
+import { GUARD, GuardClient, type Endpoint } from '../guard/channel';
+import { KeyboardHook } from './keyboard';
+import { factsKnown, focus, foregroundPid, listProcesses, machine, remoteSession, terminate } from './processes';
+import { run } from './run';
+import { launch } from '@application/student/launcher';
+import type { Checked, LockEvents, LockInfo, Lockdown, OpenApp } from '@application/student/lockdown';
+import { ProcessGuard, type Context, type Proc } from '@application/student/process-guard';
+
+export interface WindowsLockdownOptions {
+  /** this ExamMode's own program, and the Guard's (D10) */
+  examMode: string;
+  guard: string;
+  /** how many screens are plugged in */
+  displays: () => number;
+  clearClipboard: () => void;
+  /** where each app's own settings for the exam are kept, outside the Exam folder */
+  profiles: string;
+  endpoint?: Endpoint;
+  /** a development build may run in a virtual machine */
+  allowVirtual?: boolean;
+  /** development and tests only: programs that are left alone as if they were ExamMode's own, and programs that
+   *  stay reachable through the firewall (GitHub's runner) */
+  alsoAllow?: string[];
+  keepReachable?: string[];
+}
+
+const WHY: Record<string, string> = {
+  locked: 'This computer is still locked from an exam that didn\'t end. Restart it, then join again.',
+  notExamMode: 'ExamMode Guard doesn\'t know this ExamMode. Tell your teacher.',
+  invalid: 'ExamMode Guard and this ExamMode aren\'t the same version. Tell your teacher.',
+  secret: 'ExamMode Guard refused. Tell your teacher.',
+};
+
+/** How many looks at the processes (one each half second) an app just opened is brought to the front for. */
+const FRONT_TRIES = 10;
+
+export class WindowsLockdown implements Lockdown {
+  private readonly client: GuardClient;
+  private readonly keyboard = new KeyboardHook();
+  private guardLoop?: ProcessGuard;
+  private secret?: string;
+  private info?: LockInfo;
+  /** the exam's apps that are open, by profile: their processes */
+  private open = new Map<string, number[]>();
+  private told = '';
+  /** the app that was just opened from the bar, until its window is there */
+  private bringForward?: { id: string; tries: number };
+
+  constructor(private readonly options: WindowsLockdownOptions) {
+    this.client = new GuardClient(options.endpoint ?? GUARD);
+  }
+
+  /** What the process guard is told: Windows, ExamMode itself, and the exam's apps may stay. */
+  private context(apps: AppProfile[] = this.info?.apps ?? []): Context {
+    const { examMode, guard, alsoAllow = [] } = this.options;
+    return { allowed: apps, always: LISTS, env: process.env as Record<string, string>, self: [examMode, guard, ...alsoAllow] };
+  }
+
+  async check(): Promise<Checked> {
+    const guard = await this.client.ask({ type: 'status' }).then((reply) => reply.ok, () => false);
+    const procs = await listProcesses(true);
+    const isRemote = (p: (typeof procs)[number]) => p.image !== null
+      && (LISTS.remote.files.some((f) => f.toLowerCase() === fileName(p.image!).toLowerCase()) || LISTS.remote.products.some((n) => n.toLowerCase() === (p.product ?? '').toLowerCase()));
+    const checked = runChecks({
+      guard, displays: this.options.displays(), remoteSession: await remoteSession(), remoteTools: [...new Set(procs.filter(isRemote).map(appName))],
+      machine: await machine(), allowVirtual: this.options.allowVirtual,
+    });
+    return { ...checked, toClose: appsToClose(procs, this.context()) };
+  }
+
+  async lock(info: LockInfo, events: LockEvents): Promise<string | undefined> {
+    const ctx = this.context(info.apps);
+    // F-05: the apps that were listed are closed now
+    for (const app of appsToClose(await listProcesses(true), ctx)) for (const pid of app.pids) await terminate(pid);
+    this.options.clearClipboard();
+
+    const sid = /"(S-1-[\d-]+)"/.exec((await run('whoami.exe', ['/user', '/fo', 'csv', '/nh'])).out)?.[1];
+    if (!sid) return 'This account can\'t be read. Tell your teacher.';
+    // the firewall takes addresses, not names
+    const address = await lookup(info.teacher.host, { family: 4 }).then((found) => found.address, () => info.teacher.host);
+    const { keepReachable = [] } = this.options;
+    // the Guard is told what to lock for, and makes the plan itself (it is never handed one): the exam's apps
+    // with a built-in profile go by their ids
+    const ask = {
+      userSid: sid, runId: info.runId, teacher: { address, port: info.teacher.port }, websites: info.websites,
+      profiles: info.apps.filter((a) => builtin(a.id) !== undefined).map((a) => a.id),
+      ...(keepReachable.length > 0 ? { keepReachable } : {}),
+    };
+
+    const secret = randomBytes(24).toString('base64url');
+    const locked = await this.client.ask({ type: 'lock', lock: ask, secret }).catch((error: unknown) => ({ ok: false as const, why: 'failed' as const, detail: String(error) }));
+    if (!locked.ok) return WHY[locked.why] ?? `This computer couldn't be locked${'detail' in locked && locked.detail ? ` (${locked.detail})` : ''}. Tell your teacher.`;
+    this.secret = secret;
+    this.info = info;
+    try {
+      await this.client.ask({ type: 'watch', secret, runId: info.runId, token: info.token, instanceId: info.instanceId, pc: info.pc, teacher: info.teacher });
+      await this.keyboard.start();
+    } catch (error) {
+      await this.unlock();
+      return `This computer couldn't be locked (${String(error)}). Tell your teacher.`;
+    }
+    this.guardLoop = new ProcessGuard({ list: listProcesses, known: factsKnown, terminate }, ctx, events.closed, Date.now, (all) => void this.lookAtApps(all, events).catch(() => undefined), (what) => events.trouble?.(what));
+    this.guardLoop.start();
+    return undefined;
+  }
+
+  /** After each look at the processes: which of the exam's apps are open, and which is in front. */
+  private async lookAtApps(all: Proc[], events: LockEvents): Promise<void> {
+    const env = process.env as Record<string, string>;
+    let front = await foregroundPid();
+    const open: OpenApp[] = [];
+    this.open = new Map();
+    for (const app of this.info?.apps ?? []) {
+      const procs = all.filter((p) => matches(p, app, env));
+      const windowed = procs.filter((p) => p.hasWindow);
+      if (windowed.length === 0) continue;
+      this.open.set(app.id, procs.map((p) => p.pid));
+      // an app that was just opened from the bar comes to the front, maximised: Windows doesn't give the front
+      // to a program by itself when it wasn't started by a click in the window in front
+      if (this.bringForward?.id === app.id) {
+        // (Windows may refuse once, or the window may not be ready: tried at each look until it is in front, for
+        // a few seconds at most — never against a student who has gone to another app since)
+        if (windowed.some((p) => p.pid === front) || ++this.bringForward.tries > FRONT_TRIES) this.bringForward = undefined;
+        else {
+          await focus(windowed.map((p) => p.pid));
+          front = await foregroundPid();
+          if (windowed.some((p) => p.pid === front)) this.bringForward = undefined;
+        }
+      }
+      const inFront = windowed.find((p) => p.pid === front);
+      open.push({ id: app.id, front: inFront !== undefined, title: (inFront ?? windowed[0]!).titles.find((t) => t.trim() !== ''), unsaved: windowed.flatMap((p) => p.titles).map(unsavedIn).find(Boolean) });
+    }
+    const said = JSON.stringify(open);
+    if (said === this.told) return;
+    this.told = said;
+    events.apps(open);
+  }
+
+  async openApp(id: string): Promise<'notInstalled' | 'failed' | undefined> {
+    const info = this.info;
+    const app = info?.apps.find((a) => a.id === id);
+    if (!info || !app) return 'failed';
+    const running = this.open.get(id);
+    if (running?.length) return (await focus(running)) ? undefined : 'failed';
+    this.bringForward = { id, tries: 0 };
+    return launch(app, { examFolder: info.examFolder, examProfile: join(this.options.profiles, info.runId, id.replace(/[^\w.-]/g, '_')) }, {
+      env: process.env as Record<string, string>,
+      exists: (path) => access(path).then(() => true, () => false),
+      list: (folder) => readdir(folder).catch(() => []),
+      // started as itself, in the Exam folder — never through a command line, where a word of the exam's could
+      // be read as a command. Its window is maximised when it is brought to the front (under the exam bar, as the
+      // work area ends there)
+      start: async (exe, args, folder) => void spawn(exe, args, { cwd: folder, detached: true, stdio: 'ignore' }).on('error', () => undefined).unref(),
+    });
+  }
+
+  /** The exam bar's window, for the keys that are swallowed only on it. */
+  setBar(hwnd: bigint): void {
+    this.keyboard.setBar(hwnd);
+  }
+
+  async closeApps(): Promise<void> {
+    await this.closeThese(this.info?.apps ?? []);
+  }
+
+  /** Looks at the processes now — an app opened a moment ago is closed too — and waits until they are gone. */
+  private async closeThese(apps: AppProfile[]): Promise<void> {
+    const env = process.env as Record<string, string>;
+    const pids = new Set([...this.open.values()].flat());
+    this.open = new Map();
+    this.bringForward = undefined;
+    if (apps.length === 0) return;
+    const mine = async (): Promise<number[]> => (await listProcesses(true).catch(() => [])).filter((p) => apps.some((a) => matches(p, a, env))).map((p) => p.pid);
+    for (const pid of await mine()) pids.add(pid);
+    for (const pid of pids) await terminate(pid).catch(() => false);
+    for (let i = 0; i < 20 && pids.size > 0 && (await mine()).length > 0; i++) await new Promise((r) => setTimeout(r, 100));
+  }
+
+  async unlock(): Promise<string | void> {
+    this.guardLoop?.stop();
+    this.guardLoop = undefined;
+    // the exam's apps are closed with the exam, and their exam settings removed
+    const apps = this.info?.apps ?? [];
+    await this.closeThese(apps);
+    this.told = '';
+    const runId = this.info?.runId;
+    this.info = undefined;
+    if (runId) await rm(join(this.options.profiles, runId), { recursive: true, force: true, maxRetries: 3 }).catch(() => undefined);
+    await this.keyboard.stop().catch(() => undefined);
+    const secret = this.secret;
+    this.options.clearClipboard();
+    if (!secret) return undefined;
+    const reply = await this.client.ask({ type: 'unlock', secret }).catch((error: unknown) => ({ ok: false as const, why: 'failed' as const, detail: String(error) }));
+    // (the secret is kept until the Guard says it is done: asking again tries again)
+    if (reply.ok) return void (this.secret = undefined);
+    return `This computer couldn't be put back as it was${'detail' in reply && reply.detail ? ` (${reply.detail})` : ''}.`;
+  }
+}

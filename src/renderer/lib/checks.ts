@@ -1,4 +1,4 @@
-import type { Check, CheckName } from '@lib/lockdown/checks';
+import type { Check, CheckName } from '@domain/lockdown/checks';
 
 /** A check in words, for the student (02): what it is, and — when it fails — how to fix it. */
 export function checkWords(c: Check): { title: string; detail: string } {

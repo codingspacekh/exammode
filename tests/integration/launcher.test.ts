@@ -2,9 +2,9 @@ import { existsSync, readFileSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { builtin } from '@lib/profiles/builtin';
-import { customApp } from '@lib/profiles/match';
-import { findExe, launch, type LauncherIo } from '../../src/main/student/launcher';
+import { builtin } from '@domain/profiles/builtin';
+import { customApp } from '@domain/profiles/match';
+import { findExe, launch, type LauncherIo } from '@application/student/launcher';
 import { tempFolder } from './helpers';
 
 /** A lab computer's disk, as far as the launcher looks at it. */

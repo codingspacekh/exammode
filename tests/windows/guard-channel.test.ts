@@ -4,10 +4,10 @@ import { createServer, connect, type AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { GuardClient } from '../../src/guard/pipe';
-import { onlySystem } from '../../src/win/acl';
-import { run } from '../../src/win/run';
-import { ownerOfConnection } from '../../src/win/tcp';
+import { GuardClient } from '@infrastructure/guard/channel';
+import { onlySystem } from '@infrastructure/windows/acl';
+import { run } from '@infrastructure/windows/run';
+import { ownerOfConnection } from '@infrastructure/windows/tcp';
 
 /** The Guard's channel on a real Windows: who is really calling, and a journal folder nobody else can write. */
 const home = mkdtempSync(join(tmpdir(), 'exammode-channel-'));

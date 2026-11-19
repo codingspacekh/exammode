@@ -4,15 +4,15 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { Change } from '@lib/lockdown/journal';
-import { plan } from '@lib/lockdown/plan';
-import type { Stopped } from '@lib/protocol/messages';
-import { Guard } from '../../src/guard/guard';
-import { explorerRunning } from '../../src/win/explorer';
-import { Firewall } from '../../src/win/firewall';
-import { readValue, writeValue } from '../../src/win/registry';
-import { powershellJson, run } from '../../src/win/run';
-import { WindowsSystem } from '../../src/win/system';
+import type { Change } from '@domain/lockdown/journal';
+import { plan } from '@domain/lockdown/plan';
+import type { Stopped } from '@contracts/network/messages';
+import { Guard } from '@application/guard/guard';
+import { explorerRunning } from '@infrastructure/windows/explorer';
+import { Firewall } from '@infrastructure/windows/firewall';
+import { readValue, writeValue } from '@infrastructure/windows/registry';
+import { powershellJson, run } from '@infrastructure/windows/run';
+import { WindowsSystem } from '@infrastructure/windows/system';
 
 /**
  * M4's executors against real Windows (T6, T7): GitHub's Windows runners, as administrator, and a lab computer at

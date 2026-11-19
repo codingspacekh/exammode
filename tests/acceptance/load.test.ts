@@ -1,11 +1,11 @@
 import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { ExamForm, TeacherState } from '@lib/app/state';
-import type { FromStudent } from '@lib/protocol/messages';
-import type { Classroom } from '../../src/main/teacher/classroom';
-import { TeacherDesk } from '../../src/main/teacher/desk';
-import type { Store } from '../../src/main/teacher/store/store';
+import type { ExamForm, TeacherState } from '@contracts/ipc/state';
+import type { FromStudent } from '@contracts/network/messages';
+import type { Classroom } from '@application/teacher/classroom';
+import { TeacherDesk } from '@application/teacher/desk';
+import type { Store } from '@infrastructure/persistence/store';
 import { tempFolder } from '../integration/helpers';
 
 /**

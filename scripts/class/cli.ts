@@ -12,8 +12,8 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { BEACON_PORT, broadcastAddresses } from '../../src/main/teacher/beacon';
-import { PORT } from '../../src/main/teacher/server';
+import { BEACON_PORT, broadcastAddresses } from '@infrastructure/network/beacon';
+import { PORT } from '@infrastructure/network/server';
 import { SimClassroom, type SimStudent } from './sim';
 
 const args = process.argv.slice(2);

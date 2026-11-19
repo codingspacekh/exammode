@@ -1,9 +1,9 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
-import { BROWSER_CALLS, STUDENT_CALLS, TEACHER_CALLS } from '@lib/app/calls';
+import { BROWSER_CALLS, STUDENT_CALLS, TEACHER_CALLS } from '@contracts/ipc/calls';
 
 /**
  * The renderer's only way to the system (architecture §2.2): `window.exammode`, shaped as ExamModeApi
- * (src/lib/app/state.ts). Each side is a state to show and a few things to ask for; the main process only answers
+ * (src/contracts/ipc/state.ts). Each side is a state to show and a few things to ask for; the main process only answers
  * the ones that belong to the mode it runs in.
  */
 function side(name: string, calls: readonly string[]): Record<string, unknown> {

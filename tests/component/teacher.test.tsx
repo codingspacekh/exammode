@@ -1,15 +1,15 @@
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { FeedItem } from '@lib/app/state';
+import type { FeedItem } from '@contracts/ipc/state';
 import { TeacherApp } from '@/App';
-import { After } from '@/teacher/After';
-import { EVENT_KINDS, QUIET } from '@lib/exam/events';
-import { feedLine, timelineLine } from '@/teacher/feed';
-import { Live, lookOf } from '@/teacher/Live';
-import { Lobby } from '@/teacher/Lobby';
-import { Home } from '@/teacher/Home';
-import { MakeExam } from '@/teacher/MakeExam';
+import { After } from '@/screens/teacher/After';
+import { EVENT_KINDS, QUIET } from '@domain/exam/events';
+import { feedLine, timelineLine } from '@/screens/teacher/feed';
+import { Live, lookOf } from '@/screens/teacher/Live';
+import { Lobby } from '@/screens/teacher/Lobby';
+import { Home } from '@/screens/teacher/Home';
+import { MakeExam } from '@/screens/teacher/MakeExam';
 import { at, card, RUN, teacher, teacherApi } from './fakes';
 
 afterEach(() => vi.useRealTimers());

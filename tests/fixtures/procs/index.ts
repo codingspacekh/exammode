@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { signerName, type Env, type ProcInfo } from '@lib/profiles/match';
+import { signerName, type Env, type ProcInfo } from '@domain/profiles/match';
 
 /** A process as spikes/windows/record-fixtures.mjs records it (see README.md). */
 export interface Recorded {

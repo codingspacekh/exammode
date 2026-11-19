@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { Attempt } from '@lib/session/attempt';
-import { Store } from '../../src/main/teacher/store/store';
+import type { Attempt } from '@domain/session/attempt';
+import { Store } from '@infrastructure/persistence/store';
 import { at, openStore, tempFolder, year10 } from './helpers';
 
 const sha = (c: string) => c.repeat(64);
@@ -11,7 +11,7 @@ describe('architecture §2.11 the teacher\'s store', () => {
   it('the migrations inside the program are the ones drizzle-kit generated (npm run db:generate)', async () => {
     const { migrationsModule } = await import('../../scripts/migrations.mjs');
     // (a Windows checkout may have other line ends)
-    expect(readFileSync('src/main/teacher/store/migrations/index.ts', 'utf8').replaceAll('\r\n', '\n')).toBe(migrationsModule());
+    expect(readFileSync('src/infrastructure/persistence/migrations/index.ts', 'utf8').replaceAll('\r\n', '\n')).toBe(migrationsModule());
   });
 
   it('F-43 a class keeps its students, in name order, with their school emails', async () => {

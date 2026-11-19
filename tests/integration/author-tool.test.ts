@@ -3,9 +3,9 @@ import { readFile, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
-import { newKeyPair } from '../../src/trust/keys';
-import { checkLicence } from '../../src/trust/licence';
-import { requestText } from '@lib/trust/licence';
+import { newKeyPair } from '@infrastructure/crypto/keys';
+import { checkLicence } from '@infrastructure/crypto/licence';
+import { requestText } from '@domain/trust/licence';
 import { fileName, give, init, issued, publicKey, read } from '../../scripts/licence/author';
 import { tempFolder } from './helpers';
 

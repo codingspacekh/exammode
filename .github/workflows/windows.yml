@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   push:
     branches: [dev]
-    paths: ['src/win/**', 'src/guard/**', 'src/lib/lockdown/**', 'src/lib/guard/**', 'src/main/shell/**', 'src/main/student/**', 'tests/windows/**', 'tests/e2e/lock.spec.ts', '.github/workflows/windows.yml']
+    paths: ['src/infrastructure/windows/**', 'src/infrastructure/guard/**', 'src/application/guard/**', 'src/application/student/**', 'src/guard/**', 'src/domain/lockdown/**', 'src/domain/guard/**', 'src/main/shell/**', 'tests/windows/**', 'tests/e2e/lock.spec.ts', '.github/workflows/windows.yml']
 permissions:
   contents: read
 concurrency:

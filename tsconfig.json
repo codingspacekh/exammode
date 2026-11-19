@@ -16,7 +16,10 @@
     "allowImportingTsExtensions": true,
     "types": ["node", "vite/client", "@testing-library/jest-dom"],
     "paths": {
-      "@lib/*": ["./src/lib/*"],
+      "@domain/*": ["./src/domain/*"],
+      "@contracts/*": ["./src/contracts/*"],
+      "@application/*": ["./src/application/*"],
+      "@infrastructure/*": ["./src/infrastructure/*"],
       "@/*": ["./src/renderer/*"]
     }
   },

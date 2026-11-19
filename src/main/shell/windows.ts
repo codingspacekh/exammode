@@ -4,7 +4,7 @@
  */
 import { join } from 'node:path';
 import { app, BrowserWindow, ipcMain, type BrowserWindowConstructorOptions } from 'electron';
-import type { Handlers } from '@lib/app/calls';
+import type { Handlers } from '@contracts/ipc/calls';
 import { devEnv } from './env';
 
 export type View = 'student' | 'teacher' | 'bar' | 'browser';

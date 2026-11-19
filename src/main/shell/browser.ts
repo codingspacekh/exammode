@@ -2,11 +2,11 @@
  * The exam browser (F-10, F-13, architecture §2.6): a window of its own, only when the exam has websites. Its top
  * strip (tabs, back, forward, the address shown but not typed) is one of ExamMode's screens; each tab's page is a
  * view under it, in a partition of its own that is wiped at the end. Every request is asked of `decide()`
- * (src/lib/browser/sites.ts). Electron glue: proven by the e2e tests.
+ * (src/domain/browser/sites.ts). Electron glue: proven by the e2e tests.
  */
 import { BrowserWindow, WebContentsView, session, type Rectangle, type Session } from 'electron';
-import type { BrowserState, BrowserTab } from '@lib/app/state';
-import { allowsPage, decide, examSites, hostOf, type ExamSite, type Website } from '@lib/browser/sites';
+import type { BrowserState, BrowserTab } from '@contracts/ipc/state';
+import { allowsPage, decide, examSites, hostOf, type ExamSite, type Website } from '@domain/browser/sites';
 import { createWindow } from './windows';
 
 /** The height of the top strip: the tabs and the bar under them. */

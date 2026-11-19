@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { app, dialog, Menu } from 'electron';
-import { fileLog, type Log } from './log';
+import { fileLog, type Log } from '@infrastructure/log';
 import { devEnv } from './shell/env';
 import { runStudent } from './shell/student';
 import { runTeacher } from './shell/teacher';

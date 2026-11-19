@@ -1,9 +1,9 @@
 import { spawn } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
-import { LISTS } from '@lib/guard/lists';
-import { virtualMachine } from '@lib/lockdown/checks';
-import { ProcessGuard, type Closed, type Procs } from '../../src/main/student/process-guard';
-import { commonName, factsKnown, fileFacts, listProcesses, machine, remoteSession, terminate } from '../../src/win/processes';
+import { LISTS } from '@domain/guard/lists';
+import { virtualMachine } from '@domain/lockdown/checks';
+import { ProcessGuard, type Closed, type Procs } from '@application/student/process-guard';
+import { commonName, factsKnown, fileFacts, listProcesses, machine, remoteSession, terminate } from '@infrastructure/windows/processes';
 
 /** M4's process guard against real Windows (T7). */
 const windows = process.platform === 'win32';

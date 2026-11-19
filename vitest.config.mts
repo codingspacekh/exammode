@@ -3,7 +3,10 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
 const alias = {
-  '@lib': fileURLToPath(new URL('./src/lib', import.meta.url)),
+  '@domain': fileURLToPath(new URL('./src/domain', import.meta.url)),
+  '@contracts': fileURLToPath(new URL('./src/contracts', import.meta.url)),
+  '@application': fileURLToPath(new URL('./src/application', import.meta.url)),
+  '@infrastructure': fileURLToPath(new URL('./src/infrastructure', import.meta.url)),
   '@': fileURLToPath(new URL('./src/renderer', import.meta.url)),
 };
 
@@ -33,19 +36,21 @@ export default defineConfig({
     ],
     coverage: {
       provider: 'v8',
-      include: ['src/lib/**', 'src/main/**', 'src/guard/**', 'src/trust/**'],
-      // index.ts and shell/ are Electron glue (the windows), proven by the e2e tests; the migrations are generated SQL
-      // … and so are the Guard's program and the real lock, which are Windows only (the windows tests prove them)
-      exclude: ['src/main/index.ts', 'src/main/shell/**', 'src/main/student/lockdown-win.ts', 'src/guard/main.ts', 'src/main/teacher/store/migrations/**'],
+      include: ['src/domain/**', 'src/contracts/**', 'src/application/**', 'src/infrastructure/**', 'src/guard/**'],
+      // main/ is the Electron composition root and its glue (the windows), proven by the e2e tests; the migrations are
+      // generated SQL … and the Guard's program, the real lock and the Windows adapters are Windows only (the windows
+      // tests prove them)
+      exclude: ['src/infrastructure/windows/**', 'src/guard/main.ts', 'src/infrastructure/persistence/migrations/**'],
       // MILESTONES §3: the rules are held highest
       thresholds: {
-        'src/lib/session/**': { lines: 95, branches: 95, functions: 95, statements: 95 },
-        'src/lib/guard/**': { lines: 95, branches: 95, functions: 95, statements: 95 },
-        'src/lib/lockdown/**': { lines: 95, branches: 95, functions: 95, statements: 95 },
-        'src/trust/**': { lines: 95, branches: 95, functions: 95, statements: 95 },
-        'src/lib/**': { lines: 90, branches: 90, functions: 90, statements: 90 },
-        'src/main/**': { lines: 85, branches: 85, functions: 85, statements: 85 },
-        'src/guard/**': { lines: 85, branches: 85, functions: 85, statements: 85 },
+        'src/domain/session/**': { lines: 95, branches: 95, functions: 95, statements: 95 },
+        'src/domain/guard/**': { lines: 95, branches: 95, functions: 95, statements: 95 },
+        'src/domain/lockdown/**': { lines: 95, branches: 95, functions: 95, statements: 95 },
+        'src/infrastructure/crypto/**': { lines: 95, branches: 95, functions: 95, statements: 95 },
+        'src/domain/**': { lines: 90, branches: 90, functions: 90, statements: 90 },
+        'src/contracts/**': { lines: 90, branches: 90, functions: 90, statements: 90 },
+        'src/application/**': { lines: 85, branches: 85, functions: 85, statements: 85 },
+        'src/infrastructure/**': { lines: 85, branches: 85, functions: 85, statements: 85 },
       },
     },
   },

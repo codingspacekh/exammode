@@ -2,14 +2,14 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
-import { receiptCode } from '@lib/files/receipt';
+import { receiptCode } from '@domain/files/receipt';
 import { SimClassroom, type SimOptions } from '../../scripts/class/sim';
-import { Discovery, examsAt, namesOf } from '../../src/main/student/discovery';
-import { BACKUP_MS } from '../../src/main/student/exam';
-import { sendFiles, uploadOf } from '../../src/main/student/files';
-import { Session, type SessionEvent } from '../../src/main/student/session';
-import { broadcastAddresses } from '../../src/main/teacher/beacon';
-import { EARLIER } from '../../src/main/teacher/classroom';
+import { Discovery, examsAt, namesOf } from '@infrastructure/network/discovery';
+import { BACKUP_MS } from '@application/student/exam';
+import { sendFiles, uploadOf } from '@infrastructure/fs/exam-folder';
+import { Session, type SessionEvent } from '@application/student/session';
+import { broadcastAddresses } from '@infrastructure/network/beacon';
+import { EARLIER } from '@application/teacher/classroom';
 import { later } from './helpers';
 
 const v = 1;
@@ -468,7 +468,9 @@ describe('F-16 F-17 F-22 files over the network', () => {
     await dara.write('Report.docx', 'mine');
     let refused = 0;
     dara.exam!.on((e) => e.type === 'handInRefused' && refused++);
-    await sim.room.receive({ send: () => undefined, close: () => undefined }, { v, type: 'join', runId: sim.room.id, studentId: dara.id, code: sim.code, pc: dara.pc, instanceId: 'another-examMode', bootId: 'b' });
+    // (the Guard says her ExamMode stopped: she is out, whatever her beats say — a second join in her name while they
+    // come would be refused as nameTaken instead, M8.md §3 row 1)
+    expect(await sim.room.stopped({ v, type: 'stopped', token: dara.session!.token!, pc: dara.pc, instanceId: dara.instanceId, at: Date.now() })).toBe(true);
     expect(sim.view('Dara Kim').state).toBe('left');
     expect(await dara.handIn()).toBeUndefined();
     expect(refused).toBe(1);

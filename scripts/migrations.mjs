@@ -1,9 +1,9 @@
-// Writes src/main/teacher/store/migrations/index.ts from the .sql files that drizzle-kit generated, so the
+// Writes src/infrastructure/persistence/migrations/index.ts from the .sql files that drizzle-kit generated, so the
 // migrations are part of the program itself: nothing to find on disk when ExamMode is installed.
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-const folder = fileURLToPath(new URL('../src/main/teacher/store/migrations/', import.meta.url));
+const folder = fileURLToPath(new URL('../src/infrastructure/persistence/migrations/', import.meta.url));
 
 export function migrationsModule() {
   const files = readdirSync(folder).filter((name) => name.endsWith('.sql')).sort();

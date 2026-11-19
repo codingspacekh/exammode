@@ -3,20 +3,20 @@
  * the exam, the exam bar across the top of the screen (04) and — only if the exam has websites — the exam browser
  * under it. What they show is the student's flow (flow.ts). Electron glue: proven by the e2e tests.
  */
-import { fileLog } from '../log';
+import { fileLog } from '@infrastructure/log';
 import { devEnv } from './env';
-import { AUTHOR, REQUEST_ADDRESS } from '@lib/trust/author';
-import type { RequestForm } from '../teacher/licence';
+import { AUTHOR, REQUEST_ADDRESS } from '@domain/trust/author';
+import type { RequestForm } from '@application/licence/licence';
 import { teacherLicence, trust } from './trust';
 import { readFile } from 'node:fs/promises';
-import type { Installed } from '@lib/profiles/inventory';
+import type { Installed } from '@domain/profiles/inventory';
 import { mkdirSync } from 'node:fs';
 import { hostname, uptime } from 'node:os';
 import { dirname, join } from 'node:path';
 import { app, clipboard, dialog, screen, shell, type BrowserWindow } from 'electron';
-import type { BrowserApi, BrowserState, StudentApi, StudentState } from '@lib/app/state';
-import { StudentFlow } from '../student/flow';
-import type { WindowsLockdown } from '../student/lockdown-win';
+import type { BrowserApi, BrowserState, StudentApi, StudentState } from '@contracts/ipc/state';
+import { StudentFlow } from '@application/student/flow';
+import type { WindowsLockdown } from '@infrastructure/windows/lockdown';
 import { ExamBrowser } from './browser';
 import { createWindow, serve } from './windows';
 
@@ -33,8 +33,8 @@ const number = (text: string | undefined): number | undefined => (text ? Number(
 async function lockdownFor(env: NodeJS.ProcessEnv): Promise<WindowsLockdown | undefined> {
   if (process.platform !== 'win32' || !(app.isPackaged || env.EXAMMODE_LOCK === '1')) return undefined;
   const dev = !app.isPackaged;
-  const { WindowsLockdown } = await import('../student/lockdown-win');
-  const { listProcesses } = await import('../../win/processes');
+  const { WindowsLockdown } = await import('@infrastructure/windows/lockdown');
+  const { listProcesses } = await import('@infrastructure/windows/processes');
   const running = dev && (env.EXAMMODE_ALLOW_RUNNING === '1' || env.EXAMMODE_KEEP_REACHABLE) ? await listProcesses(false) : [];
   const images = (keep: (p: (typeof running)[number]) => boolean) => [...new Set(running.filter((p) => p.image && keep(p)).map((p) => p.image!))];
   // what has a window when ExamMode starts is left alone (GitHub's own agent, on its computers)
@@ -71,7 +71,7 @@ export async function runStudent(): Promise<void> {
     // what this computer has installed, for the teacher's Add an app; (development: from a file)
     installed: env.EXAMMODE_INSTALLED && !app.isPackaged
       ? async () => JSON.parse(await readFile(env.EXAMMODE_INSTALLED!, 'utf8')) as Installed
-      : process.platform === 'win32' ? async () => (await import('../../win/installed')).installed() : undefined,
+      : process.platform === 'win32' ? async () => (await import('@infrastructure/windows/installed')).installed() : undefined,
   });
 
   const main = createWindow('student', { width: 1440, height: 900, minWidth: 1280, minHeight: 720 });
@@ -186,10 +186,10 @@ export async function runStudent(): Promise<void> {
   }
 
   let barHandle: bigint | undefined;
-  let appbar: typeof import('../../win/appbar') | undefined;
+  let appbar: typeof import('@infrastructure/windows/appbar') | undefined;
   /** Keeps the top of the screen for the bar's window. */
   async function reserve(win: BrowserWindow): Promise<void> {
-    appbar ??= await import('../../win/appbar');
+    appbar ??= await import('@infrastructure/windows/appbar');
     const display = screen.getPrimaryDisplay();
     const hwnd = win.getNativeWindowHandle().readBigUInt64LE(0);
     const px = (dip: number) => Math.round(dip * display.scaleFactor);

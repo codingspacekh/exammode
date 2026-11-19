@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { LISTS } from '@lib/guard/lists';
-import type { AppProfile } from '@lib/profiles/schema';
-import { ProcessGuard, type Closed, type Proc, type Procs } from '../../src/main/student/process-guard';
+import { LISTS } from '@domain/guard/lists';
+import type { AppProfile } from '@domain/profiles/schema';
+import { ProcessGuard, type Closed, type Proc, type Procs } from '@application/student/process-guard';
 import { word } from '../fixtures/profiles';
 
 /** A computer's processes that the test starts and that the guard closes. */

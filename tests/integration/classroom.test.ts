@@ -3,11 +3,11 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { describe, expect, it } from 'vitest';
-import { receiptCode } from '@lib/files/receipt';
-import type { FromStudent, FromTeacher, Upload } from '@lib/protocol/messages';
-import { Classroom, EARLIER, WRONG_CODES, type Link } from '../../src/main/teacher/classroom';
-import { newIncoming, receive, type Received } from '../../src/main/teacher/handIns';
-import type { Store } from '../../src/main/teacher/store/store';
+import { receiptCode } from '@domain/files/receipt';
+import type { FromStudent, FromTeacher, Upload } from '@contracts/network/messages';
+import { Classroom, EARLIER, WRONG_CODES, type Link } from '@application/teacher/classroom';
+import { newIncoming, receive, type Received } from '@infrastructure/fs/hand-ins';
+import type { Store } from '@infrastructure/persistence/store';
 import { at, openStore, tempFolder, year10 } from './helpers';
 
 const v = 1;

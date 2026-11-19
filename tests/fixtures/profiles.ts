@@ -1,4 +1,4 @@
-import { appProfile, type AppProfile } from '@lib/profiles/schema';
+import { appProfile, type AppProfile } from '@domain/profiles/schema';
 
 /** Profiles for the rules' tests, as profiles/*.json will hold them (architecture §2.10; the real ones come in M5). */
 export const vscodeJson = {

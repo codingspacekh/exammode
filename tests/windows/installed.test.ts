@@ -1,8 +1,8 @@
 import { existsSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { isProgramPath } from '@lib/profiles/exam-apps';
-import { inventory, PROTOCOL_VERSION } from '@lib/protocol/messages';
-import { installed } from '../../src/win/installed';
+import { isProgramPath } from '@domain/profiles/exam-apps';
+import { inventory, PROTOCOL_VERSION } from '@contracts/network/messages';
+import { installed } from '@infrastructure/windows/installed';
 
 /** F-31a on a real Windows: its own list of installed programs, read for the teacher's Add an app. */
 describe('F-31a what this computer has installed', () => {

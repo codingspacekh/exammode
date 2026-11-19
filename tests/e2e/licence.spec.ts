@@ -5,9 +5,9 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test';
-import { newKeyPair } from '../../src/trust/keys';
-import { issue } from '../../src/trust/licence';
-import { parseRequest } from '../../src/lib/trust/licence';
+import { newKeyPair } from '@infrastructure/crypto/keys';
+import { issue } from '@infrastructure/crypto/licence';
+import { parseRequest } from '@domain/trust/licence';
 
 /**
  * M7's gate (MILESTONES §6): a teacher asks for a licence and runs an exam with it. The built app: first as it is

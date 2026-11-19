@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
 import { SimClassroom, type SimOptions } from '../../scripts/class/sim';
-import { batches, hashFile, uploadOf } from '../../src/main/student/files';
-import { WRONG_CODES } from '../../src/main/teacher/classroom';
+import { batches, hashFile, uploadOf } from '@infrastructure/fs/exam-folder';
+import { WRONG_CODES } from '@application/teacher/classroom';
 import { later } from './helpers';
 
 /**
